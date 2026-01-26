@@ -78,139 +78,71 @@ Web 管理端（浏览器）
 
 
 星轨Runner-Web端/
-
-├── README.md                     # 项目说明（你刚刚已经有了）
-
+├── README.md                     # 项目说明
 ├── package.json                  # 前端依赖与脚本
-
-├── vite.config.js                # Vite 配置（代理/路径别名等）
-
+├── vite.config.js                # Vite 配置（代理 / 路径别名等）
 ├── index.html                    # Web 入口 HTML
-
 ├── .gitignore                    # Git 忽略文件
-
 ├── .env                          # 环境变量（envId、模式等）
-
 ├── .env.production               # 生产环境变量
-
 │
-
 ├── public/                       # 静态资源（不经 Vite 处理）
-
 │   ├── favicon.ico
-
 │   └── logo.png
-
 │
-
 ├── src/                          # 核心源码目录
-
 │   ├── main.js                   # 应用入口
-
 │   ├── App.vue                   # 根组件
-
-│
-
-│   ├── cloud/                    # CloudBase 相关封装（重点）
-
+│   │
+│   ├── cloud/                    # CloudBase 相关封装 ⭐
 │   │   ├── index.js              # CloudBase 初始化
-
-│   │   └── auth.js               # CloudBase 登录（匿名/自定义）
-
-│
-
-│   ├── api/                      # 云函数 API 封装（重点）
-
-│   │   ├── admin.js              # 管理端 API（login / appeals / stats）
-
-│   │   └── request.js            # callFunction 统一封装（自动带 adminToken）
-
-│
-
+│   │   └── auth.js               # CloudBase 登录（匿名 / 自定义）
+│   │
+│   ├── api/                      # 云函数 API 封装 ⭐
+│   │   ├── admin.js              # 管理端 API
+│   │   └── request.js            # callFunction 统一封装
+│   │
 │   ├── router/                   # 路由
-
-│   │   ├── index.js              # 路由定义
-
-│   │   └── guard.js              # 路由守卫（token 校验）
-
-│
-
-│   ├── store/                    # 全局状态（Pinia / Vuex）
-
-│   │   └── admin.js              # 管理员信息、角色、登录态
-
-│
-
+│   │   ├── index.js
+│   │   └── guard.js              # 路由守卫
+│   │
+│   ├── store/                    # 全局状态（Pinia）
+│   │   └── admin.js
+│   │
 │   ├── views/                    # 页面级组件
-
-│   │   ├── Login.vue             # 登录页
-
-│   │   ├── Dashboard.vue         # 数据统计总览
-
-│   │   ├── Appeals/              # 申诉相关页面
-
-│   │   │   ├── AppealList.vue    # 申诉列表
-
-│   │   │   └── AppealDetail.vue  # 申诉详情 / 终审
-
-│   │   ├── Users/                # 用户管理
-
+│   │   ├── Login.vue
+│   │   ├── Dashboard.vue
+│   │   ├── Appeals/
+│   │   │   ├── AppealList.vue
+│   │   │   └── AppealDetail.vue
+│   │   ├── Users/
 │   │   │   └── UserList.vue
-
-│   │   └── Export.vue            # 数据导出页面
-
-│
-
+│   │   └── Export.vue
+│   │
 │   ├── components/               # 可复用组件
-
-│   │   ├── Layout/               # 后台布局
-
+│   │   ├── Layout/
 │   │   │   ├── Sidebar.vue
-
 │   │   │   ├── Header.vue
-
 │   │   │   └── Layout.vue
-
-│   │   ├── StatCard.vue           # 统计卡片
-
-│   │   └── ConfirmDialog.vue      # 通用确认弹窗
-
-│
-
+│   │   ├── StatCard.vue
+│   │   └── ConfirmDialog.vue
+│   │
 │   ├── utils/                    # 工具函数
-
-│   │   ├── token.js              # adminToken 读写/过期判断
-
-│   │   ├── time.js               # 时间处理
-
-│   │   └── permission.js         # 角色权限判断
-
-│
-
+│   │   ├── token.js
+│   │   ├── time.js
+│   │   └── permission.js
+│   │
 │   ├── styles/                   # 全局样式
-
 │   │   ├── index.css
-
 │   │   └── variables.scss
-
-│
-
+│   │
 │   └── constants/                # 常量定义
-
-│       ├── roles.js              # admin / reviewer / analyst
-
-│       └── status.js             # 申诉/打卡状态枚举
-
+│       ├── roles.js
+│       └── status.js
 │
-
-├── dist/                         # 构建产物（部署到 CloudBase 静态托管）
-
+├── dist/                         # 构建产物（部署用）
 │
-
-└── docs/                         # 项目文档（强烈推荐）
-
-    ├── architecture.md           # 系统架构说明
-
-    ├── api-spec.md               # 云函数接口约定
-
-    └── deploy.md                 # 部署说明
+└── docs/                         # 项目文档
+    ├── architecture.md
+    ├── api-spec.md
+    └── deploy.md
