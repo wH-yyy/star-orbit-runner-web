@@ -1,0 +1,311 @@
+<script setup>
+import { ref } from 'vue';
+
+// 导出选项
+const exportOptions = ref({
+  dataType: 'userList', // userList, runRecords, awards
+  dateRange: {
+    start: '',
+    end: ''
+  },
+  includeDetails: false
+});
+
+// 导出数据
+const exportData = () => {
+  console.log('导出数据选项:', exportOptions.value);
+  // 这里可以添加API调用逻辑
+  alert('数据导出功能已触发，实际项目中会调用后端API生成并下载Excel文件');
+};
+</script>
+
+<template>
+  <div class="data-export-page">
+    <h2 class="page-title">数据导出</h2>
+
+    <!-- 导出配置表单 -->
+    <div class="export-form">
+      <div class="form-section">
+        <h3>导出配置</h3>
+
+        <!-- 数据类型选择 -->
+        <div class="form-item">
+          <label class="form-label">数据类型</label>
+          <div class="form-control">
+            <select v-model="exportOptions.dataType" class="select-control">
+              <option value="userList">用户名单</option>
+              <option value="runRecords">打卡记录</option>
+              <option value="awards">获奖数据</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- 日期范围选择 -->
+        <div class="form-item">
+          <label class="form-label">日期范围</label>
+          <div class="date-range">
+            <input
+                type="date"
+                v-model="exportOptions.dateRange.start"
+                class="date-input"
+                placeholder="开始日期"
+            />
+            <span class="date-separator">至</span>
+            <input
+                type="date"
+                v-model="exportOptions.dateRange.end"
+                class="date-input"
+                placeholder="结束日期"
+            />
+          </div>
+        </div>
+
+        <!-- 包含详细信息 -->
+        <div class="form-item">
+          <label class="checkbox-label">
+            <input
+                type="checkbox"
+                v-model="exportOptions.includeDetails"
+                class="checkbox-input"
+            />
+            <span class="checkbox-text">包含详细信息</span>
+          </label>
+        </div>
+
+        <!-- 导出按钮 -->
+        <div class="form-actions">
+          <button @click="exportData" class="btn btn-primary btn-lg">
+            导出数据
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 导出说明 -->
+    <div class="export-guide">
+      <h3>导出说明</h3>
+      <div class="guide-content">
+        <div class="guide-item">
+          <h4>用户名单</h4>
+          <p>包含所有参与活动的用户基本信息，如姓名、学号、院系等。</p>
+        </div>
+        <div class="guide-item">
+          <h4>打卡记录</h4>
+          <p>包含所有用户的打卡记录，如打卡时间、距离、配速等详细信息。</p>
+        </div>
+        <div class="guide-item">
+          <h4>获奖数据</h4>
+          <p>包含根据打卡次数和里程评选出的获奖用户信息。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.data-export-page {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.page-title {
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 24px;
+  color: #303133;
+}
+
+/* 导出表单样式 */
+.export-form {
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  padding: 24px;
+  margin-bottom: 32px;
+}
+
+.form-section h3 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  color: #303133;
+}
+
+.form-item {
+  margin-bottom: 20px;
+}
+
+.form-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: #606266;
+  margin-bottom: 8px;
+}
+
+.form-control {
+  width: 100%;
+}
+
+.select-control {
+  width: 100%;
+  padding: 10px 16px;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: #ffffff;
+  cursor: pointer;
+  transition: border-color 0.3s ease;
+  color: #606266;
+}
+
+.select-control:focus {
+  outline: none;
+  border-color: #409eff;
+  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.1);
+}
+
+/* 日期范围选择样式 */
+.date-range {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.date-input {
+  flex: 1;
+  min-width: 150px;
+  padding: 10px 16px;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: border-color 0.3s ease;
+  color: #606266;
+}
+
+.date-input:focus {
+  outline: none;
+  border-color: #409eff;
+  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.1);
+}
+
+.date-input::placeholder {
+  color: #c0c4cc;
+}
+
+.date-separator {
+  color: #909399;
+  white-space: nowrap;
+}
+
+/* 复选框样式 */
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: 14px;
+  color: #606266;
+}
+
+.checkbox-input {
+  margin-right: 8px;
+  cursor: pointer;
+}
+
+.checkbox-text {
+  user-select: none;
+}
+
+/* 表单操作按钮样式 */
+.form-actions {
+  margin-top: 24px;
+}
+
+.btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-lg {
+  padding: 12px 24px;
+  font-size: 16px;
+}
+
+.btn-primary {
+  background-color: #409eff;
+  color: #ffffff;
+  border: 1px solid #409eff;
+}
+
+.btn-primary:hover {
+  background-color: #66b1ff;
+  border-color: #66b1ff;
+}
+
+.btn-primary:active {
+  background-color: #3a8ee6;
+  border-color: #3a8ee6;
+}
+
+/* 导出说明样式 */
+.export-guide {
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  padding: 24px;
+}
+
+.export-guide h3 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: #303133;
+}
+
+.guide-content {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+}
+
+.guide-item h4 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #303133;
+}
+
+.guide-item p {
+  font-size: 12px;
+  color: #909399;
+  line-height: 1.4;
+  margin: 0;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .date-range {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .date-input {
+    width: 100%;
+  }
+
+  .guide-content {
+    grid-template-columns: 1fr;
+  }
+
+  .data-export-page {
+    padding: 12px;
+  }
+}
+</style>

@@ -1,73 +1,146 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import {createRouter, createWebHistory} from 'vue-router'
+import store from "../store/store.js"
 
-// 导入页面组件
-import Login from '../views/Login.vue'
-import Layout from '../components/Layout/Layout.vue'
-import Dashboard from '../views/Dashboard.vue'
-import UserList from '../views/Users/Userlist.vue'
-import AppealList from '../views/Appeals/AppealList.vue'
-import AppealDetail from '../views/Appeals/AppealDetail.vue'
+// 页面导入
+const Login = () => import('../views/Login.vue')
+const NotFound = () => import('../views/NotFound.vue')
 
-// 定义路由规则
+// 系统管理员端
+const AdminLayout = () => import('../views/admin/AdminLayout.vue')
+const AdminOverview = () => import('../views/admin/Overview.vue')
+const AdminUserManagement = () => import('../views/admin/UserManagement.vue')
+const AdminStaffAccount = () => import('../views/admin/StaffAccount.vue')
+const AdminDataExport = () => import('../views/admin/DataExport.vue')
+const AdminActivityConfig = () => import('../views/admin/ActivityConfig.vue')
+
+// 工作人员页面
+const StaffLayout = () => import('../views/staff/StaffLayout.vue')
+const StaffOverview = () => import('../views/staff/Overview.vue')
+const StaffAudit = () => import('../views/staff/Audit.vue')
+const StaffAppeal = () => import('../views/staff/Appeal.vue')
+const StaffActivityStats = () => import('../views/staff/ActivityStats.vue')
+
+// 路由规则
 const routes = [
-  {
-    path: '/login',
-    name: 'Login',
-    component: Login,
-    meta: { title: '登录' }
-  },
-  {
-    path: '/',
-    component: Layout,
-    redirect: '/dashboard',
-    children: [
-      {
-        path: 'dashboard',
-        name: 'Dashboard',
-        component: Dashboard,
-        meta: { title: '仪表盘' }
-      },
-      {
-        path: 'users',
-        name: 'UserList',
-        component: UserList,
-        meta: { title: '用户管理' }
-      },
-      {
-        path: 'appeals',
-        name: 'AppealList',
-        component: AppealList,
-        meta: { title: '申诉列表' }
-      },
-      {
-        path: 'appeals/:id',
-        name: 'AppealDetail',
-        component: AppealDetail,
-        meta: { title: '申诉详情' }
-      }
-    ]
-  }
+    {
+        path: '/',
+        redirect: () => {
+            // 根据登录状态动态重定向
+            const isAuthenticated = store.state.user.token
+            const userRole = store.state.user.role
+
+            if (!isAuthenticated) {
+                return '/login'
+            } else if (userRole === 'admin') {
+                return '/admin/overview'
+            } else if (userRole === 'staff') {
+                return '/staff/overview'
+            }
+            return '/login'
+        }
+    },
+    {
+        path: '/login',
+        name: 'Login',
+        component: Login,
+        meta: {guest: true}
+    },
+    {
+        path: '/admin',
+        component: AdminLayout,
+        meta: {requiresAuth: true, role: 'admin'},
+        children: [
+            {path: '', redirect: 'overview'},
+            {
+                path: 'overview', name: 'AdminOverview', component: AdminOverview,
+                meta: {requiresAuth: true, role: 'admin'}
+            },
+            {
+                path: 'user-management', name: 'AdminUsers', component: AdminUserManagement,
+                meta: {requiresAuth: true, role: 'admin'}
+            },
+            {
+                path: 'staff-account', name: 'AdminStaff', component: AdminStaffAccount,
+                meta: {requiresAuth: true, role: 'admin'}
+            },
+            {
+                path: 'data-export', name: 'AdminDataExport', component: AdminDataExport,
+                meta: {requiresAuth: true, role: 'admin'}
+            },
+            {
+                path: 'activity-config', name: 'AdminSettings', component: AdminActivityConfig,
+                meta: {requiresAuth: true, role: 'admin'}
+            }
+        ]
+    },
+    {
+        path: '/staff',
+        component: StaffLayout,
+        meta: {requiresAuth: true, role: 'staff'},
+        children: [
+            {path: '', redirect: 'overview'},
+            {
+                path: 'overview', name: 'StaffOverview', component: StaffOverview,
+                meta: {requiresAuth: true, role: 'staff'}
+            },
+            {
+                path: 'audit', name: 'StaffAudit', component: StaffAudit,
+                meta: {requiresAuth: true, role: 'staff'}
+            },
+            {
+                path: 'appeal', name: 'StaffAppeal', component: StaffAppeal,
+                meta: {requiresAuth: true, role: 'staff'}
+            },
+            {
+                path: 'activity-stats', name: 'StaffStats', component: StaffActivityStats,
+                meta: {requiresAuth: true, role: 'staff'}
+            }
+        ]
+    },
+    {path: '/:pathMatch(.*)*', component: NotFound}
 ]
 
-// 创建路由实例
 const router = createRouter({
-  history: createWebHistory(),
-  routes
+    history: createWebHistory(),
+    routes
 })
 
-// 路由守卫：检查登录状态
+// 路由守卫
 router.beforeEach((to, from, next) => {
-  const token = localStorage.getItem('token')
-  
-  // 如果访问的不是登录页，且没有 token，则跳转到登录页
-  if (to.path !== '/login' && !token) {
-    next('/login')
-  } else if (to.path === '/login' && token) {
-    // 如果已登录且访问登录页，跳转到首页
-    next('/dashboard')
-  } else {
+    const isAuthenticated = store.state.user.token
+    const userRole = store.state.user.role
+
+    // 获取所有匹配的路由记录（包括父路由）
+    const matchedRecords = to.matched
+
+    // 检查是否需要认证
+    const needsAuth = matchedRecords.some(record => record.meta.requiresAuth)
+    const requiredRole = matchedRecords.reduce((role, record) => {
+        return record.meta.role || role
+    }, null)
+
+    // 认证检查
+    if (needsAuth && !isAuthenticated) {
+        next('/login')
+        return
+    }
+
+    // 角色检查
+    if (needsAuth && requiredRole && requiredRole !== userRole) {
+        // 角色不符，重定向到用户有权访问的首页
+        const fallbackRoute = userRole === 'admin' ? '/admin/overview' : '/staff/overview'
+        next(fallbackRoute)
+        return
+    }
+
+    // 已登录访问登录页
+    if (to.meta.guest && isAuthenticated) {
+        const fallbackRoute = userRole === 'admin' ? '/admin/overview' : '/staff/overview'
+        next(fallbackRoute)
+        return
+    }
+
     next()
-  }
 })
 
 export default router

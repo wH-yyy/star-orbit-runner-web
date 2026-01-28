@@ -1,8 +1,10 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useStore } from 'vuex'
 
 const router = useRouter()
+const store = useStore()
 
 // 表单数据
 const username = ref('')
@@ -21,19 +23,33 @@ const handleLogin = async () => {
   loading.value = true
   errorMsg.value = ''
 
-  // 模拟登录请求（延迟 1 秒）
-  setTimeout(() => {
-    console.log('登录信息：', { username: username.value, password: password.value })
-    
-    // 模拟登录成功，保存 token
-    localStorage.setItem('token', 'demo-token-' + Date.now())
-    localStorage.setItem('username', username.value)
-    
+  try {
+    // 调用store的login action
+    const result = await store.dispatch('login', {
+      username: username.value,
+      password: password.value
+    })
+
+    if (result.success) {
+      // 登录成功，跳转到对应角色的首页
+      if (result.role === 'admin') {
+        router.push('/admin/overview')
+      } else if (result.role === 'staff') {
+        router.push('/staff/overview')
+      } else {
+        router.push('/login')
+      }
+    } else {
+      // 登录失败，显示错误信息
+      errorMsg.value = result.error || '登录失败'
+    }
+  } catch (error) {
+    // 捕获异常
+    errorMsg.value = error.message || '登录过程中发生错误'
+    console.error('登录失败:', error)
+  } finally {
     loading.value = false
-    
-    // 跳转到仪表盘
-    router.push('/dashboard')
-  }, 1000)
+  }
 }
 </script>
 
