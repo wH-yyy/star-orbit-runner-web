@@ -140,6 +140,20 @@ router.beforeEach((to, from, next) => {
         return
     }
 
+    // 根路径重定向
+    if (to.path === '/') {
+        if (!isAuthenticated) {
+            next('/login')
+        } else if (userRole === 'admin') {
+            next('/admin/overview')
+        } else if (userRole === 'staff') {
+            next('/staff/overview')
+        } else {
+            next('/login')
+        }
+        return
+    }
+
     next()
 })
 

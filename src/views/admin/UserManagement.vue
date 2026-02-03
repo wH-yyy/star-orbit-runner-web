@@ -37,8 +37,6 @@ const changeStatus = (userId, newStatus) => {
 
 <template>
   <div class="user-management-page">
-    <h2 class="page-title">用户管理</h2>
-
     <!-- 搜索和筛选区域 -->
     <div class="search-filter-section">
       <div class="search-box">

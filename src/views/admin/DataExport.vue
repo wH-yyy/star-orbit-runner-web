@@ -21,8 +21,6 @@ const exportData = () => {
 
 <template>
   <div class="data-export-page">
-    <h2 class="page-title">数据导出</h2>
-
     <!-- 导出配置表单 -->
     <div class="export-form">
       <div class="form-section">
@@ -104,9 +102,8 @@ const exportData = () => {
 
 <style scoped>
 .data-export-page {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 20px;
+  width: 100%;
+  padding: 0;
 }
 
 .page-title {

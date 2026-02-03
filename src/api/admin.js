@@ -1,46 +1,82 @@
 /**
- * 管理员相关API
+ * 认证相关API
  */
 import { post } from './request';
+import { callFunction, ensureCloudLogin } from "../cloud";
 
-/**
- * 登录API
- * @param {object} credentials - 登录凭证
- * @param {string} credentials.username - 用户名
- * @param {string} credentials.password - 密码
- * @returns {Promise} - 登录结果
- */
-export const login = async (credentials) => {
+export async function login(username, password) {
+  console.log("login called with:", username, password?.length);
+
   try {
-    // 这里可以添加模拟登录逻辑，因为实际API可能不可用
-    // 模拟登录成功
-    return {
-      success: true,
-      token: 'demo-token-' + Date.now(),
-      user: {
-        id: 1,
-        username: credentials.username,
-        name: credentials.username,
-        role: 'admin',
-        avatar: '👤'
-      }
-    };
-    
-    // 实际API调用
-    // return await post('/login', credentials);
-  } catch (error) {
-    console.error('登录失败:', error);
-    return {
-      success: false,
-      error: error.message || '登录失败'
-    };
-  }
-};
+    await ensureCloudLogin();
+    console.log("BEFORE CALL");
 
-/**
- * 获取用户列表
- * @returns {Promise} - 用户列表
- */
+    const res = await callFunction({
+      name: "admin-api",
+      data: {
+        action: "admin/login",
+        username,
+        password,
+      },
+    });
+
+    console.log("AFTER CALL raw =>", res);
+    console.log("AFTER CALL result =>", res?.result);
+
+    const result = res?.result;
+    if (!result) {
+      throw new Error("云函数无返回 result");
+    }
+
+    if (result.code !== 0) {
+      throw new Error(`[${result.code}] ${result.message || "登录失败"}`);
+    }
+
+    return result.data; // { token, admin }
+
+  } catch (err) {
+    // ⭐⭐⭐ 关键：这里一定要打印
+    console.error("login ERROR =>", err);
+
+    // CloudBase 有时会把信息放在 err.message / err.response
+    if (err?.message) {
+      throw new Error(err.message);
+    }
+
+    throw new Error("调用云函数失败");
+  }
+}
+
+
+
+// export const login = async (credentials) => {
+//   try {
+//     // 这里可以添加模拟登录逻辑，因为实际API可能不可用
+//     // 模拟登录成功
+//     return {
+//       success: true,
+//       token: 'demo-token-' + Date.now(),
+//       user: {
+//         id: 1,
+//         username: credentials.username,
+//         name: credentials.username,
+//         role: 'admin',
+//         avatar: '👤'
+//       }
+//     };
+//
+//     // 实际API调用
+//     // return await post('/login', credentials);
+//   } catch (error) {
+//     console.error('登录失败:', error);
+//     return {
+//       success: false,
+//       error: error.message || '登录失败'
+//     };
+//   }
+// };
+
+
 export const getUserList = async () => {
   try {
     // 模拟数据

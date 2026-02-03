@@ -164,8 +164,6 @@ onMounted(() => {
   <div class="appeal-container">
     <!-- 列表视图 -->
     <div v-if="currentView === 'list'" class="appeal-list">
-      <h2 class="page-title">📝 申诉列表</h2>
-
       <!-- 筛选栏 -->
       <div class="filter-bar">
         <div class="filter-group">

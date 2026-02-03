@@ -1,5 +1,5 @@
 import { createStore } from 'vuex'
-import { login as loginApi } from '../api/admin.js'
+import { login as loginApi } from '../api/login.js'
 
 // 安全的 JSON 解析
 const safeParseJSON = (str, defaultValue = {}) => {
@@ -99,27 +99,36 @@ const store = createStore({
     },
 
     actions: {
-        async login({ commit }, credentials) {
+        async login({ commit }, { username, password, role }) {
             try {
                 commit('SET_LOADING', true)
                 commit('CLEAR_MESSAGE')
 
                 // 调用登录API
-                const data = await loginApi(credentials)
+                const data = await loginApi(username, password, role)
 
-                if (data.success) {
-                    commit('SET_USER', data)
-                    commit('SET_MESSAGE', {
-                        message: '登录成功',
-                        type: 'success'
-                    })
-                    return {
-                        success: true,
-                        role: data.user?.role,
-                        data: data
+                // 构造返回数据结构
+                const responseData = {
+                    success: true,
+                    token: data.token,
+                    user: {
+                        id: data.admin?.id || data.staff?.id || 1,
+                        username: data.admin?.username || data.staff?.username || username,
+                        name: data.admin?.name || data.staff?.name || username,
+                        role: data.admin?.role || data.staff?.role || role,
+                        avatar: '👤'
                     }
-                } else {
-                    throw new Error(data.error || data.message || '登录失败')
+                }
+
+                commit('SET_USER', responseData)
+                commit('SET_MESSAGE', {
+                    message: '登录成功',
+                    type: 'success'
+                })
+                return {
+                    success: true,
+                    role: responseData.user?.role,
+                    data: responseData
                 }
             } catch (error) {
                 let errorMessage = '登录失败'

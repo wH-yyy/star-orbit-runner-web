@@ -2,16 +2,19 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useStore } from 'vuex'
+import EditProfileDialog from '../EditProfileDialog.vue'
 
 const router = useRouter()
 const route = useRoute()
 const store = useStore()
 const showDropdown = ref(false)
 const currentTime = ref('')
+const showEditDialog = ref(false)
 
 // 从 store 获取用户信息
 const userInfo = computed(() => ({
   name: store.state.user.info?.name || '用户',
+  email: store.state.user.info?.email || '',
   avatar: '👤'
 }))
 
@@ -56,9 +59,21 @@ const closeDropdown = () => {
 
 // 编辑个人信息
 const editProfile = () => {
-  console.log('编辑个人信息')
   closeDropdown()
-  // 这里可以添加编辑个人信息的逻辑
+  showEditDialog.value = true
+}
+
+// 保存个人信息
+const saveProfile = (formData) => {
+  console.log('保存个人信息:', formData)
+  // 更新 store 中的用户信息
+  store.dispatch('updateUserInfo', formData)
+  
+  // 显示保存成功的消息
+  store.commit('SET_MESSAGE', {
+    message: '个人信息更新成功',
+    type: 'success'
+  })
 }
 
 // 退出登录
@@ -138,6 +153,13 @@ onMounted(() => {
       </div>
     </div>
   </header>
+
+  <!-- 编辑个人信息弹窗 -->
+  <EditProfileDialog 
+    v-model:visible="showEditDialog"
+    :userInfo="userInfo"
+    @save="saveProfile"
+  />
 </template>
 
 <style scoped>
@@ -148,8 +170,7 @@ onMounted(() => {
   align-items: center;
   padding: 0 24px;
   height: 64px;
-  background-color: #1a365d;
-  border-bottom: 1px solid #2a4365;
+  background-color: #ffffff;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
@@ -162,13 +183,13 @@ onMounted(() => {
 .page-title {
   font-size: 18px;
   font-weight: 600;
-  color: #ffffff;
+  color: #000000;
   margin: 0;
 }
 
 .current-time {
   font-size: 14px;
-  color: #a0aec0;
+  color: #6e7989;
 }
 
 .top-bar-right {
@@ -189,7 +210,7 @@ onMounted(() => {
 }
 
 .user-info:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgb(219, 219, 219);
 }
 
 .user-avatar {
@@ -199,7 +220,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgb(255, 255, 255);
   border-radius: 50%;
   color: #ffffff;
 }
@@ -207,7 +228,7 @@ onMounted(() => {
 .user-name {
   font-size: 14px;
   font-weight: 500;
-  color: #ffffff;
+  color: #1a365d;
 }
 
 .dropdown-arrow {

@@ -7,7 +7,7 @@ import store from './store/store.js'
 // 创建 Vue 应用并使用路由
 const app = createApp(App)
 app.use(router)  // 注册路由
-app.use(store)
+app.use(store)  // 注册store
 
 app.mount('#app')
 

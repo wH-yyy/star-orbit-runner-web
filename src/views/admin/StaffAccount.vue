@@ -57,8 +57,6 @@ const toggleStatus = (userId) => {
 
 <template>
   <div class="staff-account-page">
-    <h2 class="page-title">工作账号分派</h2>
-
     <!-- 创建新账号表单 -->
     <div class="create-account-section">
       <h3>创建新账号</h3>
@@ -145,9 +143,8 @@ const toggleStatus = (userId) => {
 
 <style scoped>
 .staff-account-page {
-  max-width: 1000px;
-  margin: 0 auto;
-  padding: 20px;
+  width: 100%;
+  padding: 0;
 }
 
 .page-title {

@@ -24,8 +24,6 @@ onMounted(() => {
 
 <template>
   <div class="overview-page">
-    <h2 class="page-title">系统概览</h2>
-
     <!-- 统计卡片区域 -->
     <div class="stats-grid">
       <div class="stat-card">

@@ -39,8 +39,6 @@ const removePauseDay = (index) => {
 
 <template>
   <div class="activity-config-page">
-    <h2 class="page-title">活动配置</h2>
-
     <!-- 活动基本信息 -->
     <div class="config-section">
       <h3>基本信息</h3>
@@ -181,9 +179,8 @@ const removePauseDay = (index) => {
 
 <style scoped>
 .activity-config-page {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 20px;
+  width: 100%;
+  padding: 0;
 }
 
 .page-title {
