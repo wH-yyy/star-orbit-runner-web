@@ -1,150 +1,284 @@
 /**
  * 认证相关API
  */
-import { post } from './request';
 import { callFunction, ensureCloudLogin } from "../cloud";
 
-export async function login(username, password) {
-  console.log("login called with:", username, password?.length);
+/**
+ * 管理员登录
+ * @param {string} username - 用户名
+ * @param {string} password - 密码
+ * @returns {Promise<Object>} 登录结果，包含管理员信息
+ */
+export async function loginAdmin(username, password) {
+  console.log("loginAdmin called with:", { username, passwordLength: password?.length })
 
   try {
-    await ensureCloudLogin();
-    console.log("BEFORE CALL");
+    // 参数验证
+    if (!username || !password) {
+      throw new Error('请输入用户名和密码')
+    }
+
+    // 确保云开发登录状态
+    await ensureCloudLogin()
+
+    console.log('调用云函数 loginAdmin...')
 
     const res = await callFunction({
-      name: "admin-api",
+      name: "loginAdmin",
       data: {
-        action: "admin/login",
         username,
         password,
       },
-    });
+    })
 
-    console.log("AFTER CALL raw =>", res);
-    console.log("AFTER CALL result =>", res?.result);
+    console.log("云函数返回结果:", res)
 
-    const result = res?.result;
+    const result = res?.result
     if (!result) {
-      throw new Error("云函数无返回 result");
+      console.error('云函数无返回结果')
+      throw new Error('服务器无响应，请稍后重试')
     }
 
-    if (result.code !== 0) {
-      throw new Error(`[${result.code}] ${result.message || "登录失败"}`);
+    console.log("云函数处理结果:", result)
+
+    if (!result.success) {
+      // 根据不同的错误码提供更具体的提示
+      if (result.code === 401) {
+        throw new Error('用户名或密码错误')
+      } else if (result.code === 404) {
+        throw new Error('用户不存在或账号已停用')
+      } else if (result.code === 403) {
+        throw new Error('账号已被禁用，请联系超管')
+      } else {
+        throw new Error(result.message || '登录失败')
+      }
     }
 
-    return result.data; // { token, admin }
+    // 登录成功，保存管理员信息到本地存储
+    if (result.data) {
+      localStorage.setItem('adminInfo', JSON.stringify(result.data))
+      localStorage.setItem('adminToken', `admin_${Date.now()}`) // 简单的 token，实际项目中应该使用 JWT
+      localStorage.setItem('adminLoginTime', new Date().toISOString())
+
+      console.log('管理员登录成功，用户信息已保存:', result.data)
+    }
+
+    return result.data
 
   } catch (err) {
-    // ⭐⭐⭐ 关键：这里一定要打印
-    console.error("login ERROR =>", err);
+    console.error("loginAdmin 调用失败:", err)
 
-    // CloudBase 有时会把信息放在 err.message / err.response
-    if (err?.message) {
-      throw new Error(err.message);
+    // 清除可能存储的错误登录信息
+    localStorage.removeItem('adminInfo')
+    localStorage.removeItem('adminToken')
+
+    // 处理特定的错误类型
+    if (err.message.includes('network') || err.message.includes('Network')) {
+      throw new Error('网络连接失败，请检查网络后重试')
     }
 
-    throw new Error("调用云函数失败");
+    if (err.message.includes('云函数') || err.message.includes('function')) {
+      throw new Error('系统功能未就绪，请稍后重试')
+    }
+
+    // 使用原始错误消息
+    throw new Error(err.message || '登录失败，请稍后重试')
   }
 }
 
-
-
-// export const login = async (credentials) => {
-//   try {
-//     // 这里可以添加模拟登录逻辑，因为实际API可能不可用
-//     // 模拟登录成功
-//     return {
-//       success: true,
-//       token: 'demo-token-' + Date.now(),
-//       user: {
-//         id: 1,
-//         username: credentials.username,
-//         name: credentials.username,
-//         role: 'admin',
-//         avatar: '👤'
-//       }
-//     };
-//
-//     // 实际API调用
-//     // return await post('/login', credentials);
-//   } catch (error) {
-//     console.error('登录失败:', error);
-//     return {
-//       success: false,
-//       error: error.message || '登录失败'
-//     };
-//   }
-// };
-
-
-export const getUserList = async () => {
+/**
+ * 获取当前登录的管理员信息
+ * @returns {Object|null} 管理员信息，如果未登录则返回 null
+ */
+export function getCurrentAdmin() {
   try {
-    // 模拟数据
-    return {
-      success: true,
-      data: [
-        {
-          id: 1,
-          username: 'user1',
-          name: '用户1',
-          email: 'user1@example.com',
-          status: 'active'
-        },
-        {
-          id: 2,
-          username: 'user2',
-          name: '用户2',
-          email: 'user2@example.com',
-          status: 'active'
-        }
-      ]
-    };
+    const adminInfo = localStorage.getItem('adminInfo')
+    if (!adminInfo) return null
+
+    return JSON.parse(adminInfo)
   } catch (error) {
-    console.error('获取用户列表失败:', error);
-    return {
-      success: false,
-      error: error.message || '获取用户列表失败'
-    };
+    console.error('获取管理员信息失败:', error)
+    return null
   }
-};
+}
+
+/**
+ * 检查管理员是否已登录
+ * @returns {boolean} 是否已登录
+ */
+export function isAdminLoggedIn() {
+  const adminInfo = getCurrentAdmin()
+  const adminToken = localStorage.getItem('adminToken')
+
+  return !!(adminInfo && adminToken)
+}
+
+/**
+ * 管理员登出
+ */
+export function logoutAdmin() {
+  localStorage.removeItem('adminInfo')
+  localStorage.removeItem('adminToken')
+  localStorage.removeItem('adminLoginTime')
+  console.log('管理员已登出')
+}
+
+export async function getUserList() {
+  try {
+    // 确保云开发登录状态
+    await ensureCloudLogin()
+
+    const res = await callFunction({
+      name: "getUserList",
+      data: {}
+    })
+
+    console.log("云函数返回结果:", res)
+
+    const result = res?.result
+    if (!result) {
+      console.error('云函数无返回结果')
+      throw new Error('服务器无响应，请稍后重试')
+    }
+
+    console.log("云函数处理结果:", result)
+
+    if (!result.success) {
+      // 如果云函数返回了错误消息，直接使用
+      throw new Error(result.message || '获取失败')
+    }
+
+    return result.data
+
+  } catch (err) {
+    console.error("getUserList 调用失败:", err)
+
+    // 如果是网络错误，提供更友好的提示
+    if (err.message.includes('network') || err.message.includes('Network')) {
+      throw new Error('网络连接失败，请检查网络后重试')
+    }
+
+    // 如果是云函数调用失败，可能是未部署
+    if (err.message.includes('云函数') || err.message.includes('function')) {
+      throw new Error('系统功能未就绪，请稍后重试')
+    }
+
+    // 使用原始错误消息
+    throw new Error(err.message || '获取失败，请稍后重试')
+  }
+}
+
+/**
+ * 添加工作人员
+ * @param {string} username - 用户名
+ * @param {string} password - 密码
+ * @param {string} campus - 校区
+ * @returns {Promise<Object>} 添加结果
+ */
+export async function addStaff(username, password, campus) {
+  console.log("addStaff called with:", { username, passwordLength: password?.length, campus })
+
+  try {
+    // 确保云开发登录状态
+    await ensureCloudLogin()
+
+    const res = await callFunction({
+      name: "addStaff",
+      data: {
+        username,
+        password,
+        campus,
+      },
+    })
+
+    console.log("云函数返回结果:", res)
+
+    const result = res?.result
+    if (!result) {
+      console.error('云函数无返回结果')
+      throw new Error('服务器无响应，请稍后重试')
+    }
+
+    console.log("云函数处理结果:", result)
+
+    if (!result.success) {
+      // 如果云函数返回了错误消息，直接使用
+      throw new Error(result.message || '添加失败')
+    }
+
+    return result.data
+
+  } catch (err) {
+    console.error("addStaff 调用失败:", err)
+
+    // 如果是网络错误，提供更友好的提示
+    if (err.message.includes('network') || err.message.includes('Network')) {
+      throw new Error('网络连接失败，请检查网络后重试')
+    }
+
+    // 如果是云函数调用失败，可能是未部署
+    if (err.message.includes('云函数') || err.message.includes('function')) {
+      throw new Error('系统功能未就绪，请稍后重试')
+    }
+
+    // 使用原始错误消息
+    throw new Error(err.message || '添加失败，请稍后重试')
+  }
+}
 
 /**
  * 获取工作人员列表
- * @returns {Promise} - 工作人员列表
+ * @returns {Promise<Array>} 工作人员列表
  */
-export const getStaffList = async () => {
+export async function getStaffList() {
   try {
-    // 模拟数据
-    return {
-      success: true,
-      data: [
-        {
-          id: 1,
-          username: 'staff1',
-          name: '工作人员1',
-          email: 'staff1@example.com',
-          status: 'active'
-        },
-        {
-          id: 2,
-          username: 'staff2',
-          name: '工作人员2',
-          email: 'staff2@example.com',
-          status: 'active'
-        }
-      ]
-    };
-  } catch (error) {
-    console.error('获取工作人员列表失败:', error);
-    return {
-      success: false,
-      error: error.message || '获取工作人员列表失败'
-    };
-  }
-};
+    await ensureCloudLogin()
 
+    const res = await callFunction({
+      name: "getStaffList",
+      data: {}
+    })
+
+    const result = res?.result
+    if (!result || !result.success) {
+      throw new Error(result?.message || '获取失败')
+    }
+
+    return result.data
+  } catch (err) {
+    console.error('获取工作人员列表失败:', err)
+    throw new Error('获取列表失败')
+  }
+}
+
+/**
+ * 更新工作人员状态
+ * @param {string} staffId - 工作人员ID
+ * @param {string} status - 新状态（active/inactive）
+ * @returns {Promise<Object>} 更新结果
+ */
+export async function updateStaffStatus(staffId, status) {
+  try {
+    await ensureCloudLogin()
+
+    const res = await callFunction({
+      name: "updateStaffStatus",
+      data: { staffId, status }
+    })
+
+    const result = res?.result
+    if (!result || !result.success) {
+      throw new Error(result?.message || '更新失败')
+    }
+
+    return result.data
+  } catch (err) {
+    console.error('更新工作人员状态失败:', err)
+    throw new Error('更新状态失败')
+  }
+}
 export default {
-  login,
   getUserList,
-  getStaffList
+  getStaffList,
+  addStaff
 };

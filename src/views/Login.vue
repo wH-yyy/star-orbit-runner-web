@@ -2,7 +2,7 @@
   <div class="login-page">
     <div class="login-container">
       <div class="login-header">
-        <h1>🌟 星轨Runner</h1>
+        <h1>星轨Runner</h1>
         <p>Web 管理端</p>
       </div>
 
@@ -58,7 +58,9 @@
         </div>
 
         <div class="tips">
-          <p>💡 提示：这是演示系统，输入任意用户名密码即可登录</p>
+          <p>💡 请使用分配的账号密码登录系统</p>
+          <p v-if="selectedRole === 'staff'">工作人员请联系管理员获取账号</p>
+          <p v-if="selectedRole === 'admin'">管理员请使用管理员账号登录</p>
         </div>
       </div>
     </div>
@@ -69,8 +71,10 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useStore } from 'vuex'
-import { login } from '../api/login'
 import { setAuth } from '../utils/auth.js'
+// 导入登录函数
+import { loginStaff } from '../api/staff'
+import { loginAdmin } from '../api/admin'
 
 const router = useRouter()
 const store = useStore()
@@ -82,132 +86,137 @@ const errorMsg = ref('')
 
 function selectRole(role) {
   selectedRole.value = role
+  username.value = ''
+  password.value = ''
+  errorMsg.value = ''
 }
 
 async function onLogin() {
   console.log('LOGIN CLICKED', selectedRole.value, username.value, password.value?.length)
+
+  // 表单验证
+  if (!username.value || !password.value) {
+    errorMsg.value = '请输入用户名和密码'
+    return
+  }
+
   errorMsg.value = ''
   loading.value = true
+
   try {
-    console.log('CALL login', selectedRole.value)
-    const res = await login(username.value, password.value, selectedRole.value)
-    console.log('login response:', res)
+    if (selectedRole.value === 'staff') {
+      // 工作人员登录：调用 loginStaff 函数
+      console.log('调用工作人员登录...')
+      const staffInfo = await loginStaff(username.value, password.value)
+      console.log('工作人员登录成功:', staffInfo)
 
-    // 更宽容地取 token/user（支持 res, res.data, res.data.data）
-    const token = res?.token ?? res?.data?.token ?? res?.data?.data?.token
-    const userInfo = res?.admin ?? res?.staff ?? res?.data?.admin ?? res?.data?.staff ?? res?.data?.data?.admin ?? res?.data?.data?.staff
+      // 工作人员登录成功处理
+      handleStaffLoginSuccess(staffInfo)
+    } else {
+      // 管理员登录：调用 loginAdmin 函数
+      console.log('调用管理员登录...')
+      const adminInfo = await loginAdmin(username.value, password.value)
+      console.log('管理员登录成功:', adminInfo)
 
-    if (!token) {
-      // 抛出带完整返回的错误，便于在控制台定位后端结构
-      throw new Error('登录返回缺少 token：' + JSON.stringify(res))
+      // 管理员登录成功处理
+      handleAdminLoginSuccess(adminInfo)
     }
-
-    setAuth(token, userInfo)
-    
-    // 更新store状态，确保与localStorage同步
-    const storeData = {
-      success: true,
-      token: token,
-      user: {
-        id: userInfo?.id || 1,
-        username: userInfo?.username || username.value,
-        name: userInfo?.name || username.value,
-        role: userInfo?.role || selectedRole.value,
-        avatar: '👤'
-      }
-    }
-    
-    // 提交到store
-    store.commit('SET_USER', storeData)
-    
-    // 跳转到对应角色的首页
-    if (selectedRole.value === 'admin') {
-      if (router.hasRoute('AdminOverview')) {
-        await router.push({ name: 'AdminOverview' })
-      } else {
-        await router.push('/admin/overview')
-      }
-    } else if (selectedRole.value === 'staff') {
-      if (router.hasRoute('StaffOverview')) {
-        await router.push({ name: 'StaffOverview' })
-      } else {
-        await router.push('/staff/overview')
-      }
-    }
-    console.log('Navigation finished')
   } catch (e) {
-    console.error('Login error:', e)
-    errorMsg.value = (e && e.message) ? e.message : '登录失败'
+    console.error('登录错误:', e)
+
+    // 根据错误类型显示不同的错误信息
+    if (e.message.includes('密码错误') || e.message.includes('用户名或密码错误')) {
+      errorMsg.value = '用户名或密码错误'
+      password.value = '' // 清空密码输入框
+    } else if (e.message.includes('用户不存在')) {
+      errorMsg.value = '用户不存在或账号已停用'
+      username.value = ''
+      password.value = ''
+    } else if (e.message.includes('网络连接失败')) {
+      errorMsg.value = '网络连接失败，请检查网络后重试'
+    } else if (e.message.includes('云函数')) {
+      errorMsg.value = '系统功能未就绪，请稍后重试'
+    } else {
+      errorMsg.value = e.message || '登录失败，请稍后重试'
+    }
   } finally {
     loading.value = false
   }
 }
+
+// 工作人员登录成功处理
+function handleStaffLoginSuccess(staffInfo) {
+  // 创建模拟的token和用户信息
+  const token = `staff_token_${Date.now()}`
+  const userData = {
+    id: staffInfo._id,
+    username: staffInfo.username,
+    name: staffInfo.real_name || staffInfo.username,
+    role: 'staff',
+    campus: staffInfo.campus,
+    avatar: '👤'
+  }
+
+  // 保存认证信息
+  setAuth(token, userData)
+
+  // 更新store状态
+  const storeData = {
+    success: true,
+    token: token,
+    user: userData
+  }
+
+  store.commit('SET_USER', storeData)
+
+  // 跳转到工作人员管理页面
+  if (router.hasRoute('StaffOverview')) {
+    router.push({ name: 'StaffOverview' })
+  } else {
+    router.push('/staff/overview')
+  }
+  console.log('工作人员登录完成，跳转成功')
+}
+
+// 管理员登录成功处理
+function handleAdminLoginSuccess(adminInfo) {
+  // 创建模拟的token和用户信息
+  const token = `admin_token_${Date.now()}`
+  const userData = {
+    id: adminInfo._id,
+    username: adminInfo.username,
+    name: adminInfo.real_name || adminInfo.username,
+    role: 'admin',
+    avatar: '👤',
+    last_login_at: adminInfo.last_login_at
+  }
+
+  // 保存认证信息
+  setAuth(token, userData)
+
+  // 更新store状态
+  const storeData = {
+    success: true,
+    token: token,
+    user: userData
+  }
+
+  store.commit('SET_USER', storeData)
+
+  // 跳转到管理员管理页面
+  if (router.hasRoute('AdminOverview')) {
+    router.push({ name: 'AdminOverview' })
+  } else {
+    router.push('/admin/overview')
+  }
+  console.log('管理员登录完成，跳转成功')
+}
 </script>
-
-<style scoped>
-.role-selection {
-  padding: 30px;
-  text-align: center;
-}
-
-.role-selection h2 {
-  margin: 0 0 30px 0;
-  font-size: 24px;
-  color: #333;
-}
-
-.role-buttons {
-  display: flex;
-  gap: 20px;
-  justify-content: center;
-}
-
-.role-btn {
-  padding: 20px 30px;
-  border: none;
-  border-radius: 12px;
-  font-size: 18px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  min-width: 180px;
-}
-
-.staff-btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-}
-
-.admin-btn {
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  color: white;
-}
-
-.role-btn:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-}
-
-.back-btn {
-  margin-top: 20px;
-  text-align: center;
-  color: #667eea;
-  cursor: pointer;
-  font-size: 14px;
-  padding: 10px;
-  border-radius: 6px;
-  transition: background-color 0.3s;
-}
-
-.back-btn:hover {
-  background-color: rgba(102, 126, 234, 0.1);
-}
-</style>
 
 <style scoped>
 .login-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background-color: #f8f9fa;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -215,41 +224,94 @@ async function onLogin() {
 }
 
 .login-container {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   width: 100%;
   max-width: 400px;
   overflow: hidden;
 }
 
 .login-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background-color: #2c3e50;
   color: white;
-  padding: 30px;
+  padding: 24px;
   text-align: center;
+  border-bottom: 1px solid #eee;
 }
 
 .login-header h1 {
-  margin: 0 0 10px 0;
-  font-size: 32px;
+  margin: 0 0 8px 0;
+  font-size: 28px;
+  font-weight: 600;
 }
 
 .login-header p {
   margin: 0;
+  font-size: 14px;
+  color: #ecf0f1;
+}
+
+.role-selection {
+  padding: 32px 24px;
+  text-align: center;
+}
+
+.role-selection h2 {
+  margin: 0 0 24px 0;
+  font-size: 20px;
+  color: #333;
+  font-weight: 500;
+}
+
+.role-buttons {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+}
+
+.role-btn {
+  padding: 16px 24px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
   font-size: 16px;
-  opacity: 0.9;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 150px;
+  background-color: white;
+}
+
+.staff-btn {
+  border-color: #3498db;
+  color: #3498db;
+}
+
+.admin-btn {
+  border-color: #e74c3c;
+  color: #e74c3c;
+}
+
+.staff-btn:hover {
+  background-color: #ebf5fb;
+  border-color: #2980b9;
+}
+
+.admin-btn:hover {
+  background-color: #fdedec;
+  border-color: #c0392b;
 }
 
 .login-form {
-  padding: 30px;
+  padding: 24px;
 }
 
 .login-form h2 {
-  margin: 0 0 25px 0;
-  font-size: 24px;
+  margin: 0 0 24px 0;
+  font-size: 20px;
   color: #333;
   text-align: center;
+  font-weight: 500;
 }
 
 .form-item {
@@ -258,74 +320,96 @@ async function onLogin() {
 
 .form-item label {
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   color: #555;
+  font-size: 14px;
   font-weight: 500;
 }
 
 .form-item input {
   width: 100%;
-  padding: 12px;
+  padding: 10px 12px;
   border: 1px solid #ddd;
   border-radius: 6px;
   font-size: 14px;
   box-sizing: border-box;
-  transition: border-color 0.3s;
+  transition: border-color 0.2s;
+  color: #333;
 }
 
 .form-item input:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: #3498db;
 }
 
 .error-msg {
-  background: #fee;
-  color: #c33;
+  background-color: #fdedec;
+  color: #e74c3c;
   padding: 10px;
   border-radius: 6px;
-  margin-bottom: 15px;
+  margin-bottom: 16px;
   font-size: 14px;
   text-align: center;
+  border: 1px solid #fadbd8;
 }
 
 .login-btn {
   width: 100%;
-  padding: 14px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 12px;
+  background-color: #2c3e50;
   color: white;
   border: none;
   border-radius: 6px;
   font-size: 16px;
   font-weight: 500;
   cursor: pointer;
-  transition: transform 0.2s, opacity 0.2s;
+  transition: background-color 0.2s;
+  margin-top: 8px;
 }
 
 .login-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+  background-color: #34495e;
 }
 
 .login-btn:active:not(:disabled) {
-  transform: translateY(0);
+  background-color: #1a252f;
 }
 
 .login-btn:disabled {
-  opacity: 0.6;
+  background-color: #bdc3c7;
   cursor: not-allowed;
 }
 
-.tips {
+.back-btn {
   margin-top: 20px;
+  text-align: center;
+  color: #3498db;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 8px;
+  border-radius: 6px;
+  transition: background-color 0.2s;
+}
+
+.back-btn:hover {
+  background-color: #ebf5fb;
+}
+
+.tips {
+  margin-top: 24px;
   padding-top: 20px;
   border-top: 1px solid #eee;
 }
 
 .tips p {
-  margin: 0;
+  margin: 0 0 8px 0;
   font-size: 13px;
-  color: #888;
+  color: #7f8c8d;
   text-align: center;
   line-height: 1.5;
+}
+
+.tips p:last-child {
+  margin-bottom: 0;
 }
 </style>

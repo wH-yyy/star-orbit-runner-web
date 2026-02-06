@@ -53,7 +53,7 @@ export async function adminLogin(username, password) {
 }
 
 /**
- * 工作人员登录（模拟）
+ * 工作人员登录
  * @param {string} username - 用户名
  * @param {string} password - 密码
  * @returns {Promise<Object>} 登录结果
@@ -62,16 +62,31 @@ export async function staffLogin(username, password) {
   console.log("staffLogin called with:", username, password?.length);
 
   try {
-    // 模拟登录成功，输入任意用户名密码都可以登录
-    return {
-      token: 'staff-token-' + Date.now(),
-      staff: {
-        id: 1,
-        username: username,
-        name: username,
-        role: 'staff'
-      }
-    };
+    await ensureCloudLogin();
+    console.log("BEFORE CALL");
+
+    const res = await callFunction({
+      name: "loginStaff",
+      data: {
+        username,
+        password,
+      },
+    });
+
+    console.log("AFTER CALL raw =>", res);
+    console.log("AFTER CALL result =>", res?.result);
+
+    const result = res?.result;
+    if (!result) {
+      throw new Error("云函数无返回 result");
+    }
+
+    if (result.code !== 0) {
+      throw new Error(`[${result.code}] ${result.message || "登录失败"}`);
+    }
+
+    return result.data; // { token, staff }
+
   } catch (err) {
     console.error("staffLogin ERROR =>", err);
     throw new Error("登录失败");

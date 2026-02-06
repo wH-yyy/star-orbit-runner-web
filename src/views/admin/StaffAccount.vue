@@ -1,56 +1,165 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
+import {addStaff, getStaffList, updateStaffStatus} from '../../api/admin';
 
-// 模拟工作人员账号数据
-const staffAccounts = ref([
-  { id: 1, username: 'staff1', name: '张老师', role: '审核员', status: '启用' },
-  { id: 2, username: 'staff2', name: '李老师', role: '审核员', status: '启用' },
-  { id: 3, username: 'staff3', name: '王老师', role: '管理员', status: '启用' },
-]);
+// 工作人员账号数据
+const staffAccounts = ref([]);
+
+// 列表加载状态
+const listLoading = ref(false);
+
+// 加载工作人员列表
+const loadStaffList = async () => {
+  listLoading.value = true;
+  try {
+    const result = await getStaffList();
+    // 转换状态显示，设置默认名称为"未命名账号"
+    staffAccounts.value = result.map(staff => ({
+      ...staff,
+      status: staff.status === 'active' ? '启用' : '禁用',
+      name: staff.name || '未命名账号'
+    }));
+  } catch (error) {
+    console.error('加载工作人员列表失败:', error);
+    errorMsg.value = '加载工作人员列表失败';
+  } finally {
+    listLoading.value = false;
+  }
+};
+
+// 组件挂载时加载列表
+onMounted(() => {
+  loadStaffList();
+});
 
 // 新账号表单数据
 const newAccount = ref({
   username: '',
-  name: '',
-  role: '审核员'
+  password: '',
+  campus: ''
 });
 
+// 校区选项
+const campusOptions = [
+  { value: '兴庆校区', label: '兴庆校区' },
+  { value: '雁塔校区', label: '雁塔校区' },
+  { value: '曲江校区', label: '曲江校区' },
+  { value: '创新港校区', label: '创新港校区' }
+];
+
+// 加载状态
+const loading = ref(false);
+
+// 错误信息
+const errorMsg = ref('');
+
 // 创建新账号
-const createAccount = () => {
-  if (!newAccount.value.username || !newAccount.value.name) {
-    alert('请填写完整的账号信息');
+const createAccount = async () => {
+  errorMsg.value = '';
+
+  // 更详细的表单验证
+  if (!newAccount.value.username) {
+    errorMsg.value = '请输入用户名';
+    return;
+  }
+  if (!newAccount.value.password) {
+    errorMsg.value = '请输入密码';
+    return;
+  }
+  if (!newAccount.value.campus) {
+    errorMsg.value = '请选择校区';
     return;
   }
 
-  const account = {
-    id: staffAccounts.value.length + 1,
-    username: newAccount.value.username,
-    name: newAccount.value.name,
-    role: newAccount.value.role,
-    status: '启用'
-  };
+  // 用户名格式验证
+  const usernameRegex = /^[a-zA-Z0-9]{3,20}$/
+  if (!usernameRegex.test(newAccount.value.username)) {
+    errorMsg.value = '用户名应为3-20位字母数字组合';
+    return;
+  }
 
-  staffAccounts.value.push(account);
-  console.log('创建新工作账号:', account);
+  // 密码长度验证
+  if (newAccount.value.password.length < 6) {
+    errorMsg.value = '密码长度至少6位';
+    return;
+  }
 
-  // 重置表单
-  newAccount.value = {
-    username: '',
-    name: '',
-    role: '审核员'
-  };
+  loading.value = true;
 
-  // 这里可以添加API调用逻辑
-  alert('工作账号已创建，实际项目中会调用后端API创建账号');
+  try {
+    console.log('开始创建账号:', newAccount.value.username)
+
+    const result = await addStaff(
+        newAccount.value.username,
+        newAccount.value.password,
+        newAccount.value.campus
+    );
+
+    console.log('创建新工作账号结果:', result);
+
+    // 添加到本地列表（使用真实数据）
+    const account = {
+      id: result._id,
+      username: result.username,
+      name: result.real_name || '未设置姓名',
+      campus: result.campus,
+      status: result.status === 'active' ? '启用' : '禁用',
+      created_at: result.created_at
+    };
+
+    staffAccounts.value.push(account);
+
+    // 重置表单
+    newAccount.value = {
+      username: '',
+      password: '',
+      campus: ''
+    };
+
+    // 使用更友好的提示
+    alert('✅ 工作账号创建成功！\n用户名：' + result.username);
+    // 重新加载工作人员列表
+    await loadStaffList();
+
+  } catch (error) {
+    console.error('创建工作账号失败:', error);
+
+    // 显示具体的错误信息
+    errorMsg.value = error.message || '创建工作账号失败，请检查网络后重试';
+
+    // 可以根据错误类型提供不同的提示
+    if (error.message.includes('已存在')) {
+      errorMsg.value = `用户名 "${newAccount.value.username}" 已被使用，请换一个用户名`;
+    } else if (error.message.includes('网络')) {
+      errorMsg.value = '网络连接失败，请检查网络设置后重试';
+    }
+
+  } finally {
+    loading.value = false;
+  }
 };
 
 // 切换账号状态
-const toggleStatus = (userId) => {
-  const account = staffAccounts.value.find(a => a.id === userId);
-  if (account) {
-    account.status = account.status === '启用' ? '禁用' : '启用';
-    console.log(`账号 ${userId} 状态已更改为 ${account.status}`);
-    // 这里可以添加API调用逻辑
+const toggleStatus = async (staffId) => {
+  const account = staffAccounts.value.find(a => a._id === staffId);
+  if (!account) return;
+
+  const oldStatus = account.status;
+  const newStatus = account.status === '启用' ? '禁用' : '启用';
+
+  try {
+    // 调用 API 更新状态
+    await updateStaffStatus(staffId, newStatus === '启用' ? 'active' : 'inactive');
+
+    // 更新本地状态
+    account.status = newStatus;
+    console.log(`账号 ${staffId} 状态已更改为 ${newStatus}`);
+
+  } catch (error) {
+    console.error('更新账号状态失败:', error);
+    alert('更新状态失败：' + (error.message || '请稍后重试'));
+    // 恢复原来的状态
+    account.status = oldStatus;
   }
 };
 </script>
@@ -71,25 +180,31 @@ const toggleStatus = (userId) => {
           />
         </div>
         <div class="form-item">
-          <label class="form-label">姓名</label>
+          <label class="form-label">密码</label>
           <input
-              type="text"
-              v-model="newAccount.name"
+              type="password"
+              v-model="newAccount.password"
               class="form-input"
-              placeholder="请输入姓名"
+              placeholder="请输入密码"
           />
         </div>
         <div class="form-item">
-          <label class="form-label">角色</label>
-          <select v-model="newAccount.role" class="form-select">
-            <option value="审核员">审核员</option>
-            <option value="管理员">管理员</option>
+          <label class="form-label">校区</label>
+          <select v-model="newAccount.campus" class="form-select">
+            <option value="">请选择校区</option>
+            <option v-for="option in campusOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </option>
           </select>
         </div>
       </div>
+      
+      <div v-if="errorMsg" class="error-msg">
+        {{ errorMsg }}
+      </div>
       <div class="form-actions">
-        <button @click="createAccount" class="btn btn-primary">
-          创建账号
+        <button @click="createAccount" :disabled="loading" class="btn btn-primary">
+          {{ loading ? '创建中...' : '创建账号' }}
         </button>
       </div>
     </div>
@@ -97,24 +212,27 @@ const toggleStatus = (userId) => {
     <!-- 账号列表 -->
     <div class="account-list-section">
       <h3>现有账号</h3>
-      <div class="account-table-container">
+      <div v-if="listLoading" class="loading-state">
+        <p>加载中...</p>
+      </div>
+      <div v-else class="account-table-container">
         <table class="account-table">
           <thead>
           <tr>
             <th>序号</th>
             <th>用户名</th>
             <th>姓名</th>
-            <th>角色</th>
+            <th>校区</th>
             <th>状态</th>
             <th>操作</th>
           </tr>
           </thead>
           <tbody>
-          <tr v-for="(account, index) in staffAccounts" :key="account.id" class="account-row">
+          <tr v-for="(account, index) in staffAccounts" :key="account._id" class="account-row">
             <td>{{ index + 1 }}</td>
             <td>{{ account.username }}</td>
             <td>{{ account.name }}</td>
-            <td>{{ account.role }}</td>
+            <td>{{ account.campus || '-' }}</td>
             <td>
                 <span :class="['status-badge', `status-${account.status}`]">
                   {{ account.status }}
@@ -122,7 +240,7 @@ const toggleStatus = (userId) => {
             </td>
             <td>
               <button
-                  @click="toggleStatus(account.id)"
+                  @click="toggleStatus(account._id)"
                   :class="['btn', account.status === '启用' ? 'btn-warning' : 'btn-success']"
               >
                 {{ account.status === '启用' ? '禁用' : '启用' }}
@@ -134,7 +252,7 @@ const toggleStatus = (userId) => {
       </div>
 
       <!-- 空状态 -->
-      <div v-if="staffAccounts.length === 0" class="empty-state">
+      <div v-if="!listLoading && staffAccounts.length === 0" class="empty-state">
         <p>暂无工作账号，请创建新账号</p>
       </div>
     </div>
@@ -211,6 +329,17 @@ const toggleStatus = (userId) => {
 
 .form-input::placeholder {
   color: #c0c4cc;
+}
+
+/* 错误信息样式 */
+.error-msg {
+  background: #fee;
+  color: #c33;
+  padding: 10px;
+  border-radius: 6px;
+  margin-bottom: 15px;
+  font-size: 14px;
+  text-align: center;
 }
 
 /* 表单操作按钮样式 */
@@ -344,6 +473,14 @@ const toggleStatus = (userId) => {
 .status-禁用 {
   background-color: rgba(245, 108, 108, 0.1);
   color: #f56c6c;
+}
+
+/* 加载状态样式 */
+.loading-state {
+  padding: 64px 24px;
+  text-align: center;
+  color: #409eff;
+  font-size: 14px;
 }
 
 /* 空状态样式 */

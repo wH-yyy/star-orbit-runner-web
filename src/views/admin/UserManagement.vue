@@ -1,14 +1,11 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
+import { getUserList } from '@/api/admin';
 
-// 模拟用户数据
-const users = ref([
-  { id: 1, username: '张三', studentId: '20210001', department: '计算机科学与技术', runs: 15, status: '正常' },
-  { id: 2, username: '李四', studentId: '20210002', department: '电子工程', runs: 8, status: '正常' },
-  { id: 3, username: '王五', studentId: '20210003', department: '机械工程', runs: 22, status: '正常' },
-  { id: 4, username: '赵六', studentId: '20210004', department: '土木工程', runs: 5, status: '停跑' },
-  { id: 5, username: '钱七', studentId: '20210005', department: '化学工程', runs: 12, status: '正常' },
-]);
+// 用户数据
+const users = ref([]);
+const loading = ref(false);
+const error = ref('');
 
 const searchQuery = ref('');
 const statusFilter = ref('');
@@ -16,13 +13,29 @@ const statusFilter = ref('');
 // 筛选用户
 const filteredUsers = computed(() => {
   return users.value.filter(user => {
-    const matchesSearch = user.username.includes(searchQuery.value) ||
-        user.studentId.includes(searchQuery.value) ||
-        user.department.includes(searchQuery.value);
+    const matchesSearch = user.name?.includes(searchQuery.value) ||
+        user['学号']?.includes(searchQuery.value) ||
+        user['书院']?.includes(searchQuery.value) ||
+        user['班级']?.includes(searchQuery.value);
     const matchesStatus = !statusFilter.value || user.status === statusFilter.value;
     return matchesSearch && matchesStatus;
   });
 });
+
+// 加载用户列表
+const loadUserList = async () => {
+  loading.value = true;
+  error.value = '';
+  try {
+    const data = await getUserList();
+    users.value = data;
+  } catch (err) {
+    error.value = err.message || '获取用户列表失败';
+    console.error('获取用户列表失败:', err);
+  } finally {
+    loading.value = false;
+  }
+};
 
 // 更改用户状态
 const changeStatus = (userId, newStatus) => {
@@ -33,6 +46,11 @@ const changeStatus = (userId, newStatus) => {
     console.log(`用户 ${userId} 状态已更改为 ${newStatus}`);
   }
 };
+
+// 组件挂载时加载数据
+onMounted(() => {
+  loadUserList();
+});
 </script>
 
 <template>
@@ -43,7 +61,7 @@ const changeStatus = (userId, newStatus) => {
         <input
             type="text"
             v-model="searchQuery"
-            placeholder="搜索用户姓名、学号或院系"
+            placeholder="搜索用户姓名、学号、书院或班级"
             class="search-input"
         />
       </div>
@@ -57,52 +75,77 @@ const changeStatus = (userId, newStatus) => {
       </div>
     </div>
 
+    <!-- 加载状态 -->
+    <div v-if="loading" class="loading-state">
+      <p>加载中...</p>
+    </div>
+
+    <!-- 错误状态 -->
+    <div v-else-if="error" class="error-state">
+      <p>{{ error }}</p>
+      <button @click="loadUserList" class="btn btn-primary">重试</button>
+    </div>
+
     <!-- 用户列表 -->
-    <div class="user-list-section">
+    <div v-else class="user-list-section">
       <div class="user-table-container">
         <table class="user-table">
           <thead>
           <tr>
             <th>序号</th>
-            <th>姓名</th>
             <th>学号</th>
-            <th>院系</th>
-            <th>打卡次数</th>
+            <th>姓名</th>
+            <th>性别</th>
+            <th>校区</th>
+            <th>书院</th>
+            <th>班级</th>
+            <th>手机号</th>
             <th>状态</th>
+            <th>总距离</th>
+            <th>总时长</th>
+            <th>总次数</th>
+            <th>违规次数</th>
             <th>操作</th>
           </tr>
           </thead>
           <tbody>
-          <tr v-for="(user, index) in filteredUsers" :key="user.id" class="user-row">
+          <tr v-for="(user, index) in filteredUsers" :key="user.id || user['学号']" class="user-row">
             <td>{{ index + 1 }}</td>
-            <td>{{ user.username }}</td>
-            <td>{{ user.studentId }}</td>
-            <td>{{ user.department }}</td>
-            <td>{{ user.runs }}</td>
+            <td>{{ user['学号'] }}</td>
+            <td>{{ user.name || user['姓名'] }}</td>
+            <td>{{ user['性别'] }}</td>
+            <td>{{ user['校区'] }}</td>
+            <td>{{ user['书院'] }}</td>
+            <td>{{ user['班级'] }}</td>
+            <td>{{ user['手机号'] }}</td>
             <td>
                 <span :class="['status-badge', `status-${user.status}`]">
                   {{ user.status }}
                 </span>
             </td>
+            <td>{{ user['总距离'] || 0 }}</td>
+            <td>{{ user['总时长'] || 0 }}</td>
+            <td>{{ user['总次数'] || 0 }}</td>
+            <td>{{ user['违规次数'] || 0 }}</td>
             <td>
               <div class="action-buttons">
                 <button
                     v-if="user.status !== '正常'"
-                    @click="changeStatus(user.id, '正常')"
+                    @click="changeStatus(user.id || user['学号'], '正常')"
                     class="btn btn-primary"
                 >
                   恢复正常
                 </button>
                 <button
                     v-if="user.status === '正常'"
-                    @click="changeStatus(user.id, '停跑')"
+                    @click="changeStatus(user.id || user['学号'], '停跑')"
                     class="btn btn-warning"
                 >
                   停跑
                 </button>
                 <button
                     v-if="user.status !== '封号'"
-                    @click="changeStatus(user.id, '封号')"
+                    @click="changeStatus(user.id || user['学号'], '封号')"
                     class="btn btn-danger"
                 >
                   封号
@@ -327,6 +370,26 @@ const changeStatus = (userId, newStatus) => {
   text-align: center;
   color: #909399;
   font-size: 14px;
+}
+
+/* 加载状态样式 */
+.loading-state {
+  padding: 64px 24px;
+  text-align: center;
+  color: #409eff;
+  font-size: 14px;
+}
+
+/* 错误状态样式 */
+.error-state {
+  padding: 64px 24px;
+  text-align: center;
+  color: #f56c6c;
+  font-size: 14px;
+}
+
+.error-state .btn {
+  margin-top: 16px;
 }
 
 /* 响应式设计 */

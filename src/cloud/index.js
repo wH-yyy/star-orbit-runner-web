@@ -1,7 +1,7 @@
 import cloudbase from "@cloudbase/js-sdk";
 
 const app = cloudbase.init({
-    env: import.meta.env.VITE_ENV_ID,
+    env: "cloud1-5gqrj5sn7b8043df",
 });
 
 // 关键：Web 端需要 auth 才有 credentials
