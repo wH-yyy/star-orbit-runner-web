@@ -278,13 +278,13 @@ export async function updateStaffStatus(staffId, status) {
     }
 }
 
-export async function exportDataApi() {
+export async function exportDataApi(option) {
     try {
         await ensureCloudLogin()
 
         const res = await callFunction({
             name: 'exportData',
-            data: {}
+            data: { option } // 这里需要传递正确的参数结构
         })
 
         if (res && res.result && res.result.code === 0) {
