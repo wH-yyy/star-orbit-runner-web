@@ -1,5 +1,6 @@
 <script setup>
 import { ref } from 'vue';
+import { exportDataApi } from "@/api/admin.js";
 
 // 导出选项
 const exportOptions = ref({
@@ -13,9 +14,7 @@ const exportOptions = ref({
 
 // 导出数据
 const exportData = () => {
-  console.log('导出数据选项:', exportOptions.value);
-  // 这里可以添加API调用逻辑
-  alert('数据导出功能已触发，实际项目中会调用后端API生成并下载Excel文件');
+  exportDataApi()
 };
 </script>
 
@@ -104,13 +103,6 @@ const exportData = () => {
 .data-export-page {
   width: 100%;
   padding: 0;
-}
-
-.page-title {
-  font-size: 24px;
-  font-weight: 600;
-  margin-bottom: 24px;
-  color: #303133;
 }
 
 /* 导出表单样式 */
