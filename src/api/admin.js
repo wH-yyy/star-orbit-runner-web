@@ -123,14 +123,29 @@ export function logoutAdmin() {
     console.log('管理员已登出')
 }
 
-export async function getUserList() {
+/**
+ * 获取用户列表（分页）
+ * @param {Object} params - 分页和筛选参数
+ * @returns {Promise<Object>} 用户列表数据
+ */
+export async function getUserList(params = {}) {
+    console.log("getUserList called with:", params)
+
     try {
         // 确保云开发登录状态
         await ensureCloudLogin()
 
         const res = await callFunction({
             name: "getUserList",
-            data: {}
+            data: {
+                page: params.page || 1,
+                pageSize: params.pageSize || 10,
+                searchKeyword: params.searchKeyword || '',
+                searchFields: params.searchFields || ['name', 'stu_id', 'class_name'],
+                campus: params.campus || [],
+                college: params.college || [],
+                gender: params.gender || []
+            }
         })
 
         console.log("云函数返回结果:", res)
@@ -144,8 +159,7 @@ export async function getUserList() {
         console.log("云函数处理结果:", result)
 
         if (!result.success) {
-            // 如果云函数返回了错误消息，直接使用
-            throw new Error(result.message || '获取失败')
+            throw new Error(result.message || '获取用户列表失败')
         }
 
         return result.data
@@ -164,7 +178,62 @@ export async function getUserList() {
         }
 
         // 使用原始错误消息
-        throw new Error(err.message || '获取失败，请稍后重试')
+        throw new Error(err.message || '获取用户列表失败，请稍后重试')
+    }
+}
+
+/**
+ * 更新用户状态
+ * @param {string} userId - 用户ID
+ * @param {string} status - 新状态（active, suspended, banned）
+ * @returns {Promise<Object>} 更新结果
+ */
+export async function updateUserStatus(userId, status) {
+    console.log("updateUserStatus called with:", { userId, status })
+
+    try {
+        // 确保云开发登录状态
+        await ensureCloudLogin()
+
+        const res = await callFunction({
+            name: "updateUserStatus",
+            data: {
+                userId,
+                status
+            }
+        })
+
+        console.log("云函数返回结果:", res)
+
+        const result = res?.result
+        if (!result) {
+            console.error('云函数无返回结果')
+            throw new Error('服务器无响应，请稍后重试')
+        }
+
+        console.log("云函数处理结果:", result)
+
+        if (!result.success) {
+            throw new Error(result.message || '更新用户状态失败')
+        }
+
+        return result.data
+
+    } catch (err) {
+        console.error("updateUserStatus 调用失败:", err)
+
+        // 如果是网络错误，提供更友好的提示
+        if (err.message.includes('network') || err.message.includes('Network')) {
+            throw new Error('网络连接失败，请检查网络后重试')
+        }
+
+        // 如果是云函数调用失败，可能是未部署
+        if (err.message.includes('云函数') || err.message.includes('function')) {
+            throw new Error('系统功能未就绪，请稍后重试')
+        }
+
+        // 使用原始错误消息
+        throw new Error(err.message || '更新用户状态失败，请稍后重试')
     }
 }
 
