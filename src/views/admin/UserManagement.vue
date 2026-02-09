@@ -123,9 +123,9 @@
             <td>{{ user.class_name }}</td>
             <td>{{ user.createTime }}</td>
             <td>
-                <span :class="['status-badge', getStatusClass(user.status)]">
-                  {{ user.status }}
-                </span>
+              <span :class="['status-badge', statusClassMap[user.status]]">
+                {{ statusMap[user.status] || '未知' }}
+              </span>
             </td>
             <td>{{ user.totalDistance?.toFixed(2) || '0.00' }}</td>
             <td>{{ user.totalDuration?.toFixed(1) || '0.0' }}</td>
@@ -133,46 +133,21 @@
             <td>{{ user.violationCount || 0 }}</td>
             <td>
               <div class="action-buttons">
-                <!-- 正常状态：显示停跑和封号 -->
-                <template v-if="user.status === '正常'">
-                  <button
-                      @click="handleSuspend(user._id)"
-                      class="btn btn-warning btn-sm"
-                  >
-                    停跑
-                  </button>
-                  <button
-                      @click="handleBan(user._id)"
-                      class="btn btn-danger btn-sm"
-                  >
-                    封号
-                  </button>
+                <!-- 正常状态（0）：显示停跑和封号 -->
+                <template v-if="user.status === 0">
+                  <button @click="handleSuspend(user._id)" class="btn btn-warning btn-sm">停跑</button>
+                  <button @click="handleBan(user._id)" class="btn btn-danger btn-sm">封号</button>
                 </template>
 
-                <!-- 停跑状态：显示取消停跑和封号 -->
-                <template v-else-if="user.status === '停跑'">
-                  <button
-                      @click="handleActivate(user._id)"
-                      class="btn btn-primary btn-sm"
-                  >
-                    取消停跑
-                  </button>
-                  <button
-                      @click="handleBan(user._id)"
-                      class="btn btn-danger btn-sm"
-                  >
-                    封号
-                  </button>
+                <!-- 停跑状态（1）：显示取消停跑和封号 -->
+                <template v-else-if="user.status === 1">
+                  <button @click="handleActivate(user._id)" class="btn btn-primary btn-sm">取消停跑</button>
+                  <button @click="handleBan(user._id)" class="btn btn-danger btn-sm">封号</button>
                 </template>
 
-                <!-- 封号状态：显示解封 -->
-                <template v-else-if="user.status === '封号'">
-                  <button
-                      @click="handleActivate(user._id)"
-                      class="btn btn-primary btn-sm"
-                  >
-                    解封
-                  </button>
+                <!-- 封号状态（2）：显示解封 -->
+                <template v-else-if="user.status === 2">
+                  <button @click="handleActivate(user._id)" class="btn btn-primary btn-sm">解封</button>
                 </template>
               </div>
             </td>
@@ -257,6 +232,24 @@ import { getUserList, updateUserStatus } from '@/api/admin'
 const userList = ref([])
 const loading = ref(false)
 const error = ref('')
+
+const statusMap = {
+  0: '正常',
+  1: '停跑',
+  2: '封号'
+}
+
+const statusReverseMap = {
+  '正常': 0,
+  '停跑': 1,
+  '封号': 2
+}
+
+const statusClassMap = {
+  0: 'status-normal',
+  1: 'status-suspended',
+  2: 'status-banned'
+}
 
 // 分页相关
 const currentPage = ref(1)
@@ -427,13 +420,13 @@ const confirmAction = async () => {
   let status
   switch (pendingAction.value) {
     case 'suspend':
-      status = 'suspended'
+      status = 1  // 停跑
       break
     case 'ban':
-      status = 'banned'
+      status = 2  // 封号
       break
     case 'activate':
-      status = 'active'
+      status = 0  // 正常
       break
     default:
       return
