@@ -367,6 +367,66 @@ const goToPage = (page) => {
   }
 }
 
+// 跳转到第一页
+const goToFirstPage = () => {
+  pagination.page = 1
+  loadAppeals()
+}
+
+// 跳转到最后一页
+const goToLastPage = () => {
+  pagination.page = pagination.totalPages
+  loadAppeals()
+}
+
+const visiblePages = computed(() => {
+  const pages = []
+  const total = pagination.totalPages
+  const current = pagination.page
+  const showPages = 5 // 显示5个页码按钮（包括当前页）
+
+  if (total <= showPages) {
+    // 如果总页数小于等于显示页数，显示所有页码
+    for (let i = 1; i <= total; i++) {
+      pages.push(i)
+    }
+  } else {
+    // 计算起始和结束页码
+    let start = Math.max(1, current - Math.floor(showPages / 2))
+    let end = start + showPages - 1
+
+    if (end > total) {
+      end = total
+      start = Math.max(1, end - showPages + 1)
+    }
+
+    // 添加第一页和省略号
+    if (start > 1) {
+      pages.push(1)
+      if (start > 2) {
+        pages.push('...')
+      }
+    }
+
+    // 添加中间页码
+    for (let i = start; i <= end; i++) {
+      pages.push(i)
+    }
+
+    // 添加省略号和最后一页
+    if (end < total) {
+      if (end < total - 1) {
+        pages.push('...')
+      }
+      pages.push(total)
+    }
+  }
+
+  return pages
+})
+
+
+
 // 生命周期
 onMounted(() => {
   if (route.params.id) {
@@ -472,12 +532,29 @@ const loadDetail = async () => {
           </select>
         </div>
         <div class="pagination-center">
+          <button @click="goToFirstPage" :disabled="pagination.page <= 1">首页</button>
           <button @click="prevPage" :disabled="pagination.page <= 1">上一页</button>
+
+          <!-- 页码按钮 -->
+          <span class="page-buttons">
+            <button
+                v-for="pageNum in visiblePages"
+                :key="pageNum"
+                @click="goToPage(pageNum)"
+                :class="{ 'current': pageNum === pagination.page }"
+                :disabled="pageNum === '...'"
+            >
+              {{ pageNum }}
+            </button>
+          </span>
+
+          <button @click="nextPage" :disabled="pagination.page >= pagination.totalPages">下一页</button>
+          <button @click="goToLastPage" :disabled="pagination.page >= pagination.totalPages">末页</button>
+
           <span class="page-info">
             第 {{ pagination.page }} 页 / 共 {{ pagination.totalPages }} 页
             (共 {{ pagination.total }} 条)
           </span>
-          <button @click="nextPage" :disabled="pagination.page >= pagination.totalPages">下一页</button>
         </div>
       </div>
 
@@ -587,6 +664,20 @@ const loadDetail = async () => {
             <div v-if="appealDetail.runningRecord.audit_reason" class="info-item full-width">
               <label>审核原因：</label>
               <span>{{ appealDetail.runningRecord.audit_reason }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="appealDetail.runningRecordImageUrl" class="content-card">
+          <h3>跑步记录截图</h3>
+          <div class="image-gallery">
+            <div class="image-item">
+              <img
+                  :src="appealDetail.runningRecordImageUrl"
+                  alt="跑步记录截图"
+                  @click="openImagePreview(appealDetail.runningRecordImageUrl)"
+              >
+              <span class="image-label">跑步记录截图</span>
             </div>
           </div>
         </div>
@@ -926,6 +1017,41 @@ const loadDetail = async () => {
 .page-info {
   color: #666;
   font-size: 14px;
+}
+
+.page-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+.page-buttons button {
+  min-width: 36px;
+  height: 36px;
+  padding: 0 8px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s;
+}
+
+.page-buttons button:hover:not(:disabled):not(.current) {
+  border-color: #1890ff;
+  color: #1890ff;
+}
+
+.page-buttons button.current {
+  background: #1890ff;
+  color: white;
+  border-color: #1890ff;
+  font-weight: 500;
+}
+
+.page-buttons button:disabled {
+  color: #999;
+  cursor: default;
+  background: #f5f5f5;
 }
 
 .stats-info {
