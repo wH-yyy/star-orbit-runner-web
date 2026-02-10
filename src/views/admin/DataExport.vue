@@ -1,21 +1,13 @@
 <script setup>
 import { ref } from 'vue';
+import { exportDataApi } from "@/api/admin.js";
 
 // 导出选项
-const exportOptions = ref({
-  dataType: 'userList', // userList, runRecords, awards
-  dateRange: {
-    start: '',
-    end: ''
-  },
-  includeDetails: false
-});
+const exportOption = ref("award");
 
 // 导出数据
 const exportData = () => {
-  console.log('导出数据选项:', exportOptions.value);
-  // 这里可以添加API调用逻辑
-  alert('数据导出功能已触发，实际项目中会调用后端API生成并下载Excel文件');
+  exportDataApi(exportOption.value);
 };
 </script>
 
@@ -30,44 +22,11 @@ const exportData = () => {
         <div class="form-item">
           <label class="form-label">数据类型</label>
           <div class="form-control">
-            <select v-model="exportOptions.dataType" class="select-control">
-              <option value="userList">用户名单</option>
-              <option value="runRecords">打卡记录</option>
-              <option value="awards">获奖数据</option>
+            <select v-model="exportOption" class="select-control">
+              <option value="award">获奖名单</option>
+              <option value="record">打卡统计</option>
             </select>
           </div>
-        </div>
-
-        <!-- 日期范围选择 -->
-        <div class="form-item">
-          <label class="form-label">日期范围</label>
-          <div class="date-range">
-            <input
-                type="date"
-                v-model="exportOptions.dateRange.start"
-                class="date-input"
-                placeholder="开始日期"
-            />
-            <span class="date-separator">至</span>
-            <input
-                type="date"
-                v-model="exportOptions.dateRange.end"
-                class="date-input"
-                placeholder="结束日期"
-            />
-          </div>
-        </div>
-
-        <!-- 包含详细信息 -->
-        <div class="form-item">
-          <label class="checkbox-label">
-            <input
-                type="checkbox"
-                v-model="exportOptions.includeDetails"
-                class="checkbox-input"
-            />
-            <span class="checkbox-text">包含详细信息</span>
-          </label>
         </div>
 
         <!-- 导出按钮 -->
@@ -84,16 +43,16 @@ const exportData = () => {
       <h3>导出说明</h3>
       <div class="guide-content">
         <div class="guide-item">
-          <h4>用户名单</h4>
-          <p>包含所有参与活动的用户基本信息，如姓名、学号、院系等。</p>
+          <h4>获奖名单</h4>
+          <p>包含根据打卡次数评选出的获奖用户信息，按照总次数进行排名，并分配一、二、三等奖。</p>
         </div>
         <div class="guide-item">
-          <h4>打卡记录</h4>
-          <p>包含所有用户的打卡记录，如打卡时间、距离、配速等详细信息。</p>
+          <h4>打卡统计</h4>
+          <p>包含所有用户的打卡统计信息，如姓名、书院、班级、学号、性别和总次数。</p>
         </div>
         <div class="guide-item">
-          <h4>获奖数据</h4>
-          <p>包含根据打卡次数和里程评选出的获奖用户信息。</p>
+          <h4>筛选规则</h4>
+          <p>获奖名单仅导出完成率≥60%的用户，打卡统计导出全部用户数据。</p>
         </div>
       </div>
     </div>
@@ -104,13 +63,6 @@ const exportData = () => {
 .data-export-page {
   width: 100%;
   padding: 0;
-}
-
-.page-title {
-  font-size: 24px;
-  font-weight: 600;
-  margin-bottom: 24px;
-  color: #303133;
 }
 
 /* 导出表单样式 */
