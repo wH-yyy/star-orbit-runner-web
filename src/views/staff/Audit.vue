@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { getAuditRecords, getAuditRecordDetail, submitAudit as submitAuditApi, updateAuditResult } from '../../api/staff.js'
+import { getAuditRecords, getAuditRecordDetail, submitAudit as submitAuditApi } from '../../api/staff.js'
 
 // 审核记录数据
 const auditRecords = ref([])
@@ -43,14 +43,24 @@ const filteredRecords = computed(() => {
     // 将 record.status 转换为字符串便于比较
     const recordStatus = String(record.status)
     const searchStatus = searchParams.value.status ? String(searchParams.value.status) : ''
+    const recordDate = searchParams.value.date ? formatDateOnly(record.date || record.time) : ''
     
     return (
       (searchParams.value.username ? record.username.includes(searchParams.value.username) : true) &&
       (searchParams.value.studentId ? record.studentId.includes(searchParams.value.studentId) : true) &&
-      (searchParams.value.date ? record.date === searchParams.value.date : true) &&
+      (searchParams.value.date ? recordDate === searchParams.value.date : true) &&
       (searchStatus ? recordStatus === searchStatus : true)
     )
   })
+})
+
+const isPendingStatus = (status) => {
+  return status === 0 || status === '0' || status === 'pending'
+}
+
+const canAuditSelected = computed(() => {
+  if (!selectedRecord.value) return false
+  return isPendingStatus(selectedRecord.value.status)
 })
 
 // 加载审核记录列表
@@ -110,9 +120,15 @@ function refreshRecords() {
 // 打开审核对话框
 async function openAuditDialog(record) {
   selectedRecord.value = record
+  const normalizedResult = record.status === 1 || record.status === 'approved'
+    ? 'approved'
+    : record.status === 2 || record.status === 'rejected'
+      ? 'rejected'
+      : ''
   auditForm.value = {
-    result: record.status === 'approved' ? 'approved' : record.status === 'rejected' ? 'rejected' : '',
-    reasons: [...(record.reasons || [])]
+    result: normalizedResult,
+    reasons: [...(record.reasons || [])],
+    remark: record.remark || ''
   }
   isAuditDialogVisible.value = true
   
@@ -132,6 +148,10 @@ async function openAuditDialog(record) {
 
 // 提交审核
 async function submitAudit() {
+  if (!canAuditSelected.value) {
+    errorMsg.value = '仅待审核记录可提交审核'
+    return
+  }
   if (!selectedRecord.value || !auditForm.value.result) {
     errorMsg.value = '请选择审核结果'
     return
@@ -157,28 +177,17 @@ async function submitAudit() {
     
     console.log('提交审核数据:', auditData)
     
-    // 判断是新审核还是修改审核（纠错）
-    const isUpdate = selectedRecord.value.status !== 'pending'
-    
-    let result
-    if (isUpdate) {
-      // 纠错：修改已有的审核结果
-      console.log('修改审核结果（纠错）')
-      result = await updateAuditResult(auditData)
-    } else {
-      // 新审核
-      console.log('提交新审核')
-      result = await submitAuditApi(auditData)
-    }
+    console.log('提交新审核')
+    const result = await submitAuditApi(auditData)
     
     console.log('审核提交成功:', result)
     
-    successMsg.value = isUpdate ? '审核结果已修改' : '审核已提交'
+    successMsg.value = '审核已提交'
     
     // 更新本地记录
     const record = auditRecords.value.find(r => r.id === selectedRecord.value.id)
     if (record) {
-      record.status = auditForm.value.result
+      record.status = auditForm.value.result === 'approved' ? 1 : 2
       record.reasons = auditForm.value.reasons
       record.remark = auditForm.value.remark || ''
     }
@@ -256,6 +265,22 @@ function getAutoAuditText(result) {
     error: '错误'
   }
   return resultMap[result] || result
+}
+
+function formatDateTime(value) {
+  if (!value) return ''
+  const date = value.$date ? new Date(value.$date) : new Date(value)
+  if (Number.isNaN(date.getTime())) return String(value)
+  const pad = (num) => String(num).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+}
+
+function formatDateOnly(value) {
+  if (!value) return ''
+  const date = value.$date ? new Date(value.$date) : new Date(value)
+  if (Number.isNaN(date.getTime())) return String(value)
+  const pad = (num) => String(num).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
 }
 
 // 组件挂载时加载数据
@@ -341,7 +366,7 @@ onMounted(() => {
             <td>{{ record.studentId }}</td>
             <td>{{ record.distance }}</td>
             <td>{{ record.duration }}</td>
-            <td>{{ record.date }} {{ record.time }}</td>
+            <td>{{ formatDateTime(record.date || record.time) }}</td>
             <td>{{ getAutoAuditText(record.autoAuditResult) }}</td>
             <td>
               <span :class="['status-badge', getStatusClass(record.status)]">
@@ -350,7 +375,7 @@ onMounted(() => {
             </td>
             <td>
               <button @click="openAuditDialog(record)" class="audit-btn" :disabled="loading">
-                {{ record.status === 0 || record.status === 'pending' ? '审核' : '修改' }}
+                {{ isPendingStatus(record.status) ? '审核' : '查看' }}
               </button>
             </td>
           </tr>
@@ -390,7 +415,7 @@ onMounted(() => {
             </div>
             <div class="detail-row">
               <span class="detail-label">打卡时间：</span>
-              <span class="detail-value">{{ selectedRecord.date }} {{ selectedRecord.time }}</span>
+              <span class="detail-value">{{ formatDateTime(selectedRecord.date || selectedRecord.time) }}</span>
             </div>
             <div class="detail-row">
               <span class="detail-label">自动审核：</span>
@@ -410,11 +435,11 @@ onMounted(() => {
               <h3>审核结果</h3>
               <div class="audit-options">
                 <label class="radio-option">
-                  <input type="radio" v-model="auditForm.result" value="approved" />
+                  <input type="radio" v-model="auditForm.result" value="approved" :disabled="!canAuditSelected" />
                   <span>通过</span>
                 </label>
                 <label class="radio-option">
-                  <input type="radio" v-model="auditForm.result" value="rejected" />
+                  <input type="radio" v-model="auditForm.result" value="rejected" :disabled="!canAuditSelected" />
                   <span>拒绝</span>
                 </label>
               </div>
@@ -427,7 +452,8 @@ onMounted(() => {
                     <input 
                       type="checkbox" 
                       :value="reason" 
-                      v-model="auditForm.reasons" 
+                      v-model="auditForm.reasons"
+                      :disabled="!canAuditSelected"
                     />
                     <span>{{ reason }}</span>
                   </label>
@@ -442,12 +468,13 @@ onMounted(() => {
                   placeholder="请输入备注信息..."
                   rows="3"
                   class="remark-input"
+                  :disabled="!canAuditSelected"
                 ></textarea>
               </div>
               
               <!-- 提示信息 -->
-              <div v-if="selectedRecord && selectedRecord.status !== 'pending'" class="warning-tip">
-                ⚠️ 注意：此记录已审核过，本次操作将修改原有的审核结果（纠错功能）
+              <div v-if="selectedRecord && !canAuditSelected" class="warning-tip">
+                ℹ️ 当前记录为已审核或申诉中的记录，仅支持查看
               </div>
             </div>
           </div>
@@ -456,8 +483,8 @@ onMounted(() => {
           <button @click="isAuditDialogVisible = false" class="cancel-btn" :disabled="loading">
             取消
           </button>
-          <button @click="submitAudit" class="submit-btn" :disabled="loading || !auditForm.result">
-            {{ loading ? '提交中...' : (selectedRecord?.status !== 'pending' ? '修改审核结果' : '提交审核') }}
+          <button v-if="canAuditSelected" @click="submitAudit" class="submit-btn" :disabled="loading || !auditForm.result">
+            {{ loading ? '提交中...' : '提交审核' }}
           </button>
         </div>
       </div>
