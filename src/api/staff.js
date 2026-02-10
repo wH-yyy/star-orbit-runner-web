@@ -148,3 +148,243 @@ export function hasStaffPermission(requiredRole) {
 
     return roleHierarchy[currentRole]?.includes(requiredRole) || false
 }
+
+// ==================== 打卡审核相关 API ====================
+
+/**
+ * 获取分配给当前工作人员的打卡记录列表
+ * @param {Object} params - 查询参数
+ * @param {string} params.username - 用户名（可选）
+ * @param {string} params.studentId - 学号（可选）
+ * @param {string} params.date - 日期（可选，格式：YYYY-MM-DD）
+ * @param {string} params.status - 状态（可选：pending/approved/rejected）
+ * @param {number} params.page - 页码（可选，默认1）
+ * @param {number} params.pageSize - 每页条数（可选，默认20）
+ * @returns {Promise<Object>} 打卡记录列表及分页信息
+ */
+export async function getAuditRecords(params = {}) {
+    console.log('getAuditRecords called with:', params)
+    
+    try {
+        await ensureCloudLogin()
+        
+        const res = await callFunction({
+            name: 'staff-api',
+            data: {
+                action: 'audit/getRecords',
+                ...params
+            }
+        })
+        
+        console.log('getAuditRecords 返回结果:', res)
+        
+        const result = res?.result
+        if (!result) {
+            throw new Error('服务器无响应')
+        }
+        
+        if (result.code !== 200) {
+            throw new Error(result.message || '获取打卡记录失败')
+        }
+        
+        return result.data
+        
+    } catch (err) {
+        console.error('getAuditRecords 调用失败:', err)
+        throw new Error(err.message || '获取打卡记录失败')
+    }
+}
+
+/**
+ * 获取打卡记录详情
+ * @param {string} recordId - 打卡记录ID
+ * @returns {Promise<Object>} 打卡记录详细信息
+ */
+export async function getAuditRecordDetail(recordId) {
+    console.log('getAuditRecordDetail called with:', recordId)
+    
+    try {
+        if (!recordId) {
+            throw new Error('记录ID不能为空')
+        }
+        
+        await ensureCloudLogin()
+        
+        const res = await callFunction({
+            name: 'staff-api',
+            data: {
+                action: 'audit/getDetail',
+                recordId
+            }
+        })
+        
+        console.log('getAuditRecordDetail 返回结果:', res)
+        
+        const result = res?.result
+        if (!result) {
+            throw new Error('服务器无响应')
+        }
+        
+        if (result.code !== 200) {
+            throw new Error(result.message || '获取记录详情失败')
+        }
+        
+        return result.data
+        
+    } catch (err) {
+        console.error('getAuditRecordDetail 调用失败:', err)
+        throw new Error(err.message || '获取记录详情失败')
+    }
+}
+
+/**
+ * 提交审核结果
+ * @param {Object} auditData - 审核数据
+ * @param {string} auditData.recordId - 打卡记录ID
+ * @param {string} auditData.result - 审核结果（approved/rejected）
+ * @param {Array<string>} auditData.reasons - 拒绝原因（当result为rejected时必填）
+ * @param {string} auditData.remark - 备注（可选）
+ * @returns {Promise<Object>} 审核结果
+ */
+export async function submitAudit(auditData) {
+    console.log('submitAudit called with:', auditData)
+    
+    try {
+        // 参数验证
+        if (!auditData.recordId) {
+            throw new Error('记录ID不能为空')
+        }
+        
+        if (!auditData.result || !['approved', 'rejected'].includes(auditData.result)) {
+            throw new Error('审核结果必须是 approved 或 rejected')
+        }
+        
+        if (auditData.result === 'rejected' && (!auditData.reasons || auditData.reasons.length === 0)) {
+            throw new Error('拒绝时必须选择至少一个原因')
+        }
+        
+        await ensureCloudLogin()
+        
+        const res = await callFunction({
+            name: 'staff-api',
+            data: {
+                action: 'audit/submit',
+                ...auditData
+            }
+        })
+        
+        console.log('submitAudit 返回结果:', res)
+        
+        const result = res?.result
+        if (!result) {
+            throw new Error('服务器无响应')
+        }
+        
+        if (result.code !== 200) {
+            throw new Error(result.message || '提交审核失败')
+        }
+        
+        return result.data
+        
+    } catch (err) {
+        console.error('submitAudit 调用失败:', err)
+        throw new Error(err.message || '提交审核失败')
+    }
+}
+
+/**
+ * 修改审核结果（纠错功能）
+ * @param {Object} updateData - 修改数据
+ * @param {string} updateData.recordId - 打卡记录ID
+ * @param {string} updateData.result - 新的审核结果（approved/rejected）
+ * @param {Array<string>} updateData.reasons - 拒绝原因（当result为rejected时必填）
+ * @param {string} updateData.remark - 修改备注（可选）
+ * @returns {Promise<Object>} 修改结果
+ */
+export async function updateAuditResult(updateData) {
+    console.log('updateAuditResult called with:', updateData)
+    
+    try {
+        // 参数验证
+        if (!updateData.recordId) {
+            throw new Error('记录ID不能为空')
+        }
+        
+        if (!updateData.result || !['approved', 'rejected'].includes(updateData.result)) {
+            throw new Error('审核结果必须是 approved 或 rejected')
+        }
+        
+        if (updateData.result === 'rejected' && (!updateData.reasons || updateData.reasons.length === 0)) {
+            throw new Error('拒绝时必须选择至少一个原因')
+        }
+        
+        await ensureCloudLogin()
+        
+        const res = await callFunction({
+            name: 'staff-api',
+            data: {
+                action: 'audit/update',
+                ...updateData
+            }
+        })
+        
+        console.log('updateAuditResult 返回结果:', res)
+        
+        const result = res?.result
+        if (!result) {
+            throw new Error('服务器无响应')
+        }
+        
+        if (result.code !== 200) {
+            throw new Error(result.message || '修改审核结果失败')
+        }
+        
+        return result.data
+        
+    } catch (err) {
+        console.error('updateAuditResult 调用失败:', err)
+        throw new Error(err.message || '修改审核结果失败')
+    }
+}
+
+/**
+ * 批量审核
+ * @param {Array<Object>} auditList - 审核列表
+ * @returns {Promise<Object>} 批量审核结果
+ */
+export async function batchAudit(auditList) {
+    console.log('batchAudit called with:', auditList)
+    
+    try {
+        if (!auditList || auditList.length === 0) {
+            throw new Error('审核列表不能为空')
+        }
+        
+        await ensureCloudLogin()
+        
+        const res = await callFunction({
+            name: 'staff-api',
+            data: {
+                action: 'audit/batch',
+                auditList
+            }
+        })
+        
+        console.log('batchAudit 返回结果:', res)
+        
+        const result = res?.result
+        if (!result) {
+            throw new Error('服务器无响应')
+        }
+        
+        if (result.code !== 200) {
+            throw new Error(result.message || '批量审核失败')
+        }
+        
+        return result.data
+        
+    } catch (err) {
+        console.error('batchAudit 调用失败:', err)
+        throw new Error(err.message || '批量审核失败')
+    }
+}

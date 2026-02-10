@@ -1,65 +1,12 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { getAuditRecords, getAuditRecordDetail, submitAudit as submitAuditApi, updateAuditResult } from '../../api/staff.js'
 
-// 模拟审核记录数据
-const auditRecords = ref([
-  {
-    id: 1,
-    userId: 1001,
-    username: '张三',
-    studentId: '20230001',
-    distance: 3.2,
-    duration: 25,
-    date: '2024-01-15',
-    time: '20:30',
-    status: 'pending',
-    autoAuditResult: 'suspicious',
-    screenshot: 'https://via.placeholder.com/400x300?text=Running+Screenshot',
-    reasons: []
-  },
-  {
-    id: 2,
-    userId: 1002,
-    username: '李四',
-    studentId: '20230002',
-    distance: 4.5,
-    duration: 32,
-    date: '2024-01-15',
-    time: '21:15',
-    status: 'pending',
-    autoAuditResult: 'normal',
-    screenshot: 'https://via.placeholder.com/400x300?text=Running+Screenshot',
-    reasons: []
-  },
-  {
-    id: 3,
-    userId: 1003,
-    username: '王五',
-    studentId: '20230003',
-    distance: 2.8,
-    duration: 18,
-    date: '2024-01-15',
-    time: '21:45',
-    status: 'rejected',
-    autoAuditResult: 'suspicious',
-    screenshot: 'https://via.placeholder.com/400x300?text=Running+Screenshot',
-    reasons: ['配速异常']
-  },
-  {
-    id: 4,
-    userId: 1004,
-    username: '赵六',
-    studentId: '20230004',
-    distance: 5.1,
-    duration: 38,
-    date: '2024-01-15',
-    time: '20:15',
-    status: 'approved',
-    autoAuditResult: 'normal',
-    screenshot: 'https://via.placeholder.com/400x300?text=Running+Screenshot',
-    reasons: []
-  }
-])
+// 审核记录数据
+const auditRecords = ref([])
+const loading = ref(false)
+const errorMsg = ref('')
+const successMsg = ref('')
 
 // 筛选条件
 const searchParams = ref({
@@ -76,7 +23,8 @@ const isAuditDialogVisible = ref(false)
 // 审核表单
 const auditForm = ref({
   result: '',
-  reasons: []
+  reasons: [],
+  remark: ''
 })
 
 // 预设的拒绝原因
@@ -92,44 +40,169 @@ const rejectReasons = [
 // 筛选后的记录
 const filteredRecords = computed(() => {
   return auditRecords.value.filter(record => {
+    // 将 record.status 转换为字符串便于比较
+    const recordStatus = String(record.status)
+    const searchStatus = searchParams.value.status ? String(searchParams.value.status) : ''
+    
     return (
       (searchParams.value.username ? record.username.includes(searchParams.value.username) : true) &&
       (searchParams.value.studentId ? record.studentId.includes(searchParams.value.studentId) : true) &&
       (searchParams.value.date ? record.date === searchParams.value.date : true) &&
-      (searchParams.value.status ? record.status === searchParams.value.status : true)
+      (searchStatus ? recordStatus === searchStatus : true)
     )
   })
 })
 
+// 加载审核记录列表
+async function loadAuditRecords() {
+  loading.value = true
+  errorMsg.value = ''
+  
+  try {
+    console.log('开始加载审核记录...')
+    
+    const params = {
+      username: searchParams.value.username || undefined,
+      studentId: searchParams.value.studentId || undefined,
+      date: searchParams.value.date || undefined,
+      status: searchParams.value.status || undefined,
+      page: 1,
+      pageSize: 100
+    }
+    
+    const result = await getAuditRecords(params)
+    
+    console.log('审核记录加载成功:', result)
+    
+    // 处理返回的数据，确保格式正确
+    auditRecords.value = (result.records || result.list || []).map(record => ({
+      id: record._id || record.id,
+      userId: record.userId,
+      username: record.username || record.userName || '',
+      studentId: record.studentId || '',
+      distance: record.distance,
+      duration: record.duration,
+      date: record.date || record.checkInDate || '',
+      time: record.time || record.checkInTime || '',
+      status: record.status !== undefined ? record.status : 0,
+      autoAuditResult: record.autoAuditResult || 'normal',
+      screenshot: record.screenshot || record.screenshotUrl || '',
+      reasons: record.reasons || [],
+      remark: record.remark || ''
+    }))
+    
+    console.log('处理后的记录数:', auditRecords.value.length)
+    
+  } catch (err) {
+    console.error('加载审核记录失败:', err)
+    errorMsg.value = err.message || '加载审核记录失败'
+    auditRecords.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+// 刷新列表
+function refreshRecords() {
+  loadAuditRecords()
+}
+
 // 打开审核对话框
-function openAuditDialog(record) {
+async function openAuditDialog(record) {
   selectedRecord.value = record
   auditForm.value = {
     result: record.status === 'approved' ? 'approved' : record.status === 'rejected' ? 'rejected' : '',
-    reasons: [...record.reasons]
+    reasons: [...(record.reasons || [])]
   }
   isAuditDialogVisible.value = true
+  
+  // 如果需要获取更详细的信息，可以调用详情接口
+  try {
+    const detail = await getAuditRecordDetail(record.id)
+    console.log('审核记录详情:', detail)
+    // 可以用详情数据更新 selectedRecord
+    if (detail) {
+      selectedRecord.value = { ...selectedRecord.value, ...detail }
+    }
+  } catch (err) {
+    console.error('获取审核详情失败:', err)
+    // 不影响对话框打开，可以使用列表中的数据
+  }
 }
 
 // 提交审核
-function submitAudit() {
+async function submitAudit() {
   if (!selectedRecord.value || !auditForm.value.result) {
+    errorMsg.value = '请选择审核结果'
     return
   }
-
-  // 更新记录状态
-  const record = auditRecords.value.find(r => r.id === selectedRecord.value.id)
-  if (record) {
-    record.status = auditForm.value.result
-    record.reasons = auditForm.value.reasons
+  
+  // 如果是拒绝，必须选择原因
+  if (auditForm.value.result === 'rejected' && auditForm.value.reasons.length === 0) {
+    errorMsg.value = '拒绝审核时必须选择至少一个原因'
+    return
   }
-
-  // 关闭对话框
-  isAuditDialogVisible.value = false
-  selectedRecord.value = null
-  auditForm.value = {
-    result: '',
-    reasons: []
+  
+  loading.value = true
+  errorMsg.value = ''
+  successMsg.value = ''
+  
+  try {
+    const auditData = {
+      recordId: selectedRecord.value.id,
+      result: auditForm.value.result,
+      reasons: auditForm.value.reasons,
+      remark: auditForm.value.remark || ''
+    }
+    
+    console.log('提交审核数据:', auditData)
+    
+    // 判断是新审核还是修改审核（纠错）
+    const isUpdate = selectedRecord.value.status !== 'pending'
+    
+    let result
+    if (isUpdate) {
+      // 纠错：修改已有的审核结果
+      console.log('修改审核结果（纠错）')
+      result = await updateAuditResult(auditData)
+    } else {
+      // 新审核
+      console.log('提交新审核')
+      result = await submitAuditApi(auditData)
+    }
+    
+    console.log('审核提交成功:', result)
+    
+    successMsg.value = isUpdate ? '审核结果已修改' : '审核已提交'
+    
+    // 更新本地记录
+    const record = auditRecords.value.find(r => r.id === selectedRecord.value.id)
+    if (record) {
+      record.status = auditForm.value.result
+      record.reasons = auditForm.value.reasons
+      record.remark = auditForm.value.remark || ''
+    }
+    
+    // 延迟关闭对话框，让用户看到成功消息
+    setTimeout(() => {
+      isAuditDialogVisible.value = false
+      selectedRecord.value = null
+      auditForm.value = {
+        result: '',
+        reasons: [],
+        remark: ''
+      }
+      successMsg.value = ''
+      
+      // 重新加载列表
+      loadAuditRecords()
+    }, 1000)
+    
+  } catch (err) {
+    console.error('提交审核失败:', err)
+    errorMsg.value = err.message || '提交审核失败'
+  } finally {
+    loading.value = false
   }
 }
 
@@ -141,24 +214,36 @@ function resetFilters() {
     date: '',
     status: ''
   }
+  // 重置后重新加载
+  loadAuditRecords()
 }
 
 // 获取状态文本
 function getStatusText(status) {
+  // 支持数字状态码和字符串状态
   const statusMap = {
-    pending: '待审核',
-    approved: '通过',
-    rejected: '拒绝'
+    0: '待审核',
+    1: '通过',
+    2: '不通过',
+    3: '申诉中',
+    'pending': '待审核',
+    'approved': '通过',
+    'rejected': '拒绝'
   }
   return statusMap[status] || status
 }
 
 // 获取状态类名
 function getStatusClass(status) {
+  // 支持数字状态码和字符串状态
   const classMap = {
-    pending: 'status-pending',
-    approved: 'status-approved',
-    rejected: 'status-rejected'
+    0: 'status-pending',
+    1: 'status-approved',
+    2: 'status-rejected',
+    3: 'status-appeal',
+    'pending': 'status-pending',
+    'approved': 'status-approved',
+    'rejected': 'status-rejected'
   }
   return classMap[status] || ''
 }
@@ -172,10 +257,26 @@ function getAutoAuditText(result) {
   }
   return resultMap[result] || result
 }
+
+// 组件挂载时加载数据
+onMounted(() => {
+  console.log('Audit 页面已挂载，开始加载数据')
+  loadAuditRecords()
+})
 </script>
 
 <template>
   <div class="audit-page">
+    <!-- 消息提示 -->
+    <div v-if="errorMsg" class="message-banner error">
+      ❌ {{ errorMsg }}
+      <button @click="errorMsg = ''" class="close-msg">×</button>
+    </div>
+    <div v-if="successMsg" class="message-banner success">
+      ✅ {{ successMsg }}
+      <button @click="successMsg = ''" class="close-msg">×</button>
+    </div>
+
     <!-- 搜索筛选 -->
     <div class="search-filters">
       <div class="filter-row">
@@ -195,20 +296,31 @@ function getAutoAuditText(result) {
           <label>状态</label>
           <select v-model="searchParams.status">
             <option value="">全部</option>
-            <option value="pending">待审核</option>
-            <option value="approved">通过</option>
-            <option value="rejected">拒绝</option>
+            <option value="0">待审核</option>
+            <option value="1">通过</option>
+            <option value="2">不通过</option>
+            <option value="3">申诉中</option>
           </select>
         </div>
         <div class="filter-actions">
-          <button @click="resetFilters" class="reset-btn">重置</button>
+          <button @click="loadAuditRecords" class="search-btn" :disabled="loading">
+            {{ loading ? '查询中...' : '🔍 查询' }}
+          </button>
+          <button @click="resetFilters" class="reset-btn" :disabled="loading">重置</button>
         </div>
       </div>
     </div>
 
     <!-- 审核记录列表 -->
     <div class="audit-list">
-      <table class="audit-table">
+      <!-- 加载状态 -->
+      <div v-if="loading && auditRecords.length === 0" class="loading-state">
+        <div class="spinner"></div>
+        <p>正在加载审核记录...</p>
+      </div>
+
+      <!-- 数据表格 -->
+      <table v-else class="audit-table">
         <thead>
           <tr>
             <th>序号</th>
@@ -237,15 +349,17 @@ function getAutoAuditText(result) {
               </span>
             </td>
             <td>
-              <button @click="openAuditDialog(record)" class="audit-btn">
-                {{ record.status === 'pending' ? '审核' : '修改' }}
+              <button @click="openAuditDialog(record)" class="audit-btn" :disabled="loading">
+                {{ record.status === 0 || record.status === 'pending' ? '审核' : '修改' }}
               </button>
             </td>
           </tr>
         </tbody>
       </table>
-      <div v-if="filteredRecords.length === 0" class="empty-state">
-        暂无审核记录
+      
+      <!-- 空状态 -->
+      <div v-if="!loading && filteredRecords.length === 0" class="empty-state">
+        {{ errorMsg ? '加载失败' : '暂无审核记录' }}
       </div>
     </div>
 
@@ -319,12 +433,32 @@ function getAutoAuditText(result) {
                   </label>
                 </div>
               </div>
+              
+              <!-- 备注 -->
+              <div class="remark-section">
+                <h4>备注（可选）</h4>
+                <textarea 
+                  v-model="auditForm.remark" 
+                  placeholder="请输入备注信息..."
+                  rows="3"
+                  class="remark-input"
+                ></textarea>
+              </div>
+              
+              <!-- 提示信息 -->
+              <div v-if="selectedRecord && selectedRecord.status !== 'pending'" class="warning-tip">
+                ⚠️ 注意：此记录已审核过，本次操作将修改原有的审核结果（纠错功能）
+              </div>
             </div>
           </div>
         </div>
         <div class="dialog-footer">
-          <button @click="isAuditDialogVisible = false" class="cancel-btn">取消</button>
-          <button @click="submitAudit" class="submit-btn">提交审核</button>
+          <button @click="isAuditDialogVisible = false" class="cancel-btn" :disabled="loading">
+            取消
+          </button>
+          <button @click="submitAudit" class="submit-btn" :disabled="loading || !auditForm.result">
+            {{ loading ? '提交中...' : (selectedRecord?.status !== 'pending' ? '修改审核结果' : '提交审核') }}
+          </button>
         </div>
       </div>
     </div>
@@ -334,6 +468,77 @@ function getAutoAuditText(result) {
 <style scoped>
 .audit-page {
   padding: 20px 0;
+}
+
+/* 消息提示 */
+.message-banner {
+  padding: 12px 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  animation: slideDown 0.3s ease;
+}
+
+.message-banner.error {
+  background: #fff1f0;
+  border: 1px solid #ffccc7;
+  color: #ff4d4f;
+}
+
+.message-banner.success {
+  background: #f6ffed;
+  border: 1px solid #b7eb8f;
+  color: #52c41a;
+}
+
+.close-msg {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.6;
+  transition: opacity 0.3s;
+}
+
+.close-msg:hover {
+  opacity: 1;
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* 加载状态 */
+.loading-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #999;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 20px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 .page-header {
@@ -362,19 +567,22 @@ function getAutoAuditText(result) {
 
 .filter-row {
   display: flex;
-  gap: 16px;
+  gap: 12px;
   flex-wrap: wrap;
+  align-items: flex-start;
 }
 
 .filter-item {
   flex: 1;
-  min-width: 150px;
+  min-width: 160px;
+  display: flex;
+  flex-direction: column;
 }
 
 .filter-item label {
   display: block;
-  margin-bottom: 8px;
-  font-size: 14px;
+  margin-bottom: 6px;
+  font-size: 13px;
   color: #666;
   font-weight: 500;
 }
@@ -385,12 +593,37 @@ function getAutoAuditText(result) {
   padding: 8px 12px;
   border: 1px solid #ddd;
   border-radius: 6px;
-  font-size: 14px;
+  font-size: 13px;
+  box-sizing: border-box;
 }
 
 .filter-actions {
   display: flex;
   align-items: flex-end;
+  gap: 8px;
+  margin-top: auto;
+  flex-shrink: 0;
+  min-width: 220px;
+}
+
+.search-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  background: #667eea;
+  color: white;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.search-btn:hover:not(:disabled) {
+  background: #5a6fe0;
+}
+
+.search-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .reset-btn {
@@ -404,8 +637,13 @@ function getAutoAuditText(result) {
   transition: all 0.3s ease;
 }
 
-.reset-btn:hover {
+.reset-btn:hover:not(:disabled) {
   background: #f5f5f5;
+}
+
+.reset-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .audit-list {
@@ -472,9 +710,14 @@ function getAutoAuditText(result) {
   transition: all 0.3s ease;
 }
 
-.audit-btn:hover {
+.audit-btn:hover:not(:disabled) {
   background: #667eea;
   color: white;
+}
+
+.audit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .empty-state {
@@ -645,6 +888,45 @@ function getAutoAuditText(result) {
   min-width: 120px;
 }
 
+.remark-section {
+  margin-top: 20px;
+}
+
+.remark-section h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 12px;
+}
+
+.remark-input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  box-sizing: border-box;
+  transition: border-color 0.3s;
+}
+
+.remark-input:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.warning-tip {
+  margin-top: 20px;
+  padding: 12px;
+  background: #fff7e6;
+  border: 1px solid #ffd591;
+  border-radius: 6px;
+  color: #fa8c16;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
 .dialog-footer {
   padding: 20px;
   border-top: 1px solid #f0f0f0;
@@ -664,8 +946,13 @@ function getAutoAuditText(result) {
   transition: all 0.3s ease;
 }
 
-.cancel-btn:hover {
+.cancel-btn:hover:not(:disabled) {
   background: #f5f5f5;
+}
+
+.cancel-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .submit-btn {
@@ -679,8 +966,14 @@ function getAutoAuditText(result) {
   transition: all 0.3s ease;
 }
 
-.submit-btn:hover {
+.submit-btn:hover:not(:disabled) {
   background: #5a6fe0;
+}
+
+.submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: #ccc;
 }
 
 /* 响应式设计 */
