@@ -353,7 +353,7 @@ export async function exportDataApi(option) {
 
         const res = await callFunction({
             name: 'exportData',
-            data: { option } // 这里需要传递正确的参数结构
+            data: { option }
         })
 
         if (res && res.result && res.result.code === 0) {
@@ -364,5 +364,26 @@ export async function exportDataApi(option) {
         }
     } catch (error) {
         alert(`导出失败: ${error.message}`)
+    }
+}
+
+export async function getStatsForAdmin(params = {}) {
+    try {
+        await ensureCloudLogin()
+
+        const res = await callFunction({
+            name: 'getStatsForAdmin',
+            data: params
+        })
+
+        if (res && res.result && res.result.code === 0) {
+            return res.result.data
+        } else {
+            console.error("无法获取统计数据", res?.result?.message)
+            return null
+        }
+    } catch (error) {
+        console.error(`获取统计数据失败: ${error.message}`)
+        throw error
     }
 }
