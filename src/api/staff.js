@@ -158,6 +158,7 @@ export function hasStaffPermission(requiredRole) {
  * @param {string} params.studentId - 学号（可选）
  * @param {string} params.date - 日期（可选，格式：YYYY-MM-DD）
  * @param {string} params.status - 状态（可选：pending/approved/rejected）
+ * @param {string} params.staffId - 工作人员ID，限制只查看分配给该工作人员的记录（可选）
  * @param {number} params.page - 页码（可选，默认1）
  * @param {number} params.pageSize - 每页条数（可选，默认20）
  * @returns {Promise<Object>} 打卡记录列表及分页信息

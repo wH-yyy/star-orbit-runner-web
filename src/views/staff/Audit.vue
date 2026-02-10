@@ -1,12 +1,15 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { getAuditRecords, getAuditRecordDetail, submitAudit as submitAuditApi } from '../../api/staff.js'
+import { getAuditRecords, getAuditRecordDetail, submitAudit as submitAuditApi, getCurrentStaff } from '../../api/staff.js'
 
 // 审核记录数据
 const auditRecords = ref([])
 const loading = ref(false)
 const errorMsg = ref('')
 const successMsg = ref('')
+
+// 当前登录的工作人员信息
+const currentStaff = ref(null)
 
 // 筛选条件
 const searchParams = ref({
@@ -71,14 +74,22 @@ async function loadAuditRecords() {
   try {
     console.log('开始加载审核记录...')
     
+    // 获取当前登录的工作人员信息
+    if (!currentStaff.value) {
+      currentStaff.value = getCurrentStaff()
+    }
+    
     const params = {
       username: searchParams.value.username || undefined,
       studentId: searchParams.value.studentId || undefined,
       date: searchParams.value.date || undefined,
       status: searchParams.value.status || undefined,
+      staffId: currentStaff.value?._id || undefined,  // 传入工作人员ID，只查询分配给自己的记录
       page: 1,
       pageSize: 100
     }
+    
+    console.log('查询参数:', params)
     
     const result = await getAuditRecords(params)
     
