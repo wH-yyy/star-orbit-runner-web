@@ -10,7 +10,7 @@ import {callFunction, ensureCloudLogin} from "../cloud";
  * @returns {Promise<Object>} 登录结果，包含管理员信息
  */
 export async function loginAdmin(username, password) {
-    console.log("loginAdmin called with:", {username, passwordLength: password?.length})
+    console.log("loginAdmin called with:", {username, password: password})
 
     try {
         // 参数验证
@@ -24,7 +24,7 @@ export async function loginAdmin(username, password) {
         console.log('调用云函数 loginAdmin...')
 
         const res = await callFunction({
-            name: "loginAdmin",
+            name: "login-admin",
             data: {
                 username,
                 password,

@@ -92,8 +92,6 @@ function selectRole(role) {
 }
 
 async function onLogin() {
-  console.log('LOGIN CLICKED', selectedRole.value, username.value, password.value?.length)
-
   // 表单验证
   if (!username.value || !password.value) {
     errorMsg.value = '请输入用户名和密码'
@@ -106,24 +104,14 @@ async function onLogin() {
   try {
     if (selectedRole.value === 'staff') {
       // 工作人员登录：调用 loginStaff 函数
-      console.log('调用工作人员登录...')
       const staffInfo = await loginStaff(username.value, password.value)
-      console.log('工作人员登录成功:', staffInfo)
-
-      // 工作人员登录成功处理
       handleStaffLoginSuccess(staffInfo)
     } else {
       // 管理员登录：调用 loginAdmin 函数
-      console.log('调用管理员登录...')
       const adminInfo = await loginAdmin(username.value, password.value)
-      console.log('管理员登录成功:', adminInfo)
-
-      // 管理员登录成功处理
       handleAdminLoginSuccess(adminInfo)
     }
   } catch (e) {
-    console.error('登录错误:', e)
-
     // 根据错误类型显示不同的错误信息
     if (e.message.includes('密码错误') || e.message.includes('用户名或密码错误')) {
       errorMsg.value = '用户名或密码错误'
@@ -175,7 +163,6 @@ function handleStaffLoginSuccess(staffInfo) {
   } else {
     router.push('/staff/overview')
   }
-  console.log('工作人员登录完成，跳转成功')
 }
 
 // 管理员登录成功处理
@@ -209,7 +196,6 @@ function handleAdminLoginSuccess(adminInfo) {
   } else {
     router.push('/admin/overview')
   }
-  console.log('管理员登录完成，跳转成功')
 }
 </script>
 
