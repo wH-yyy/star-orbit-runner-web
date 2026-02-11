@@ -403,24 +403,37 @@ export async function getAppealsList(params = {}) {
     console.log("getAppealsList called with params:", params)
     try {
         await ensureCloudLogin()
+
+        // 获取当前工作人员信息
+        const staffInfo = getCurrentStaff()
+        if (!staffInfo || !staffInfo._id) {
+            throw new Error('工作人员未登录或登录信息不完整')
+        }
+
+        const staffId = staffInfo._id
+
         const res = await callFunction({
             name: "getAppealsList",
             data: {
                 status: params.status || 'all',
                 page: params.page || 1,
-                pageSize: params.pageSize || 10
+                pageSize: params.pageSize || 10,
+                staffId: staffId  // 新增：传递工作人员ID
             }
         })
 
         console.log("getAppealsList 云函数返回:", res)
+
         const result = res?.result
         if (!result) {
             console.error('云函数无返回结果')
             throw new Error('服务器无响应，请稍后重试')
         }
+
         if (result.code !== 200) {
             throw new Error(result.message || '获取申诉列表失败')
         }
+
         return result.data
     } catch (err) {
         console.error("getAppealsList 调用失败:", err)
@@ -435,15 +448,24 @@ export async function getAppealsList(params = {}) {
  */
 export async function getAppealDetail(appealId) {
     console.log("getAppealDetail called with appealId:", appealId)
+
     try {
         await ensureCloudLogin()
 
         if (!appealId) {
             throw new Error('申诉ID不能为空')
         }
+
+        // 获取当前工作人员信息
+        const staffInfo = getCurrentStaff()
+        const staffId = staffInfo?._id
+
         const res = await callFunction({
             name: "getAppealDetail",
-            data: { appealId }
+            data: {
+                appealId,
+                staffId
+            }
         })
 
         console.log("getAppealDetail 云函数返回:", res)
@@ -453,10 +475,16 @@ export async function getAppealDetail(appealId) {
             console.error('云函数无返回结果')
             throw new Error('服务器无响应，请稍后重试')
         }
+
         if (result.code !== 200) {
+            if (result.code === 403) {
+                throw new Error('您无权查看此申诉详情')
+            }
             throw new Error(result.message || '获取申诉详情失败')
         }
+
         return result.data
+
     } catch (err) {
         console.error("getAppealDetail 调用失败:", err)
         throw new Error(err.message || '获取申诉详情失败，请稍后重试')
@@ -472,6 +500,7 @@ export async function getAppealDetail(appealId) {
  */
 export async function processAppeal(appealId, result, auditResult) {
     console.log("processAppeal called:", { appealId, result, auditResult })
+
     try {
         await ensureCloudLogin()
 
@@ -488,13 +517,15 @@ export async function processAppeal(appealId, result, auditResult) {
         if (!staffInfo) {
             throw new Error('工作人员未登录')
         }
+
         const res = await callFunction({
             name: "processAppeal",
             data: {
                 appealId,
                 result,
                 auditResult,
-                staffName: staffInfo.name || staffInfo.username || '工作人员'
+                staffName: staffInfo.name || staffInfo.username || '工作人员',
+                staffId: staffInfo._id  // 新增：传递工作人员ID用于权限验证
             }
         })
 
@@ -507,6 +538,9 @@ export async function processAppeal(appealId, result, auditResult) {
         }
 
         if (resultData.code !== 200) {
+            if (resultData.code === 403) {
+                throw new Error('您无权处理此申诉，该申诉由其他工作人员负责')
+            }
             throw new Error(resultData.message || '处理申诉失败')
         }
 

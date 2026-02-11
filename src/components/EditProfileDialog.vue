@@ -10,8 +10,7 @@ const props = defineProps({
   userInfo: {
     type: Object,
     default: () => ({
-      name: '',
-      email: ''
+      name: ''
     })
   }
 })
@@ -65,15 +64,6 @@ const handleOverlayClick = (event) => {
               id="name" 
               v-model="formData.name" 
               placeholder="请输入姓名"
-            >
-          </div>
-          <div class="form-item">
-            <label for="email">邮箱</label>
-            <input 
-              type="email" 
-              id="email" 
-              v-model="formData.email" 
-              placeholder="请输入邮箱"
             >
           </div>
           <div class="form-item">

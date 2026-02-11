@@ -309,7 +309,7 @@ const toggleStatus = async (staffId) => {
 
 .form-input,
 .form-select {
-  width: 100%;
+  width: 85%;
   padding: 10px 16px;
   border: 1px solid #dcdfe6;
   border-radius: 4px;
