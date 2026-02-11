@@ -43,8 +43,6 @@ const newAccount = ref({
 const campusOptions = [
   { value: '兴庆校区', label: '兴庆校区' },
   { value: '雁塔校区', label: '雁塔校区' },
-  { value: '曲江校区', label: '曲江校区' },
-  { value: '创新港校区', label: '创新港校区' }
 ];
 
 // 加载状态
