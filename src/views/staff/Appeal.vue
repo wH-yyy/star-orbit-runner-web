@@ -474,7 +474,7 @@ const loadDetail = async () => {
           </select>
         </div>
         <button @click="loadAppeals" class="refresh-btn" :disabled="loading">
-          🔄 {{ loading ? '加载中...' : '刷新' }}
+          {{ loading ? '加载中...' : '刷新' }}
         </button>
       </div>
 
@@ -1496,15 +1496,15 @@ h4 {
 
 .image-preview-close {
   position: absolute;
-  top: 0;
-  right: -35%;
+  top: -5%;
+  right: -8%;
   background: rgba(255, 255, 255, 0.2);
   border: none;
   color: white;
-  font-size: 32px;
+  font-size: 24px;
   cursor: pointer;
-  width: 50px;
-  height: 50px;
+  width: 10px;
+  height: 30px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1519,7 +1519,7 @@ h4 {
 
 .preview-image {
   max-width: 100%;
-  max-height: 85vh;
+  max-height: 90vh;
   object-fit: contain;
   border-radius: 8px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);

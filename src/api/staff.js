@@ -154,13 +154,6 @@ export function hasStaffPermission(requiredRole) {
 /**
  * 获取分配给当前工作人员的打卡记录列表
  * @param {Object} params - 查询参数
- * @param {string} params.username - 用户名（可选）
- * @param {string} params.studentId - 学号（可选）
- * @param {string} params.date - 日期（可选，格式：YYYY-MM-DD）
- * @param {string} params.status - 状态（可选：pending/approved/rejected）
- * @param {string} params.staffId - 工作人员ID，限制只查看分配给该工作人员的记录（可选）
- * @param {number} params.page - 页码（可选，默认1）
- * @param {number} params.pageSize - 每页条数（可选，默认20）
  * @returns {Promise<Object>} 打卡记录列表及分页信息
  */
 export async function getAuditRecords(params = {}) {
@@ -514,6 +507,9 @@ export async function processAppeal(appealId, result, auditResult) {
 
         // 获取当前工作人员信息
         const staffInfo = getCurrentStaff()
+
+        console.log("当前工作人员信息:", staffInfo)
+
         if (!staffInfo) {
             throw new Error('工作人员未登录')
         }

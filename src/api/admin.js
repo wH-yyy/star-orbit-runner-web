@@ -21,13 +21,13 @@ export async function loginAdmin(username, password) {
         // 确保云开发登录状态
         await ensureCloudLogin()
 
-        console.log('调用云函数 loginAdmin...')
+        console.log('调用云函数 login-admin...')
 
         const res = await callFunction({
             name: "login-admin",
             data: {
                 username,
-                password,
+                password
             },
         })
 
@@ -66,7 +66,7 @@ export async function loginAdmin(username, password) {
         return result.data
 
     } catch (err) {
-        console.error("loginAdmin 调用失败:", err)
+        console.error("login-admin 调用失败:", err)
 
         // 清除可能存储的错误登录信息
         localStorage.removeItem('adminInfo')

@@ -11,6 +11,20 @@ const successMsg = ref('')
 // 当前登录的工作人员信息
 const currentStaff = ref(null)
 
+// 图片预览相关变量
+const previewImage = ref('')
+const showImagePreview = ref(false)
+
+// 图片预览相关方法
+const openImagePreview = (imageUrl) => {
+  previewImage.value = imageUrl
+  showImagePreview.value = true
+}
+
+const closeImagePreview = () => {
+  showImagePreview.value = false
+}
+
 // 筛选条件
 const searchParams = ref({
   username: '',
@@ -42,7 +56,7 @@ const rejectReasons = [
 
 // 筛选后的记录
 const filteredRecords = computed(() => {
-  return auditRecords.value.filter(record => {
+  let filtered = auditRecords.value.filter(record => {
     // 将 record.status 转换为字符串便于比较
     const recordStatus = String(record.status)
     const searchStatus = searchParams.value.status ? String(searchParams.value.status) : ''
@@ -54,6 +68,13 @@ const filteredRecords = computed(() => {
       (searchParams.value.date ? recordDate === searchParams.value.date : true) &&
       (searchStatus ? recordStatus === searchStatus : true)
     )
+  })
+  
+  // 按时间倒序排列（最新的在最上面）
+  return filtered.sort((a, b) => {
+    const dateA = new Date(a.date || a.time || 0)
+    const dateB = new Date(b.date || b.time || 0)
+    return dateB - dateA // 倒序
   })
 })
 
@@ -437,7 +458,12 @@ onMounted(() => {
             <div class="screenshot-section">
               <h3>跑步截图</h3>
               <div class="screenshot-preview">
-                <img :src="selectedRecord.screenshot" alt="跑步截图" />
+                <img
+                    :src="selectedRecord.screenshot"
+                    alt="跑步截图"
+                    @click="openImagePreview(selectedRecord.screenshot)"
+                    style="cursor: pointer;"
+                />
               </div>
             </div>
             
@@ -499,6 +525,14 @@ onMounted(() => {
           </button>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- 图片预览弹窗 -->
+  <div v-if="showImagePreview" class="image-preview-overlay" @click="closeImagePreview">
+    <div class="image-preview-container" @click.stop>
+      <button class="image-preview-close" @click="closeImagePreview">×</button>
+      <img :src="previewImage" alt="预览图片" class="preview-image">
     </div>
   </div>
 </template>
@@ -1012,6 +1046,57 @@ onMounted(() => {
   opacity: 0.6;
   cursor: not-allowed;
   background: #ccc;
+}
+
+/* 图片预览样式 */
+.image-preview-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+}
+
+.image-preview-container {
+  position: relative;
+  max-width: 90vw;
+  max-height: 90vh;
+}
+
+.image-preview-close {
+  position: absolute;
+  top: -5%;
+  right: -10%;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  width: 10px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10%;
+  transition: all 0.3s;
+  z-index: 2001;
+}
+
+.image-preview-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.preview-image {
+  max-width: 100%;
+  max-height: 85vh;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
 }
 
 /* 响应式设计 */
