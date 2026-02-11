@@ -272,7 +272,7 @@ const pendingUserId = ref(null)
 const pendingAction = ref('')
 
 // 选项数据
-const campusOptions = ['兴庆校区', '雁塔校区', '曲江校区', '创新港校区']
+const campusOptions = ['兴庆校区', '雁塔校区']
 const collegeOptions = [
   '仲英书院', '文治书院', '彭康书院', '启德书院',
   '励志书院', '崇实书院', '南洋书院', '宗濂书院', '钱学森书院'
