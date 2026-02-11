@@ -42,7 +42,7 @@ const rejectReasons = [
 
 // 筛选后的记录
 const filteredRecords = computed(() => {
-  return auditRecords.value.filter(record => {
+  let filtered = auditRecords.value.filter(record => {
     // 将 record.status 转换为字符串便于比较
     const recordStatus = String(record.status)
     const searchStatus = searchParams.value.status ? String(searchParams.value.status) : ''
@@ -54,6 +54,13 @@ const filteredRecords = computed(() => {
       (searchParams.value.date ? recordDate === searchParams.value.date : true) &&
       (searchStatus ? recordStatus === searchStatus : true)
     )
+  })
+  
+  // 按时间倒序排列（最新的在最上面）
+  return filtered.sort((a, b) => {
+    const dateA = new Date(a.date || a.time || 0)
+    const dateB = new Date(b.date || b.time || 0)
+    return dateB - dateA // 倒序
   })
 })
 
