@@ -48,8 +48,8 @@ const statusFilter = ref('all')
 const statusOptions = [
   { value: 'all', label: '全部' },
   { value: '0', label: '待处理' },
-  { value: '1', label: '已通过' },
-  { value: '2', label: '未通过' }
+  { value: '1', label: '已接受' },
+  { value: '2', label: '已驳回' }
 ]
 
 // 计算属性
@@ -69,8 +69,8 @@ const isRejectConfirmDisabled = computed(() => {
 const getStatusText = (status) => {
   const map = {
     0: '待处理',
-    1: '已通过',
-    2: '未通过'
+    1: '已接受',
+    2: '已驳回'
   }
   return map[status] || '未知状态'
 }
@@ -140,7 +140,7 @@ const selectCommonReason = (reason) => {
     // 如果当前理由已存在于输入框中，不重复添加
     const reasonText = reason.text
     if (!rejectReason.value.includes(reasonText)) {
-      rejectReason.value = (rejectReason.value + (rejectReason.value ? ' ' : '') + reasonText).trim()
+      rejectReason.value = (rejectReason.value + (rejectReason.value ? '；' : '') + reasonText).trim()
     }
   } else {
     // 移除
@@ -236,13 +236,13 @@ const goBackToList = () => {
   appealDetail.value = null
 }
 
-// 处理申诉 - 通过
+// 处理申诉 - 接受
 const handleAppealPass = () => {
   // 打开自定义确认弹窗，而不是直接使用 confirm()
   showPassConfirmDialog.value = true
 }
 
-// 确认通过申诉
+// 确认接受申诉
 const confirmAppealPass = async () => {
   // 关闭弹窗
   showPassConfirmDialog.value = false
@@ -255,18 +255,18 @@ const confirmAppealPass = async () => {
   processing.value = true
 
   try {
-    // 通过申诉，审核结果为固定文本"申诉通过"
-    await processAppeal(appealDetail.value._id, 1, '申诉通过')
+    // 接受申诉，审核结果为固定文本"申诉已被接受"
+    await processAppeal(appealDetail.value._id, 1, '申诉已被接受')
 
     // 更新本地数据
     appealDetail.value.status = 1
-    appealDetail.value.auditResult = '申诉通过'
+    appealDetail.value.auditResult = '申诉已被接受'
     appealDetail.value.auditTime = new Date()
 
     // 更新跑步记录状态 - 改为数字类型
     if (appealDetail.value.runningRecord) {
       appealDetail.value.runningRecord.status = 1 // 改为数字 1，不再是字符串 "1"
-      appealDetail.value.runningRecord.audit_reason = "申诉通过"
+      appealDetail.value.runningRecord.audit_reason = "申诉已被接受"
     }
 
     // 更新列表中的数据
@@ -284,7 +284,7 @@ const confirmAppealPass = async () => {
   }
 }
 
-// 取消通过申诉
+// 取消接受申诉
 const cancelAppealPass = () => {
   showPassConfirmDialog.value = false
 }
@@ -691,7 +691,7 @@ const loadDetail = async () => {
                 class="btn-resolved"
                 :disabled="processing"
             >
-              {{ processing ? '处理中...' : '通过申诉' }}
+              {{ processing ? '处理中...' : '接受申诉' }}
             </button>
             <button
                 @click="handleAppealReject"
@@ -755,25 +755,25 @@ const loadDetail = async () => {
     </div>
   </div>
 
-  <!-- 通过申诉确认弹窗 -->
+  <!-- 接受申诉确认弹窗 -->
   <div v-if="showPassConfirmDialog" class="modal-overlay" @click.self="cancelAppealPass">
     <div class="modal-dialog pass-confirm-dialog">
       <div class="modal-header">
-        <h3>确认通过申诉</h3>
+        <h3>确认接受申诉</h3>
         <button class="modal-close" @click="cancelAppealPass">×</button>
       </div>
 
       <div class="modal-content">
         <div class="confirm-icon">✅</div>
         <p class="confirm-message">
-          确定通过该申诉吗？通过后对应的跑步记录将变为"通过"状态。
+          确定接受该申诉吗？接受后对应的跑步记录将变为"通过"状态。
         </p>
       </div>
 
       <div class="modal-footer">
         <button class="btn-cancel" @click="cancelAppealPass">取消</button>
         <button class="btn-confirm" @click="confirmAppealPass">
-          确定通过
+          确定接受
         </button>
       </div>
     </div>
@@ -1444,7 +1444,7 @@ h4 {
   cursor: not-allowed;
 }
 
-/* 通过申诉确认弹窗的特殊样式 */
+/* 接受申诉确认弹窗的特殊样式 */
 .pass-confirm-dialog {
   max-width: 450px;
 }
@@ -1463,7 +1463,7 @@ h4 {
   margin-bottom: 20px;
 }
 
-/* 修改确认按钮颜色为通过的颜色 */
+/* 修改确认按钮颜色为绿色 */
 .pass-confirm-dialog .btn-confirm {
   background: #52c41a;
   border: 1px solid #52c41a;
