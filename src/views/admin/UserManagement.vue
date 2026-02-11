@@ -128,7 +128,7 @@
               </span>
             </td>
             <td>{{ user.totalDistance?.toFixed(2) || '0.00' }}</td>
-            <td>{{ user.totalDuration?.toFixed(1) || '0.0' }}</td>
+            <td>{{ user.totalDuration || '00:00:00' }}</td>
             <td>{{ user.totalCount || 0 }}</td>
             <td>{{ user.violationCount || 0 }}</td>
             <td>
