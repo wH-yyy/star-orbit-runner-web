@@ -5,5 +5,9 @@
       "@/*": ["src/*"]
     }
   },
-  "include": ["src/**/*.js", "src/**/*.vue"]
+  "include": ["src/**/*.js", "src/**/*.vue"],
+  "exclude": [
+    "src/views/staff/Overview.vue",
+    "src/views/staff/ActivityStats.vue"
+  ]
 }

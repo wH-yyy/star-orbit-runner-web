@@ -26,10 +26,8 @@ const pageTitle = computed(() => {
     'AdminStaff': '工作账号分派',
     'AdminDataExport': '数据导出',
     'AdminSettings': '活动配置',
-    'StaffOverview': '概览',
     'StaffAudit': '审核',
-    'StaffAppeal': '申诉',
-    'StaffStats': '活动统计'
+    'StaffAppeal': '申诉'
   }
   return routeMap[route.name] || '星轨Runner'
 })

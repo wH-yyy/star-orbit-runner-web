@@ -15,10 +15,8 @@ const AdminActivityConfig = () => import('../views/admin/ActivityConfig.vue')
 
 // 工作人员页面
 const StaffLayout = () => import('../views/staff/StaffLayout.vue')
-const StaffOverview = () => import('../views/staff/Overview.vue')
 const StaffAudit = () => import('../views/staff/Audit.vue')
 const StaffAppeal = () => import('../views/staff/Appeal.vue')
-const StaffActivityStats = () => import('../views/staff/ActivityStats.vue')
 
 // 路由规则
 const routes = [
@@ -34,7 +32,7 @@ const routes = [
             } else if (userRole === 'admin') {
                 return '/admin/overview'
             } else if (userRole === 'staff') {
-                return '/staff/overview'
+                return '/staff/audit'
             }
             return '/login'
         }
@@ -78,21 +76,13 @@ const routes = [
         component: StaffLayout,
         meta: {requiresAuth: true, role: 'staff'},
         children: [
-            {path: '', redirect: 'overview'},
-            {
-                path: 'overview', name: 'StaffOverview', component: StaffOverview,
-                meta: {requiresAuth: true, role: 'staff'}
-            },
+            {path: '', redirect: 'audit'},
             {
                 path: 'audit', name: 'StaffAudit', component: StaffAudit,
                 meta: {requiresAuth: true, role: 'staff'}
             },
             {
                 path: 'appeal', name: 'StaffAppeal', component: StaffAppeal,
-                meta: {requiresAuth: true, role: 'staff'}
-            },
-            {
-                path: 'activity-stats', name: 'StaffStats', component: StaffActivityStats,
                 meta: {requiresAuth: true, role: 'staff'}
             }
         ]
@@ -128,14 +118,14 @@ router.beforeEach((to, from, next) => {
     // 角色检查
     if (needsAuth && requiredRole && requiredRole !== userRole) {
         // 角色不符，重定向到用户有权访问的首页
-        const fallbackRoute = userRole === 'admin' ? '/admin/overview' : '/staff/overview'
+        const fallbackRoute = userRole === 'admin' ? '/admin/overview' : '/staff/audit'
         next(fallbackRoute)
         return
     }
 
     // 已登录访问登录页
     if (to.meta.guest && isAuthenticated) {
-        const fallbackRoute = userRole === 'admin' ? '/admin/overview' : '/staff/overview'
+        const fallbackRoute = userRole === 'admin' ? '/admin/overview' : '/staff/audit'
         next(fallbackRoute)
         return
     }
@@ -147,7 +137,7 @@ router.beforeEach((to, from, next) => {
         } else if (userRole === 'admin') {
             next('/admin/overview')
         } else if (userRole === 'staff') {
-            next('/staff/overview')
+            next('/staff/audit')
         } else {
             next('/login')
         }

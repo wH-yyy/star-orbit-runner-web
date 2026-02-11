@@ -158,10 +158,10 @@ function handleStaffLoginSuccess(staffInfo) {
   store.commit('SET_USER', storeData)
 
   // 跳转到工作人员管理页面
-  if (router.hasRoute('StaffOverview')) {
-    router.push({ name: 'StaffOverview' })
+  if (router.hasRoute('StaffAudit')) {
+    router.push({ name: 'StaffAudit' })
   } else {
-    router.push('/staff/overview')
+    router.push('/staff/audit')
   }
 }
 
