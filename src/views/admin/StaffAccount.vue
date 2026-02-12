@@ -219,7 +219,7 @@ const toggleStatus = async (staffId) => {
           <tr>
             <th>序号</th>
             <th>用户名</th>
-            <th>姓名</th>
+<!--            <th>姓名</th>-->
             <th>校区</th>
             <th>状态</th>
             <th>操作</th>
@@ -229,7 +229,7 @@ const toggleStatus = async (staffId) => {
           <tr v-for="(account, index) in staffAccounts" :key="account._id" class="account-row">
             <td>{{ index + 1 }}</td>
             <td>{{ account.username }}</td>
-            <td>{{ account.name }}</td>
+<!--            <td>{{ account.name }}</td>-->
             <td>{{ account.campus || '-' }}</td>
             <td>
                 <span :class="['status-badge', `status-${account.status}`]">

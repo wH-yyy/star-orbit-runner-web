@@ -461,7 +461,11 @@ const loadDetail = async () => {
   <div class="appeal-container">
     <!-- 列表视图 -->
     <div v-if="currentView === 'list'" class="appeal-list">
-      <h2 class="page-title">📋 申诉管理</h2>
+      <!-- 统计 -->
+      <div class="stats-info">
+        <p>待处理申诉: <strong>{{ appeals.filter(a => a.status === 0).length }}</strong> 条</p>
+        <p>总申诉数: <strong>{{ pagination.total }}</strong> 条</p>
+      </div>
 
       <!-- 筛选栏 -->
       <div class="filter-bar">
@@ -488,7 +492,7 @@ const loadDetail = async () => {
             <th>序号</th>
             <th>学号</th>
             <th>姓名</th>
-            <th>申诉原因</th>
+            <th>申诉理由</th>
             <th>申诉时间</th>
             <th>状态</th>
             <th>操作</th>
@@ -558,18 +562,14 @@ const loadDetail = async () => {
         </div>
       </div>
 
-      <!-- 统计 -->
-      <div class="stats-info">
-        <p>待处理申诉: <strong>{{ appeals.filter(a => a.status === 0).length }}</strong> 条</p>
-        <p>总申诉数: <strong>{{ pagination.total }}</strong> 条</p>
-      </div>
+
     </div>
 
     <!-- 详情视图 -->
     <div v-else class="appeal-detail">
       <div class="header-actions">
         <button @click="goBackToList" class="back-btn">← 返回列表</button>
-        <h2 class="page-title">📝 申诉详情</h2>
+        <h2 class="page-title">申诉详情</h2>
       </div>
 
       <div v-if="loading" class="loading">加载中...</div>
@@ -614,7 +614,7 @@ const loadDetail = async () => {
 
         <!-- 申诉内容 -->
         <div class="content-card">
-          <h3>申诉原因</h3>
+          <h3>申诉理由</h3>
           <div class="description-box">
             {{ appealDetail.appealReason || '无' }}
           </div>
@@ -662,7 +662,7 @@ const loadDetail = async () => {
               </span>
             </div>
             <div v-if="appealDetail.runningRecord.audit_reason" class="info-item full-width">
-              <label>审核原因：</label>
+              <label>审核结果：</label>
               <span>{{ appealDetail.runningRecord.audit_reason }}</span>
             </div>
           </div>
@@ -764,7 +764,6 @@ const loadDetail = async () => {
       </div>
 
       <div class="modal-content">
-        <div class="confirm-icon">✅</div>
         <p class="confirm-message">
           确定接受该申诉吗？接受后对应的跑步记录将变为"通过"状态。
         </p>
@@ -796,11 +795,7 @@ const loadDetail = async () => {
 
 /* 列表样式 */
 .page-title {
-  margin: 0 0 24px 0;
-  font-size: 24px;
-  color: #333;
-  padding-bottom: 12px;
-  border-bottom: 2px solid #f0f0f0;
+  font-size: 20px;
 }
 
 .filter-bar {
@@ -1447,12 +1442,6 @@ h4 {
 /* 接受申诉确认弹窗的特殊样式 */
 .pass-confirm-dialog {
   max-width: 450px;
-}
-
-.confirm-icon {
-  font-size: 48px;
-  text-align: center;
-  margin: 20px 0;
 }
 
 .confirm-message {

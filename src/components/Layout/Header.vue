@@ -8,7 +8,6 @@ const router = useRouter()
 const route = useRoute()
 const store = useStore()
 const showDropdown = ref(false)
-const currentTime = ref('')
 const showEditDialog = ref(false)
 
 // 从 store 获取用户信息
@@ -31,19 +30,6 @@ const pageTitle = computed(() => {
   }
   return routeMap[route.name] || '星轨Runner'
 })
-
-// 更新当前时间
-const updateCurrentTime = () => {
-  const now = new Date()
-  currentTime.value = now.toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
-  })
-}
 
 // 切换下拉菜单
 const toggleDropdown = () => {
@@ -112,9 +98,6 @@ const logout = async () => {
 
 // 初始化
 onMounted(() => {
-  updateCurrentTime()
-  setInterval(updateCurrentTime, 1000)
-
   // 点击其他地方关闭下拉菜单
   document.addEventListener('click', (e) => {
     const target = e.target
@@ -129,7 +112,6 @@ onMounted(() => {
   <header class="top-bar">
     <div class="top-bar-left">
       <h2 class="page-title">{{ pageTitle }}</h2>
-      <span class="current-time">{{ currentTime }}</span>
     </div>
     <div class="top-bar-right">
       <div class="user-info" @click="toggleDropdown">
@@ -139,10 +121,10 @@ onMounted(() => {
 
         <!-- 下拉菜单 -->
         <div v-if="showDropdown" class="user-dropdown">
-          <div class="dropdown-item" @click="editProfile">
-            <span class="dropdown-icon">✏️</span>
-            <span>编辑个人信息</span>
-          </div>
+<!--          <div class="dropdown-item" @click="editProfile">-->
+<!--            <span class="dropdown-icon">✏️</span>-->
+<!--            <span>编辑个人信息</span>-->
+<!--          </div>-->
           <div class="dropdown-item" @click="logout">
             <span class="dropdown-icon">🚪</span>
             <span>退出登录</span>
