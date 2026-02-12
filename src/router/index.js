@@ -10,7 +10,6 @@ const AdminLayout = () => import('../views/admin/AdminLayout.vue')
 const AdminOverview = () => import('../views/admin/Overview.vue')
 const AdminUserManagement = () => import('../views/admin/UserManagement.vue')
 const AdminStaffAccount = () => import('../views/admin/StaffAccount.vue')
-const AdminDataExport = () => import('../views/admin/DataExport.vue')
 const AdminActivityConfig = () => import('../views/admin/ActivityConfig.vue')
 
 // 工作人员页面
@@ -59,10 +58,6 @@ const routes = [
             },
             {
                 path: 'staff-account', name: 'AdminStaff', component: AdminStaffAccount,
-                meta: {requiresAuth: true, role: 'admin'}
-            },
-            {
-                path: 'data-export', name: 'AdminDataExport', component: AdminDataExport,
                 meta: {requiresAuth: true, role: 'admin'}
             },
             {

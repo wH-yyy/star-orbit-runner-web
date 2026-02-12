@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, watch, nextTick, onBeforeUnmount } from 'vue';
 import * as echarts from 'echarts';
-import { getStatsForAdmin } from "@/api/admin.js";
+import { getStatsForAdmin, exportDataApi } from "@/api/admin.js";
 
 // 定义统计数据
 const stats = ref({
@@ -88,7 +88,11 @@ const fetchStats = async () => {
       stats.value.totalUsers = res.totalUsers;
       stats.value.totalSubmissions = res.totalSubmissions;
       stats.value.pendingReviews = res.pendingReviews;
-      stats.value.dailyStats = res.dailyStats || [];
+      stats.value.dailyStats = (res.dailyStats || []).slice().sort((a, b) => {
+        const dateA = new Date(a.date || a.time || 0);
+        const dateB = new Date(b.date || b.time || 0);
+        return dateA - dateB;
+      });
       stats.value.lastUpdated = new Date(res.lastUpdated);
     } else {
       // 如果云函数调用失败，使用模拟数据
@@ -96,7 +100,7 @@ const fetchStats = async () => {
       stats.value.totalUsers = mockStats.totalUsers;
       stats.value.totalSubmissions = mockStats.totalSubmissions;
       stats.value.pendingReviews = mockStats.pendingReviews;
-      stats.value.dailyStats = mockStats.dailyStats;
+      stats.value.dailyStats = mockStats.dailyStats.slice();
       stats.value.lastUpdated = new Date();
     }
   } catch (error) {
@@ -107,7 +111,7 @@ const fetchStats = async () => {
     stats.value.totalUsers = mockStats.totalUsers;
     stats.value.totalSubmissions = mockStats.totalSubmissions;
     stats.value.pendingReviews = mockStats.pendingReviews;
-    stats.value.dailyStats = mockStats.dailyStats;
+    stats.value.dailyStats = mockStats.dailyStats.slice();
     stats.value.lastUpdated = new Date();
   } finally {
     stats.value.loading = false;
@@ -172,10 +176,9 @@ const initOrUpdateChart = () => {
         }
       },
       tooltip: {
-        trigger: 'axis',
+        trigger: 'item',
         formatter: function(params) {
-          const data = params[0];
-          return `${data.name}<br/>打卡人数: ${data.value}`;
+          return `${params.name}<br/>打卡人数: ${params.value}`;
         },
         textStyle: {
           fontSize: baseFontSize
@@ -213,7 +216,7 @@ const initOrUpdateChart = () => {
           name: '打卡人数',
           type: 'line',
           data: chartData.map(item => item.count),
-          smooth: true,
+          smooth: 0.3,
           lineStyle: {
             color: '#409eff',
             width: isMobile ? 2 : 3
@@ -269,6 +272,26 @@ watch(timeRange, () => {
 const refreshStats = () => {
   fetchStats();
 };
+
+// 导出数据相关
+const showExportDialog = ref(false);
+const exportOption = ref('award');
+
+// 打开导出对话框
+const openExportDialog = () => {
+  showExportDialog.value = true;
+};
+
+// 关闭导出对话框
+const closeExportDialog = () => {
+  showExportDialog.value = false;
+};
+
+// 导出数据
+const exportData = () => {
+  exportDataApi(exportOption.value);
+  closeExportDialog();
+};
 </script>
 
 <template>
@@ -279,6 +302,9 @@ const refreshStats = () => {
       <div class="header-actions">
         <button @click="refreshStats" class="refresh-btn" :disabled="stats.loading">
           {{ stats.loading ? '刷新中...' : '刷新数据' }}
+        </button>
+        <button @click="openExportDialog" class="export-btn">
+          导出数据
         </button>
       </div>
     </div>
@@ -378,6 +404,34 @@ const refreshStats = () => {
       <p>数据更新时间: {{ formatTime(stats.lastUpdated) }}</p>
     </div>
 
+    <!-- 导出数据对话框 -->
+    <div v-if="showExportDialog" class="export-dialog-overlay" @click="closeExportDialog">
+      <div class="export-dialog" @click.stop>
+        <div class="dialog-header">
+          <h3>导出数据</h3>
+          <button class="close-btn" @click="closeExportDialog">×</button>
+        </div>
+        <div class="dialog-body">
+          <div class="form-item">
+            <label class="form-label">数据类型</label>
+            <select v-model="exportOption" class="form-select">
+              <option value="award">获奖名单</option>
+              <option value="record">打卡统计</option>
+            </select>
+          </div>
+          <div class="export-tips">
+            <h4>导出说明</h4>
+            <p v-if="exportOption === 'award'">导出完成率≥60%的用户获奖名单</p>
+            <p v-else>导出所有用户的打卡统计信息</p>
+          </div>
+        </div>
+        <div class="dialog-footer">
+          <button class="btn-cancel" @click="closeExportDialog">取消</button>
+          <button class="btn-confirm" @click="exportData">确认导出</button>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -439,6 +493,174 @@ const refreshStats = () => {
 .refresh-btn:disabled {
   background-color: #a0cfff;
   cursor: not-allowed;
+}
+
+.export-btn {
+  padding: clamp(6px, 0.8vw, 8px) clamp(12px, 1.5vw, 16px);
+  background-color: #67c23a;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: clamp(0.75rem, 1vw, 0.875rem);
+  transition: background-color 0.3s;
+  white-space: nowrap;
+  min-height: 36px;
+}
+
+.export-btn:hover {
+  background-color: #85ce61;
+}
+
+/* 导出对话框样式 */
+.export-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.export-dialog {
+  background: white;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #e4e7ed;
+}
+
+.dialog-header h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #303133;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #909399;
+  cursor: pointer;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background 0.3s;
+}
+
+.close-btn:hover {
+  background: #f5f7fa;
+  color: #606266;
+}
+
+.dialog-body {
+  padding: 20px;
+}
+
+.form-item {
+  margin-bottom: 16px;
+}
+
+.form-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: #606266;
+  margin-bottom: 8px;
+}
+
+.form-select {
+  width: 100%;
+  padding: 10px 16px;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: #ffffff;
+  cursor: pointer;
+  transition: border-color 0.3s;
+  color: #606266;
+}
+
+.form-select:focus {
+  outline: none;
+  border-color: #409eff;
+  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.1);
+}
+
+.export-tips {
+  margin-top: 16px;
+  padding: 12px;
+  background: #f4f4f5;
+  border-radius: 4px;
+}
+
+.export-tips h4 {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  color: #606266;
+}
+
+.export-tips p {
+  margin: 0;
+  font-size: 12px;
+  color: #909399;
+  line-height: 1.5;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 20px;
+  border-top: 1px solid #e4e7ed;
+}
+
+.btn-cancel, .btn-confirm {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-cancel {
+  background: #ffffff;
+  color: #606266;
+  border: 1px solid #dcdfe6;
+}
+
+.btn-cancel:hover {
+  color: #409eff;
+  border-color: #c6e2ff;
+  background: #ecf5ff;
+}
+
+.btn-confirm {
+  background: #409eff;
+  color: white;
+  border: 1px solid #409eff;
+}
+
+.btn-confirm:hover {
+  background: #66b1ff;
+  border-color: #66b1ff;
 }
 
 /* 时间范围选择器 */
@@ -805,7 +1027,7 @@ const refreshStats = () => {
     width: 100%;
   }
 
-  .refresh-btn {
+  .refresh-btn, .export-btn {
     width: 100%;
   }
 

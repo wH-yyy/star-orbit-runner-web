@@ -14,7 +14,6 @@ const adminMenuItems = [
   { path: '/admin/overview', icon: '📊', label: '概览' },
   { path: '/admin/user-management', icon: '👥', label: '用户管理' },
   { path: '/admin/staff-account', icon: '👤', label: '工作账号分派' },
-  { path: '/admin/data-export', icon: '📤', label: '数据导出' },
   { path: '/admin/activity-config', icon: '⚙️', label: '活动配置' }
 ]
 
