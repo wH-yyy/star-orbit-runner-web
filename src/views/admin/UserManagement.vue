@@ -237,7 +237,7 @@ const showOperationMessage = (text, type = 'success') => {
   }
   msgTimer = setTimeout(() => {
     operationMsg.value.show = false
-  }, 3000)
+  }, 2000)
 }
 
 const statusMap = {

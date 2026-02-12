@@ -69,7 +69,7 @@ const showNotification = (text, type = 'success') => {
 
   notificationTimer = setTimeout(() => {
     notification.value.show = false
-  }, 3000)
+  }, 2000)
 }
 
 // 创建新账号
