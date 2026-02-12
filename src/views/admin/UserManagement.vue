@@ -222,16 +222,44 @@
       </div>
     </div>
   </div>
+
+  <!-- 操作结果提示 -->
+  <transition name="fade">
+    <div v-if="operationMsg.show"
+         :class="['operation-notification', `operation-${operationMsg.type}`]">
+      {{ operationMsg.text }}
+    </div>
+  </transition>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
 import { getUserList, updateUserStatus } from '@/api/admin'
 
 // 用户数据
 const userList = ref([])
 const loading = ref(false)
 const error = ref('')
+
+// 操作消息提示
+const operationMsg = ref({
+  show: false,
+  text: '',
+  type: 'success'
+})
+let msgTimer = null
+
+const showOperationMessage = (text, type = 'success') => {
+  if (msgTimer) clearTimeout(msgTimer)
+  operationMsg.value = {
+    show: true,
+    text,
+    type
+  }
+  msgTimer = setTimeout(() => {
+    operationMsg.value.show = false
+  }, 3000)
+}
 
 const statusMap = {
   0: '正常',
@@ -439,18 +467,19 @@ const confirmAction = async () => {
     // 重新加载当前页数据
     loadUserList()
 
-    // 显示成功提示
+    // 自定义成功提示
     let actionText = ''
     switch (pendingAction.value) {
       case 'suspend': actionText = '停跑'; break
       case 'ban': actionText = '封号'; break
       case 'activate': actionText = '恢复正常'; break
     }
-    alert(`用户${actionText}成功！`)
+    showOperationMessage(`用户${actionText}成功！`, 'success')
 
   } catch (err) {
     console.error('更新用户状态失败:', err)
-    alert(`操作失败: ${err.message}`)
+    // 自定义错误提示
+    showOperationMessage(`操作失败: ${err.message}`, 'error')
   } finally {
     resetPendingAction()
   }
@@ -483,6 +512,10 @@ watch(searchFields, (newVal) => {
 // 组件挂载时加载数据
 onMounted(() => {
   loadUserList()
+})
+
+onUnmounted(() => {
+  if (msgTimer) clearTimeout(msgTimer)
 })
 </script>
 
@@ -858,6 +891,43 @@ onMounted(() => {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
+}
+
+/* 操作结果提示样式 */
+.operation-notification {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 24px;
+  border-radius: 4px;
+  font-size: 14px;
+  color: #fff;
+  z-index: 1000;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  animation: slideDown 0.3s ease;
+}
+.operation-success {
+  background-color: #67c23a;
+}
+.operation-error {
+  background-color: #f56c6c;
+}
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.3s;
+}
+.fade-enter, .fade-leave-to {
+  opacity: 0;
+}
+@keyframes slideDown {
+  from {
+    transform: translateX(-50%) translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
 }
 
 /* 响应式设计 */

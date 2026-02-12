@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import {addStaff, getStaffList, updateStaffStatus} from '../../api/admin';
 
 // 工作人员账号数据
@@ -16,7 +16,7 @@ const loadStaffList = async () => {
     // 转换状态显示，设置默认名称为"未命名账号"
     staffAccounts.value = result.map(staff => ({
       ...staff,
-      status: staff.status === 'active' ? '启用' : '禁用',
+      status: staff.status === 0 ? '启用' : '禁用',
       name: staff.name || '未命名账号'
     }));
   } catch (error) {
@@ -26,11 +26,6 @@ const loadStaffList = async () => {
     listLoading.value = false;
   }
 };
-
-// 组件挂载时加载列表
-onMounted(() => {
-  loadStaffList();
-});
 
 // 新账号表单数据
 const newAccount = ref({
@@ -50,6 +45,30 @@ const loading = ref(false);
 
 // 错误信息
 const errorMsg = ref('');
+
+// 全局提示
+const notification = ref({
+  show: false,
+  text: '',
+  type: 'success' // 'success' | 'error'
+})
+let notificationTimer = null
+
+// 显示提示（3秒后自动关闭）
+const showNotification = (text, type = 'success') => {
+  // 清除之前的定时器
+  if (notificationTimer) clearTimeout(notificationTimer)
+
+  notification.value = {
+    show: true,
+    text,
+    type
+  }
+
+  notificationTimer = setTimeout(() => {
+    notification.value.show = false
+  }, 3000)
+}
 
 // 创建新账号
 const createAccount = async () => {
@@ -101,7 +120,7 @@ const createAccount = async () => {
       username: result.username,
       name: result.real_name || '未设置姓名',
       campus: result.campus,
-      status: result.status === 'active' ? '启用' : '禁用',
+      status: result.status === 0 ? '启用' : '禁用',
       created_at: result.created_at
     };
 
@@ -114,15 +133,16 @@ const createAccount = async () => {
       campus: ''
     };
 
-    // 使用更友好的提示
-    alert('✅ 工作账号创建成功！\n用户名：' + result.username);
+    // 自定义成功提示
+    showNotification(`工作账号创建成功！\n用户名：${result.username}`, 'success');
+
     // 重新加载工作人员列表
     await loadStaffList();
 
   } catch (error) {
     console.error('创建工作账号失败:', error);
 
-    // 显示具体的错误信息
+    // 显示具体的错误信息（表单验证错误区域）
     errorMsg.value = error.message || '创建工作账号失败，请检查网络后重试';
 
     // 可以根据错误类型提供不同的提示
@@ -147,7 +167,7 @@ const toggleStatus = async (staffId) => {
 
   try {
     // 调用 API 更新状态
-    await updateStaffStatus(staffId, newStatus === '启用' ? 'active' : 'inactive');
+    await updateStaffStatus(staffId, newStatus === '启用' ? 0 : 1);
 
     // 更新本地状态
     account.status = newStatus;
@@ -155,11 +175,21 @@ const toggleStatus = async (staffId) => {
 
   } catch (error) {
     console.error('更新账号状态失败:', error);
-    alert('更新状态失败：' + (error.message || '请稍后重试'));
+    // 自定义错误提示
+    showNotification('更新状态失败：' + (error.message || '请稍后重试'), 'error');
     // 恢复原来的状态
     account.status = oldStatus;
   }
 };
+
+// 组件挂载时加载列表
+onMounted(() => {
+  loadStaffList();
+});
+
+onUnmounted(() => {
+  if (notificationTimer) clearTimeout(notificationTimer)
+})
 </script>
 
 <template>
@@ -255,6 +285,14 @@ const toggleStatus = async (staffId) => {
       </div>
     </div>
   </div>
+
+  <!-- 自定义全局提示 -->
+  <transition name="fade">
+    <div v-if="notification.show"
+         :class="['notification', `notification-${notification.type}`]">
+      {{ notification.text }}
+    </div>
+  </transition>
 </template>
 
 <style scoped>
@@ -487,6 +525,43 @@ const toggleStatus = async (staffId) => {
   text-align: center;
   color: #909399;
   font-size: 14px;
+}
+
+/* 全局提示样式 */
+.notification {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 24px;
+  border-radius: 4px;
+  font-size: 14px;
+  color: #fff;
+  z-index: 1000;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  animation: slideDown 0.3s ease;
+}
+.notification-success {
+  background-color: #67c23a;
+}
+.notification-error {
+  background-color: #f56c6c;
+}
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.3s;
+}
+.fade-enter, .fade-leave-to {
+  opacity: 0;
+}
+@keyframes slideDown {
+  from {
+    transform: translateX(-50%) translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
 }
 
 /* 响应式设计 */
