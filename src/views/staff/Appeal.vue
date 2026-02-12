@@ -2,6 +2,7 @@
 import { ref, onMounted, computed, reactive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getAppealsList, getAppealDetail, processAppeal, getCurrentStaff } from '@/api/staff'
+import { showSuccess, showError, showWarning } from '@/utils/toast'
 
 const route = useRoute()
 const router = useRouter()
@@ -196,7 +197,7 @@ const loadAppeals = async () => {
     console.log('加载申诉列表成功:', appeals.value.length)
   } catch (error) {
     console.error('加载申诉列表失败:', error)
-    alert('加载申诉列表失败: ' + error.message)
+    showError('加载申诉列表失败: ' + error.message)
   } finally {
     loading.value = false
   }
@@ -212,7 +213,7 @@ const viewDetail = async (appeal) => {
     currentView.value = 'detail'
   } catch (error) {
     console.error('加载申诉详情失败:', error)
-    alert('加载申诉详情失败: ' + error.message)
+    showError('加载申诉详情失败: ' + error.message)
   } finally {
     loading.value = false
   }
@@ -248,7 +249,7 @@ const confirmAppealPass = async () => {
   showPassConfirmDialog.value = false
 
   if (!appealDetail.value || !appealDetail.value._id) {
-    alert('申诉信息不完整')
+    showWarning('申诉信息不完整')
     return
   }
 
@@ -275,10 +276,10 @@ const confirmAppealPass = async () => {
       appeals.value[index].status = 1
     }
 
-    alert('申诉处理成功！')
+    showSuccess('申诉处理成功！')
   } catch (error) {
     console.error('处理申诉失败:', error)
-    alert('处理申诉失败: ' + error.message)
+    showError('处理申诉失败: ' + error.message)
   } finally {
     processing.value = false
   }
@@ -292,7 +293,7 @@ const cancelAppealPass = () => {
 // 处理申诉 - 驳回
 const handleAppealReject = async () => {
   if (!appealDetail.value || !appealDetail.value._id) {
-    alert('申诉信息不完整')
+    showWarning('申诉信息不完整')
     return
   }
 
@@ -303,7 +304,7 @@ const handleAppealReject = async () => {
 // 提交驳回申诉
 const submitAppealReject = async () => {
   if (isRejectConfirmDisabled.value) {
-    alert('请输入驳回理由')
+    showWarning('请输入驳回理由')
     return
   }
 
@@ -335,11 +336,11 @@ const submitAppealReject = async () => {
       appeals.value[index].status = 2
     }
 
-    alert('申诉处理成功！')
+    showSuccess('申诉处理成功！')
     clearRejectDialog()
   } catch (error) {
     console.error('处理申诉失败:', error)
-    alert('处理申诉失败: ' + error.message)
+    showError('处理申诉失败: ' + error.message)
   } finally {
     processing.value = false
   }
@@ -448,7 +449,7 @@ const loadDetail = async () => {
       appealDetail.value = data
     } catch (error) {
       console.error('加载申诉详情失败:', error)
-      alert('加载申诉详情失败: ' + error.message)
+      showError('加载申诉详情失败: ' + error.message)
       goBackToList()
     } finally {
       loading.value = false

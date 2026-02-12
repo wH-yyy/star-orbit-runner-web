@@ -2,6 +2,7 @@
  * 认证相关API
  */
 import {callFunction, ensureCloudLogin} from "../cloud";
+import { showError } from "../utils/toast";
 
 /**
  * 管理员登录
@@ -343,7 +344,7 @@ export async function updateStaffStatus(staffId, status) {
         return result.data
     } catch (err) {
         console.error('更新工作人员状态失败:', err)
-        throw new Error('更新状态失败')
+        throw err
     }
 }
 
@@ -360,10 +361,10 @@ export async function exportDataApi(option) {
             const fileUrl = res.result.data.fileUrl
             window.open(fileUrl, '_blank')
         } else {
-            alert(`导出失败: ${res.result?.message || '请检查云函数日志'}`)
+            showError(`导出失败: ${res.result?.message || '请检查云函数日志'}`)
         }
     } catch (error) {
-        alert(`导出失败: ${error.message}`)
+        showError(`导出失败: ${error.message}`)
     }
 }
 

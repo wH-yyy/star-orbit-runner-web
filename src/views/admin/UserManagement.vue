@@ -208,6 +208,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { getUserList, updateUserStatus } from '@/api/admin'
+import { showSuccess, showError } from '@/utils/toast'
 
 // 用户数据
 const userList = ref([])
@@ -427,11 +428,11 @@ const confirmAction = async () => {
       case 'ban': actionText = '封号'; break
       case 'activate': actionText = '恢复正常'; break
     }
-    alert(`用户${actionText}成功！`)
+    showSuccess(`用户${actionText}成功！`)
 
   } catch (err) {
     console.error('更新用户状态失败:', err)
-    alert(`操作失败: ${err.message}`)
+    showError(`操作失败: ${err.message}`)
   } finally {
     resetPendingAction()
   }

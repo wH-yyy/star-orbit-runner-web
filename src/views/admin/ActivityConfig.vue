@@ -1,5 +1,6 @@
 <script setup>
 import { ref } from 'vue';
+import { showInfo } from '@/utils/toast';
 
 // 活动配置数据
 const activityConfig = ref({
@@ -23,7 +24,7 @@ const activityConfig = ref({
 const saveConfig = () => {
   console.log('保存活动配置:', activityConfig.value);
   // 这里可以添加API调用逻辑
-  alert('活动配置已保存，实际项目中会调用后端API更新配置');
+  showInfo('活动配置已保存，实际项目中会调用后端API更新配置');
 };
 
 // 添加停跑日期

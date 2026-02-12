@@ -30,7 +30,7 @@ const searchParams = ref({
   username: '',
   studentId: '',
   date: '',
-  status: 'all'
+  status: '0'
 })
 
 // 选中的记录
@@ -255,7 +255,7 @@ function resetFilters() {
     username: '',
     studentId: '',
     date: '',
-    status: 'all'
+    status: '0'
   }
   // 重置后重新加载
   loadAuditRecords()
@@ -266,7 +266,7 @@ function getStatusText(status) {
   // 支持数字状态码和字符串状态
   const statusMap = {
     0: '待审核',
-    1: '通过',
+    1: '已通过',
     2: '不通过',
     3: '申诉中',
     'pending': '待审核',
@@ -354,11 +354,11 @@ onMounted(() => {
         <div class="filter-item">
           <label>状态</label>
           <select v-model="searchParams.status">
-            <option value="all">全部</option>
             <option value="0">待审核</option>
-            <option value="1">通过</option>
+            <option value="1">已通过</option>
             <option value="2">不通过</option>
             <option value="3">申诉中</option>
+            <option value="all">全部</option>
           </select>
         </div>
         <div class="filter-actions">

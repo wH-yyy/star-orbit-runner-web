@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import {addStaff, getStaffList, updateStaffStatus} from '../../api/admin';
+import { showSuccess, showError } from '../../utils/toast';
 
 // 工作人员账号数据
 const staffAccounts = ref([]);
@@ -16,7 +17,7 @@ const loadStaffList = async () => {
     // 转换状态显示，设置默认名称为"未命名账号"
     staffAccounts.value = result.map(staff => ({
       ...staff,
-      status: staff.status === 'active' ? '启用' : '禁用',
+      status: staff.status === 0 ? '启用' : '禁用',
       completed_count: staff.completed_count || 0,
       assigned_count: staff.assigned_count || 0
     }));
@@ -117,7 +118,7 @@ const createAccount = async () => {
     };
 
     // 使用更友好的提示
-    alert('✅ 工作账号创建成功！\n用户名：' + result.username);
+    showSuccess('✅ 工作账号创建成功！\n用户名：' + result.username);
     // 重新加载工作人员列表
     await loadStaffList();
 
@@ -149,7 +150,7 @@ const toggleStatus = async (staffId) => {
 
   try {
     // 调用 API 更新状态
-    await updateStaffStatus(staffId, newStatus === '启用' ? 'active' : 'inactive');
+    await updateStaffStatus(staffId, newStatus === '启用' ? 0 : 1);
 
     // 更新本地状态
     account.status = newStatus;
@@ -157,7 +158,7 @@ const toggleStatus = async (staffId) => {
 
   } catch (error) {
     console.error('更新账号状态失败:', error);
-    alert('更新状态失败：' + (error.message || '请稍后重试'));
+    showError('更新状态失败：' + (error.message || '请稍后重试'));
     // 恢复原来的状态
     account.status = oldStatus;
   }
