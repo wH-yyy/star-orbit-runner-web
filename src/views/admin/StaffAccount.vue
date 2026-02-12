@@ -17,7 +17,9 @@ const loadStaffList = async () => {
     staffAccounts.value = result.map(staff => ({
       ...staff,
       status: staff.status === 0 ? '启用' : '禁用',
-      name: staff.name || '未命名账号'
+      name: staff.name || '未命名账号',
+      completed_count: staff.completed_count || 0,
+      assigned_count: staff.assigned_count || 0
     }));
   } catch (error) {
     console.error('加载工作人员列表失败:', error);
@@ -118,10 +120,11 @@ const createAccount = async () => {
     const account = {
       id: result._id,
       username: result.username,
-      name: result.real_name || '未设置姓名',
       campus: result.campus,
       status: result.status === 0 ? '启用' : '禁用',
-      created_at: result.created_at
+      created_at: result.created_at,
+      completed_count: result.completed_count || 0,
+      assigned_count: result.assigned_count || 0
     };
 
     staffAccounts.value.push(account);
@@ -249,8 +252,9 @@ onUnmounted(() => {
           <tr>
             <th>序号</th>
             <th>用户名</th>
-<!--            <th>姓名</th>-->
             <th>校区</th>
+            <th>已完成数</th>
+            <th>已分配数</th>
             <th>状态</th>
             <th>操作</th>
           </tr>
@@ -259,8 +263,9 @@ onUnmounted(() => {
           <tr v-for="(account, index) in staffAccounts" :key="account._id" class="account-row">
             <td>{{ index + 1 }}</td>
             <td>{{ account.username }}</td>
-<!--            <td>{{ account.name }}</td>-->
             <td>{{ account.campus || '-' }}</td>
+            <td>{{ account.completed_count || 0 }}</td>
+            <td>{{ account.assigned_count || 0 }}</td>
             <td>
                 <span :class="['status-badge', `status-${account.status}`]">
                   {{ account.status }}

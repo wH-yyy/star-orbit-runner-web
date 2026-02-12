@@ -15,25 +15,6 @@
       </div>
 
       <div class="filter-section">
-        <!-- 搜索字段选择 -->
-        <div class="filter-group">
-          <span class="filter-label">搜索字段：</span>
-          <div class="checkbox-group">
-            <label class="checkbox-label">
-              <input type="checkbox" v-model="searchFields" value="name" />
-              姓名
-            </label>
-            <label class="checkbox-label">
-              <input type="checkbox" v-model="searchFields" value="stu_id" />
-              学号
-            </label>
-            <label class="checkbox-label">
-              <input type="checkbox" v-model="searchFields" value="class_name" />
-              班级
-            </label>
-          </div>
-        </div>
-
         <!-- 校区筛选 -->
         <div class="filter-group">
           <span class="filter-label">校区：</span>
@@ -106,7 +87,7 @@
             <th>创建时间</th>
             <th>状态</th>
             <th>总里程(km)</th>
-            <th>总时长(min)</th>
+            <th>总时长</th>
             <th>总次数</th>
             <th>违规次数</th>
             <th>操作</th>
@@ -562,7 +543,7 @@ onUnmounted(() => {
 
 .filter-section {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: 15px;
 }
 

@@ -23,7 +23,6 @@ const pageTitle = computed(() => {
     'AdminOverview': '概览',
     'AdminUsers': '用户管理',
     'AdminStaff': '工作账号分派',
-    'AdminDataExport': '数据导出',
     'AdminSettings': '活动配置',
     'StaffAudit': '审核',
     'StaffAppeal': '申诉'
