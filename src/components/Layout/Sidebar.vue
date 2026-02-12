@@ -19,8 +19,8 @@ const adminMenuItems = [
 
 // 工作人员菜单项
 const staffMenuItems = [
-  { path: '/staff/audit', icon: '✅', label: '审核' },
-  { path: '/staff/appeal', icon: '📝', label: '申诉' }
+  { path: '/staff/audit', icon: '📋', label: '审核' },
+  { path: '/staff/appeal', icon: '📄', label: '申诉' }
 ]
 
 // 根据用户角色获取菜单项

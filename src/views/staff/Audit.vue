@@ -30,7 +30,7 @@ const searchParams = ref({
   username: '',
   studentId: '',
   date: '',
-  status: 'all'
+  status: '0'
 })
 
 // 选中的记录
@@ -129,7 +129,7 @@ async function loadAuditRecords() {
       date: record.date || record.checkInDate || '',
       time: record.time || record.checkInTime || '',
       status: record.status !== undefined ? record.status : 0,
-      autoAuditResult: record.autoAuditResult || 'normal',
+      // autoAuditResult: record.autoAuditResult || 'normal',
       screenshot: record.screenshot || record.screenshotUrl || '',
       reasons: record.reasons || [],
       remark: record.remark || ''
@@ -255,7 +255,7 @@ function resetFilters() {
     username: '',
     studentId: '',
     date: '',
-    status: 'all'
+    status: '0'
   }
   // 重置后重新加载
   loadAuditRecords()
@@ -266,7 +266,7 @@ function getStatusText(status) {
   // 支持数字状态码和字符串状态
   const statusMap = {
     0: '待审核',
-    1: '通过',
+    1: '已通过',
     2: '不通过',
     3: '申诉中',
     'pending': '待审核',
@@ -292,14 +292,14 @@ function getStatusClass(status) {
 }
 
 // 获取自动审核结果文本
-function getAutoAuditText(result) {
-  const resultMap = {
-    normal: '正常',
-    suspicious: '疑似异常',
-    error: '错误'
-  }
-  return resultMap[result] || result
-}
+// function getAutoAuditText(result) {
+//   const resultMap = {
+//     normal: '正常',
+//     suspicious: '疑似异常',
+//     error: '错误'
+//   }
+//   return resultMap[result] || result
+// }
 
 function formatDateTime(value) {
   if (!value) return ''
@@ -354,11 +354,11 @@ onMounted(() => {
         <div class="filter-item">
           <label>状态</label>
           <select v-model="searchParams.status">
-            <option value="all">全部</option>
             <option value="0">待审核</option>
-            <option value="1">通过</option>
+            <option value="1">已通过</option>
             <option value="2">不通过</option>
             <option value="3">申诉中</option>
+            <option value="all">全部</option>
           </select>
         </div>
         <div class="filter-actions">
@@ -386,9 +386,9 @@ onMounted(() => {
             <th>姓名</th>
             <th>学号</th>
             <th>距离(km)</th>
-            <th>时长(min)</th>
+            <th>时长</th>
             <th>打卡时间</th>
-            <th>自动审核</th>
+<!--            <th>自动审核</th>-->
             <th>状态</th>
             <th>操作</th>
           </tr>
@@ -401,7 +401,7 @@ onMounted(() => {
             <td>{{ record.distance }}</td>
             <td>{{ record.duration }}</td>
             <td>{{ formatDateTime(record.date || record.time) }}</td>
-            <td>{{ getAutoAuditText(record.autoAuditResult) }}</td>
+<!--            <td>{{ getAutoAuditText(record.autoAuditResult) }}</td>-->
             <td>
               <span :class="['status-badge', getStatusClass(record.status)]">
                 {{ getStatusText(record.status) }}
@@ -445,16 +445,16 @@ onMounted(() => {
             </div>
             <div class="detail-row">
               <span class="detail-label">时长：</span>
-              <span class="detail-value">{{ selectedRecord.duration }} 分钟</span>
+              <span class="detail-value">{{ selectedRecord.duration }}</span>
             </div>
             <div class="detail-row">
               <span class="detail-label">打卡时间：</span>
               <span class="detail-value">{{ formatDateTime(selectedRecord.date || selectedRecord.time) }}</span>
             </div>
-            <div class="detail-row">
-              <span class="detail-label">自动审核：</span>
-              <span class="detail-value">{{ getAutoAuditText(selectedRecord.autoAuditResult) }}</span>
-            </div>
+<!--            <div class="detail-row">-->
+<!--              <span class="detail-label">自动审核：</span>-->
+<!--              <span class="detail-value">{{ getAutoAuditText(selectedRecord.autoAuditResult) }}</span>-->
+<!--            </div>-->
             
             <!-- 截图预览 -->
             <div class="screenshot-section">
@@ -771,6 +771,11 @@ onMounted(() => {
 .status-rejected {
   background: rgba(220, 53, 69, 0.1);
   color: #DC3545;
+}
+
+.status-appeal {
+  background: rgba(23, 162, 184, 0.1);
+  color: #17a2b8;
 }
 
 .audit-btn {

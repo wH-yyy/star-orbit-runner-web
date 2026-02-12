@@ -1,229 +1,250 @@
 <template>
-  <div class="user-management-page">
-    <!-- 搜索和筛选区域 -->
-    <div class="search-filter-section">
-      <div class="search-box">
-        <input
-            type="text"
-            v-model.lazy="searchKeyword"
-            placeholder="请输入搜索关键词"
-            class="search-input"
-            @keyup.enter="handleSearch"
-        />
-        <button @click="handleSearch" class="btn btn-search">搜索</button>
-        <button @click="resetSearch" class="btn btn-secondary">重置</button>
-      </div>
-
-      <div class="filter-section">
-        <!-- 校区筛选 -->
-        <div class="filter-group">
-          <span class="filter-label">校区：</span>
-          <select v-model="selectedCampus" class="filter-select" @change="handleFilterChange">
-            <option value="">全部校区</option>
-            <option v-for="campus in campusOptions" :key="campus" :value="campus">
-              {{ campus }}
-            </option>
-          </select>
-        </div>
-
-        <!-- 书院筛选 -->
-        <div class="filter-group">
-          <span class="filter-label">书院：</span>
-          <select v-model="selectedCollege" class="filter-select" @change="handleFilterChange">
-            <option value="">全部书院</option>
-            <option v-for="college in collegeOptions" :key="college" :value="college">
-              {{ college }}
-            </option>
-          </select>
-        </div>
-
-        <!-- 性别筛选 -->
-        <div class="filter-group">
-          <span class="filter-label">性别：</span>
-          <select v-model="selectedGender" class="filter-select" @change="handleFilterChange">
-            <option value="">全部性别</option>
-            <option value="男">男</option>
-            <option value="女">女</option>
-          </select>
-        </div>
-      </div>
+  <!-- 搜索和筛选区域 -->
+  <div class="search-filter-section">
+    <div class="search-box">
+      <input
+          type="text"
+          v-model.lazy="searchKeyword"
+          placeholder="请输入搜索关键词"
+          class="search-input"
+          @keyup.enter="handleSearch"
+      />
+      <button @click="handleSearch" class="btn btn-search">搜索</button>
+      <button @click="resetSearch" class="btn btn-secondary">重置</button>
     </div>
 
-    <!-- 用户列表 -->
-    <div class="user-list-section">
-      <div class="table-header">
-        <div class="page-size-selector">
-          <span>每页显示：</span>
-          <select v-model="pageSize" @change="handlePageSizeChange" class="page-size-select">
-            <option v-for="size in pageSizeOptions" :key="size" :value="size">{{ size }}</option>
-          </select>
-          <span>条</span>
-        </div>
+    <div class="filter-section">
+      <!-- 校区筛选 -->
+      <div class="filter-group">
+        <span class="filter-label">校区：</span>
+        <select v-model="selectedCampus" class="filter-select" @change="handleFilterChange">
+          <option value="">全部校区</option>
+          <option v-for="campus in campusOptions" :key="campus" :value="campus">
+            {{ campus }}
+          </option>
+        </select>
       </div>
 
-      <!-- 加载状态 -->
-      <div v-if="loading" class="loading-state">
-        <p>加载中...</p>
+      <!-- 书院筛选 -->
+      <div class="filter-group">
+        <span class="filter-label">书院：</span>
+        <select v-model="selectedCollege" class="filter-select" @change="handleFilterChange">
+          <option value="">全部书院</option>
+          <option v-for="college in collegeOptions" :key="college" :value="college">
+            {{ college }}
+          </option>
+        </select>
       </div>
 
-      <!-- 错误状态 -->
-      <div v-else-if="error" class="error-state">
-        <p>{{ error }}</p>
-        <button @click="loadUserList" class="btn btn-primary">重试</button>
-      </div>
-
-      <!-- 用户列表表格 -->
-      <div v-else class="user-table-container">
-        <table class="user-table">
-          <thead>
-          <tr>
-            <th>序号</th>
-            <th>学号</th>
-            <th>姓名</th>
-            <th>性别</th>
-            <th>校区</th>
-            <th>书院</th>
-            <th>班级</th>
-            <th>创建时间</th>
-            <th>状态</th>
-            <th>总里程(km)</th>
-            <th>总时长</th>
-            <th>总次数</th>
-            <th>违规次数</th>
-            <th>操作</th>
-          </tr>
-          </thead>
-          <tbody>
-          <tr v-for="(user, index) in userList" :key="user._id" class="user-row">
-            <td>{{ (currentPage - 1) * pageSize + index + 1 }}</td>
-            <td>{{ user.stu_id }}</td>
-            <td>{{ user.name }}</td>
-            <td>{{ user.gender }}</td>
-            <td>{{ user.campus }}</td>
-            <td>{{ user.college }}</td>
-            <td>{{ user.class_name }}</td>
-            <td>{{ user.createTime }}</td>
-            <td>
-              <span :class="['status-badge', statusClassMap[user.status]]">
-                {{ statusMap[user.status] || '未知' }}
-              </span>
-            </td>
-            <td>{{ user.totalDistance?.toFixed(2) || '0.00' }}</td>
-            <td>{{ user.totalDuration || '00:00:00' }}</td>
-            <td>{{ user.totalCount || 0 }}</td>
-            <td>{{ user.violationCount || 0 }}</td>
-            <td>
-              <div class="action-buttons">
-                <!-- 正常状态（0）：显示停跑和封号 -->
-                <template v-if="user.status === 0">
-                  <button @click="handleSuspend(user._id)" class="btn btn-warning btn-sm">停跑</button>
-                  <button @click="handleBan(user._id)" class="btn btn-danger btn-sm">封号</button>
-                </template>
-
-                <!-- 停跑状态（1）：显示取消停跑和封号 -->
-                <template v-else-if="user.status === 1">
-                  <button @click="handleActivate(user._id)" class="btn btn-primary btn-sm">取消停跑</button>
-                  <button @click="handleBan(user._id)" class="btn btn-danger btn-sm">封号</button>
-                </template>
-
-                <!-- 封号状态（2）：显示解封 -->
-                <template v-else-if="user.status === 2">
-                  <button @click="handleActivate(user._id)" class="btn btn-primary btn-sm">解封</button>
-                </template>
-              </div>
-            </td>
-          </tr>
-          </tbody>
-        </table>
-
-        <!-- 空状态 -->
-        <div v-if="!loading && userList.length === 0" class="empty-state">
-          <p>暂无用户数据</p>
-        </div>
-      </div>
-
-      <!-- 分页器 -->
-      <div v-if="total > 0" class="pagination-section">
-        <div class="pagination-info">
-          共 {{ total }} 条记录，第 {{ currentPage }} / {{ totalPages }} 页
-        </div>
-        <div class="pagination-controls">
-          <button
-              @click="goToPage(1)"
-              :disabled="currentPage === 1"
-              class="btn btn-pagination"
-          >
-            首页
-          </button>
-          <button
-              @click="prevPage"
-              :disabled="currentPage === 1"
-              class="btn btn-pagination"
-          >
-            上一页
-          </button>
-
-          <!-- 页码按钮 -->
-          <button
-              v-for="pageNum in visiblePages"
-              :key="pageNum"
-              @click="goToPage(pageNum)"
-              :class="['btn', 'btn-pagination', { 'active': pageNum === currentPage }]"
-          >
-            {{ pageNum }}
-          </button>
-
-          <button
-              @click="nextPage"
-              :disabled="currentPage === totalPages"
-              class="btn btn-pagination"
-          >
-            下一页
-          </button>
-          <button
-              @click="goToPage(totalPages)"
-              :disabled="currentPage === totalPages"
-              class="btn btn-pagination"
-          >
-            末页
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- 确认对话框 -->
-    <div v-if="showConfirmDialog" class="confirm-dialog-overlay">
-      <div class="confirm-dialog">
-        <h3>{{ confirmTitle }}</h3>
-        <p>{{ confirmMessage }}</p>
-        <div class="dialog-actions">
-          <button @click="cancelConfirm" class="btn btn-secondary">取消</button>
-          <button @click="confirmAction" class="btn btn-danger">确认</button>
-        </div>
+      <!-- 性别筛选 -->
+      <div class="filter-group">
+        <span class="filter-label">性别：</span>
+        <select v-model="selectedGender" class="filter-select" @change="handleFilterChange">
+          <option value="">全部性别</option>
+          <option value="男">男</option>
+          <option value="女">女</option>
+        </select>
       </div>
     </div>
   </div>
+
+  <!-- 用户列表 -->
+  <div class="user-list-section">
+    <div class="table-header">
+      <div class="page-size-selector">
+        <span>每页显示：</span>
+        <select v-model="pageSize" @change="handlePageSizeChange" class="page-size-select">
+          <option v-for="size in pageSizeOptions" :key="size" :value="size">{{ size }}</option>
+        </select>
+        <span>条</span>
+      </div>
+    </div>
+
+    <!-- 加载状态 -->
+    <div v-if="loading" class="loading-state">
+      <p>加载中...</p>
+    </div>
+
+    <!-- 错误状态 -->
+    <div v-else-if="error" class="error-state">
+      <p>{{ error }}</p>
+      <button @click="loadUserList" class="btn btn-primary">重试</button>
+    </div>
+
+    <!-- 用户列表表格 -->
+    <div v-else class="user-table-container">
+      <table class="user-table">
+        <thead>
+        <tr>
+          <th>序号</th>
+          <th>学号</th>
+          <th>姓名</th>
+          <th>性别</th>
+          <th>校区</th>
+          <th>书院</th>
+          <th>班级</th>
+          <th>创建时间</th>
+          <th>状态</th>
+          <th>总里程(km)</th>
+          <th>总时长</th>
+          <th>总次数</th>
+          <th>违规次数</th>
+          <th>操作</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr v-for="(user, index) in userList" :key="user._id" class="user-row">
+          <td>{{ (currentPage - 1) * pageSize + index + 1 }}</td>
+          <td>{{ user.stu_id }}</td>
+          <td>{{ user.name }}</td>
+          <td>{{ user.gender }}</td>
+          <td>{{ user.campus }}</td>
+          <td>{{ user.college }}</td>
+          <td>{{ user.class_name }}</td>
+          <td>{{ user.createTime }}</td>
+          <td>
+              <span :class="['status-badge', statusClassMap[user.status]]">
+                {{ statusMap[user.status] || '未知' }}
+              </span>
+          </td>
+          <td>{{ user.totalDistance?.toFixed(2) || '0.00' }}</td>
+          <td>{{ user.totalDuration || '00:00:00' }}</td>
+          <td>{{ user.totalCount || 0 }}</td>
+          <td>{{ user.violationCount || 0 }}</td>
+          <td>
+            <div class="action-buttons">
+              <!-- 正常状态（0）：显示停跑和封号 -->
+              <template v-if="user.status === 0">
+                <button @click="handleSuspend(user._id)" class="btn btn-warning btn-sm">停跑</button>
+                <button @click="handleBan(user._id)" class="btn btn-danger btn-sm">封号</button>
+              </template>
+
+              <!-- 停跑状态（1）：显示取消停跑和封号 -->
+              <template v-else-if="user.status === 1">
+                <button @click="handleActivate(user._id)" class="btn btn-primary btn-sm">取消停跑</button>
+                <button @click="handleBan(user._id)" class="btn btn-danger btn-sm">封号</button>
+              </template>
+
+              <!-- 封号状态（2）：显示解封 -->
+              <template v-else-if="user.status === 2">
+                <button @click="handleActivate(user._id)" class="btn btn-primary btn-sm">解封</button>
+              </template>
+            </div>
+          </td>
+        </tr>
+        </tbody>
+      </table>
+
+      <!-- 空状态 -->
+      <div v-if="!loading && userList.length === 0" class="empty-state">
+        <p>暂无用户数据</p>
+      </div>
+    </div>
+
+    <!-- 分页器 -->
+    <div v-if="total > 0" class="pagination-section">
+      <div class="pagination-info">
+        共 {{ total }} 条记录，第 {{ currentPage }} / {{ totalPages }} 页
+      </div>
+      <div class="pagination-controls">
+        <button
+            @click="goToPage(1)"
+            :disabled="currentPage === 1"
+            class="btn btn-pagination"
+        >
+          首页
+        </button>
+        <button
+            @click="prevPage"
+            :disabled="currentPage === 1"
+            class="btn btn-pagination"
+        >
+          上一页
+        </button>
+
+        <!-- 页码按钮 -->
+        <button
+            v-for="pageNum in visiblePages"
+            :key="pageNum"
+            @click="goToPage(pageNum)"
+            :class="['btn', 'btn-pagination', { 'active': pageNum === currentPage }]"
+        >
+          {{ pageNum }}
+        </button>
+
+        <button
+            @click="nextPage"
+            :disabled="currentPage === totalPages"
+            class="btn btn-pagination"
+        >
+          下一页
+        </button>
+        <button
+            @click="goToPage(totalPages)"
+            :disabled="currentPage === totalPages"
+            class="btn btn-pagination"
+        >
+          末页
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 确认对话框 -->
+  <div v-if="showConfirmDialog" class="confirm-dialog-overlay">
+    <div class="confirm-dialog">
+      <h3>{{ confirmTitle }}</h3>
+      <p>{{ confirmMessage }}</p>
+      <div class="dialog-actions">
+        <button @click="cancelConfirm" class="btn btn-secondary">取消</button>
+        <button @click="confirmAction" class="btn btn-danger">确认</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 操作结果提示 -->
+  <transition name="fade">
+    <div v-if="operationMsg.show"
+         :class="['operation-notification', `operation-${operationMsg.type}`]">
+      {{ operationMsg.text }}
+    </div>
+  </transition>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { getUserList, updateUserStatus } from '@/api/admin'
+import { showSuccess, showError } from '@/utils/toast'
 
 // 用户数据
 const userList = ref([])
 const loading = ref(false)
 const error = ref('')
 
+// 操作消息提示
+const operationMsg = ref({
+  show: false,
+  text: '',
+  type: 'success'
+})
+let msgTimer = null
+
+const showOperationMessage = (text, type = 'success') => {
+  if (msgTimer) clearTimeout(msgTimer)
+  operationMsg.value = {
+    show: true,
+    text,
+    type
+  }
+  msgTimer = setTimeout(() => {
+    operationMsg.value.show = false
+  }, 2000)
+}
+
 const statusMap = {
   0: '正常',
   1: '停跑',
   2: '封号'
-}
-
-const statusReverseMap = {
-  '正常': 0,
-  '停跑': 1,
-  '封号': 2
 }
 
 const statusClassMap = {
@@ -275,16 +296,6 @@ const visiblePages = computed(() => {
   }
   return pages
 })
-
-// 获取状态样式类
-const getStatusClass = (status) => {
-  switch (status) {
-    case '正常': return 'status-normal'
-    case '停跑': return 'status-suspended'
-    case '封号': return 'status-banned'
-    default: return ''
-  }
-}
 
 // 加载用户列表
 const loadUserList = async () => {
@@ -420,18 +431,24 @@ const confirmAction = async () => {
     // 重新加载当前页数据
     loadUserList()
 
-    // 显示成功提示
+    // 自定义成功提示
     let actionText = ''
     switch (pendingAction.value) {
-      case 'suspend': actionText = '停跑'; break
-      case 'ban': actionText = '封号'; break
-      case 'activate': actionText = '恢复正常'; break
+      case 'suspend':
+        actionText = '停跑';
+        break
+      case 'ban':
+        actionText = '封号';
+        break
+      case 'activate':
+        actionText = '恢复正常';
+        break
     }
-    alert(`用户${actionText}成功！`)
+    showSuccess(`用户${actionText}成功！`)
 
   } catch (err) {
     console.error('更新用户状态失败:', err)
-    alert(`操作失败: ${err.message}`)
+    showError(`操作失败: ${err.message}`)
   } finally {
     resetPendingAction()
   }
@@ -465,17 +482,13 @@ watch(searchFields, (newVal) => {
 onMounted(() => {
   loadUserList()
 })
+
+onUnmounted(() => {
+  if (msgTimer) clearTimeout(msgTimer)
+})
 </script>
 
 <style scoped>
-.user-management-page {
-  width: 100%;
-  padding: 20px;
-  background-color: #f5f7fa;
-  min-height: 100vh;
-  box-sizing: border-box; /* 添加这行，确保 padding 不增加宽度 */
-}
-
 /* 搜索和筛选区域样式 */
 .search-filter-section {
   background-color: #ffffff;
@@ -524,21 +537,6 @@ onMounted(() => {
   font-size: 14px;
   color: #606266;
   font-weight: 500;
-}
-
-.checkbox-group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.checkbox-label {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 14px;
-  color: #606266;
-  cursor: pointer;
 }
 
 .filter-select {
@@ -639,21 +637,6 @@ onMounted(() => {
   font-size: 12px;
   font-weight: 500;
   white-space: nowrap;
-}
-
-.status-normal {
-  background-color: rgba(103, 194, 58, 0.1);
-  color: #67c23a;
-}
-
-.status-suspended {
-  background-color: rgba(230, 162, 60, 0.1);
-  color: #e6a23c;
-}
-
-.status-banned {
-  background-color: rgba(245, 108, 108, 0.1);
-  color: #f56c6c;
 }
 
 /* 操作按钮样式 */
@@ -764,12 +747,6 @@ onMounted(() => {
   opacity: 0.5;
 }
 
-.btn-pagination.active {
-  background-color: #409eff;
-  color: #fff;
-  border-color: #409eff;
-}
-
 /* 加载状态样式 */
 .loading-state {
   padding: 60px 0;
@@ -841,6 +818,32 @@ onMounted(() => {
   gap: 12px;
 }
 
+/* 操作结果提示样式 */
+.operation-notification {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 24px;
+  border-radius: 4px;
+  font-size: 14px;
+  color: #fff;
+  z-index: 1000;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateX(-50%) translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+}
+
 /* 响应式设计 */
 @media (max-width: 1200px) {
   .filter-section {
@@ -849,10 +852,6 @@ onMounted(() => {
 }
 
 @media (max-width: 768px) {
-  .user-management-page {
-    padding: 10px;
-  }
-
   .search-box {
     flex-direction: column;
     align-items: stretch;
