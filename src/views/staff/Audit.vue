@@ -30,7 +30,7 @@ const searchParams = ref({
   username: '',
   studentId: '',
   date: '',
-  status: ''
+  status: 'all'
 })
 
 // 选中的记录
@@ -59,7 +59,9 @@ const filteredRecords = computed(() => {
   let filtered = auditRecords.value.filter(record => {
     // 将 record.status 转换为字符串便于比较
     const recordStatus = String(record.status)
-    const searchStatus = searchParams.value.status ? String(searchParams.value.status) : ''
+    const searchStatus = (searchParams.value.status && searchParams.value.status !== 'all')
+      ? String(searchParams.value.status)
+      : ''
     const recordDate = searchParams.value.date ? formatDateOnly(record.date || record.time) : ''
     
     return (
@@ -104,7 +106,7 @@ async function loadAuditRecords() {
       username: searchParams.value.username || undefined,
       studentId: searchParams.value.studentId || undefined,
       date: searchParams.value.date || undefined,
-      status: searchParams.value.status || undefined,
+      status: searchParams.value.status || 'all',
       staffId: currentStaff.value?._id || undefined,  // 传入工作人员ID，只查询分配给自己的记录
       page: 1,
       pageSize: 100
@@ -253,7 +255,7 @@ function resetFilters() {
     username: '',
     studentId: '',
     date: '',
-    status: ''
+    status: 'all'
   }
   // 重置后重新加载
   loadAuditRecords()
@@ -352,7 +354,7 @@ onMounted(() => {
         <div class="filter-item">
           <label>状态</label>
           <select v-model="searchParams.status">
-            <option value="">全部</option>
+            <option value="all">全部</option>
             <option value="0">待审核</option>
             <option value="1">通过</option>
             <option value="2">不通过</option>
