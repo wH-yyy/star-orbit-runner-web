@@ -212,7 +212,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { getUserList, updateUserStatus } from '@/api/admin'
 import { showSuccess, showError } from '@/utils/toast'
 
