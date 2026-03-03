@@ -212,8 +212,9 @@
 </template>
 
 <script setup>
-import {ref, computed, onMounted, watch, onUnmounted} from 'vue'
-import {getUserList, updateUserStatus} from '@/api/admin'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { getUserList, updateUserStatus } from '@/api/admin'
+import { showSuccess, showError } from '@/utils/toast'
 
 // 用户数据
 const userList = ref([])
@@ -443,12 +444,11 @@ const confirmAction = async () => {
         actionText = '恢复正常';
         break
     }
-    showOperationMessage(`用户${actionText}成功！`, 'success')
+    showSuccess(`用户${actionText}成功！`)
 
   } catch (err) {
     console.error('更新用户状态失败:', err)
-    // 自定义错误提示
-    showOperationMessage(`操作失败: ${err.message}`, 'error')
+    showError(`操作失败: ${err.message}`)
   } finally {
     resetPendingAction()
   }

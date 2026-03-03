@@ -2,6 +2,7 @@
 import { ref, onMounted, computed, reactive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getAppealsList, getAppealDetail, processAppeal, getCurrentStaff } from '@/api/staff'
+import { showSuccess, showError, showWarning } from '@/utils/toast'
 
 const route = useRoute()
 const router = useRouter()
@@ -19,49 +20,9 @@ const showRejectDialog = ref(false)
 const rejectReason = ref('')
 const selectedReasons = ref([])
 
-// 通用消息弹窗
-const showMessageDialog = ref(false)
-const messageTitle = ref('提示')
-const messageContent = ref('')
-
-// 通用确认弹窗
-const showConfirmDialog = ref(false)
-const confirmTitle = ref('确认')
-const confirmContent = ref('')
-const confirmCallback = ref(null)  // 确认时执行
-const cancelCallback = ref(null)   // 取消时执行（可选）
-
 // 图片预览
 const previewImage = ref('')
 const showImagePreview = ref(false)
-
-// 打开消息提示框
-const openMessage = (content, title = '提示') => {
-  messageTitle.value = title
-  messageContent.value = content
-  showMessageDialog.value = true
-}
-
-// 打开确认框
-const openConfirm = (content, onConfirm, onCancel = null, title = '确认') => {
-  confirmTitle.value = title
-  confirmContent.value = content
-  confirmCallback.value = onConfirm
-  cancelCallback.value = onCancel
-  showConfirmDialog.value = true
-}
-
-// 确认按钮处理
-const handleConfirm = () => {
-  if (confirmCallback.value) confirmCallback.value()
-  showConfirmDialog.value = false
-}
-
-// 取消按钮处理
-const handleCancelConfirm = () => {
-  if (cancelCallback.value) cancelCallback.value()
-  showConfirmDialog.value = false
-}
 
 // 常见驳回理由选项
 const commonRejectReasons = [
@@ -236,7 +197,7 @@ const loadAppeals = async () => {
     console.log('加载申诉列表成功:', appeals.value.length)
   } catch (error) {
     console.error('加载申诉列表失败:', error)
-    openMessage('加载申诉列表失败: ' + error.message)
+    showError('加载申诉列表失败: ' + error.message)
   } finally {
     loading.value = false
   }
@@ -252,7 +213,7 @@ const viewDetail = async (appeal) => {
     currentView.value = 'detail'
   } catch (error) {
     console.error('加载申诉详情失败:', error)
-    openMessage('加载申诉详情失败: ' + error.message)
+    showError('加载申诉详情失败: ' + error.message)
   } finally {
     loading.value = false
   }
@@ -288,7 +249,7 @@ const confirmAppealPass = async () => {
   showPassConfirmDialog.value = false
 
   if (!appealDetail.value || !appealDetail.value._id) {
-    openMessage('申诉信息不完整')
+    showWarning('申诉信息不完整')
     return
   }
 
@@ -315,10 +276,10 @@ const confirmAppealPass = async () => {
       appeals.value[index].status = 1
     }
 
-    openMessage('申诉处理成功！')
+    showSuccess('申诉处理成功！')
   } catch (error) {
     console.error('处理申诉失败:', error)
-    openMessage('处理申诉失败: ' + error.message)
+    showError('处理申诉失败: ' + error.message)
   } finally {
     processing.value = false
   }
@@ -332,7 +293,7 @@ const cancelAppealPass = () => {
 // 处理申诉 - 驳回
 const handleAppealReject = async () => {
   if (!appealDetail.value || !appealDetail.value._id) {
-    openMessage('申诉信息不完整')
+    showWarning('申诉信息不完整')
     return
   }
 
@@ -341,54 +302,48 @@ const handleAppealReject = async () => {
 }
 
 // 提交驳回申诉
-const submitAppealReject = () => {
-  // 输入校验
+const submitAppealReject = async () => {
   if (isRejectConfirmDisabled.value) {
-    openMessage('请输入驳回理由')
+    showWarning('请输入驳回理由')
     return
   }
 
-  // 打开自定义确认弹窗
-  openConfirm(
-      '确定驳回该申诉吗？驳回后对应的跑步记录将保持"不通过"状态。',
-      async () => {
-        processing.value = true
+  const confirmMessage = '确定驳回该申诉吗？驳回后对应的跑步记录将保持"不通过"状态。'
 
-        try {
-          // 调用云函数处理驳回
-          await processAppeal(appealDetail.value._id, 2, rejectReason.value.trim())
+  if (!confirm(confirmMessage)) {
+    return
+  }
 
-          // 更新本地数据
-          appealDetail.value.status = 2
-          appealDetail.value.auditResult = rejectReason.value.trim()
-          appealDetail.value.auditTime = new Date()
+  processing.value = true
 
-          // 更新跑步记录状态
-          if (appealDetail.value.runningRecord) {
-            appealDetail.value.runningRecord.status = 2
-            appealDetail.value.runningRecord.audit_reason = rejectReason.value.trim()
-          }
+  try {
+    await processAppeal(appealDetail.value._id, 2, rejectReason.value.trim())
 
-          // 更新列表中的数据
-          const index = appeals.value.findIndex(a => a._id === appealDetail.value._id)
-          if (index !== -1) {
-            appeals.value[index].status = 2
-          }
+    // 更新本地数据
+    appealDetail.value.status = 2
+    appealDetail.value.auditResult = rejectReason.value.trim()
+    appealDetail.value.auditTime = new Date()
 
-          openMessage('申诉处理成功！')
-          clearRejectDialog()
-        } catch (error) {
-          console.error('处理申诉失败:', error)
-          openMessage('处理申诉失败: ' + error.message)
-        } finally {
-          processing.value = false
-        }
-      },
-      () => {
-        // 可选的取消回调（什么都不做）
-      },
-      '确认驳回' // 弹窗标题
-  )
+    // 更新跑步记录状态 - 改为数字类型
+    if (appealDetail.value.runningRecord) {
+      appealDetail.value.runningRecord.status = 2 // 改为数字 2，不再是字符串 "2"
+      appealDetail.value.runningRecord.audit_reason = rejectReason.value.trim()
+    }
+
+    // 更新列表中的数据
+    const index = appeals.value.findIndex(a => a._id === appealDetail.value._id)
+    if (index !== -1) {
+      appeals.value[index].status = 2
+    }
+
+    showSuccess('申诉处理成功！')
+    clearRejectDialog()
+  } catch (error) {
+    console.error('处理申诉失败:', error)
+    showError('处理申诉失败: ' + error.message)
+  } finally {
+    processing.value = false
+  }
 }
 
 // 分页方法
@@ -494,7 +449,7 @@ const loadDetail = async () => {
       appealDetail.value = data
     } catch (error) {
       console.error('加载申诉详情失败:', error)
-      openMessage('加载申诉详情失败: ' + error.message)
+      showError('加载申诉详情失败: ' + error.message)
       goBackToList()
     } finally {
       loading.value = false
@@ -536,8 +491,8 @@ const loadDetail = async () => {
           <thead>
           <tr>
             <th>序号</th>
-            <th>姓名</th>
             <th>学号</th>
+            <th>姓名</th>
             <th>申诉理由</th>
             <th>申诉时间</th>
             <th>状态</th>
@@ -547,8 +502,8 @@ const loadDetail = async () => {
           <tbody>
           <tr v-for="(appeal, index) in filteredAppeals" :key="appeal._id">
             <td class="index-cell">{{ (pagination.page - 1) * pagination.pageSize + index + 1 }}</td>
-            <td>{{ appeal.name }}</td>
             <td>{{ appeal.stu_id }}</td>
+            <td>{{ appeal.name }}</td>
             <td class="reason-cell">{{ appeal.appealReason || '-' }}</td>
             <td>{{ formatTime(appeal.createTime) }}</td>
             <td>
@@ -607,6 +562,8 @@ const loadDetail = async () => {
           </span>
         </div>
       </div>
+
+
     </div>
 
     <!-- 详情视图 -->
@@ -827,39 +784,6 @@ const loadDetail = async () => {
     <div class="image-preview-container" @click.stop>
       <button class="image-preview-close" @click="closeImagePreview">×</button>
       <img :src="previewImage" alt="预览图片" class="preview-image">
-    </div>
-  </div>
-
-  <!-- 通用消息弹窗 -->
-  <div v-if="showMessageDialog" class="modal-overlay" @click.self="showMessageDialog = false">
-    <div class="modal-dialog message-dialog">
-      <div class="modal-header">
-        <h3>{{ messageTitle }}</h3>
-        <button class="modal-close" @click="showMessageDialog = false">×</button>
-      </div>
-      <div class="modal-content">
-        <p style="text-align: center;">{{ messageContent }}</p>
-      </div>
-      <div class="modal-footer">
-        <button class="btn-confirm" @click="showMessageDialog = false">确定</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 通用确认弹窗 -->
-  <div v-if="showConfirmDialog" class="modal-overlay" @click.self="handleCancelConfirm">
-    <div class="modal-dialog confirm-dialog">
-      <div class="modal-header">
-        <h3>{{ confirmTitle }}</h3>
-        <button class="modal-close" @click="handleCancelConfirm">×</button>
-      </div>
-      <div class="modal-content">
-        <p style="text-align: center;">{{ confirmContent }}</p>
-      </div>
-      <div class="modal-footer">
-        <button class="btn-cancel" @click="handleCancelConfirm">取消</button>
-        <button class="btn-confirm" @click="handleConfirm">确定</button>
-      </div>
     </div>
   </div>
 </template>

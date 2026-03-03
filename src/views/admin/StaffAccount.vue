@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
 import {addStaff, getStaffList, updateStaffStatus} from '../../api/admin';
+import { showSuccess, showError } from '../../utils/toast';
 
 // 工作人员账号数据
 const staffAccounts = ref([]);
@@ -17,7 +18,6 @@ const loadStaffList = async () => {
     staffAccounts.value = result.map(staff => ({
       ...staff,
       status: staff.status === 0 ? '启用' : '禁用',
-      name: staff.name || '未命名账号',
       completed_count: staff.completed_count || 0,
       assigned_count: staff.assigned_count || 0
     }));
@@ -136,9 +136,8 @@ const createAccount = async () => {
       campus: ''
     };
 
-    // 自定义成功提示
-    showNotification(`工作账号创建成功！\n用户名：${result.username}`, 'success');
-
+    // 使用更友好的提示
+    showSuccess('✅ 工作账号创建成功！\n用户名：' + result.username);
     // 重新加载工作人员列表
     await loadStaffList();
 
@@ -178,8 +177,7 @@ const toggleStatus = async (staffId) => {
 
   } catch (error) {
     console.error('更新账号状态失败:', error);
-    // 自定义错误提示
-    showNotification('更新状态失败：' + (error.message || '请稍后重试'), 'error');
+    showError('更新状态失败：' + (error.message || '请稍后重试'));
     // 恢复原来的状态
     account.status = oldStatus;
   }
