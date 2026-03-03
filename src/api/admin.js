@@ -388,3 +388,88 @@ export async function getStatsForAdmin(params = {}) {
         throw error
     }
 }
+
+/**
+ * 获取停跑日列表
+ * @returns {Promise<Array>} 停跑日列表
+ */
+export async function getRestDays() {
+    try {
+        await ensureCloudLogin()
+
+        const res = await callFunction({
+            name: "manageRestDays",
+            data: { action: 'list' }
+        })
+
+        const result = res?.result
+        if (!result || !result.success) {
+            throw new Error(result?.message || '获取停跑日列表失败')
+        }
+
+        return result.data || []
+    } catch (err) {
+        console.error('获取停跑日列表失败:', err)
+        throw err
+    }
+}
+
+/**
+ * 添加停跑日
+ * @param {string} date - 日期，格式 YYYY-MM-DD
+ * @param {string} [reason] - 原因（可选）
+ * @returns {Promise<Object>} 添加结果
+ */
+export async function addRestDay(date, reason = '') {
+    try {
+        await ensureCloudLogin()
+
+        const res = await callFunction({
+            name: "manageRestDays",
+            data: {
+                action: 'add',
+                date,
+                reason
+            }
+        })
+
+        const result = res?.result
+        if (!result || !result.success) {
+            throw new Error(result?.message || '添加停跑日失败')
+        }
+
+        return result.data
+    } catch (err) {
+        console.error('添加停跑日失败:', err)
+        throw err
+    }
+}
+
+/**
+ * 删除停跑日
+ * @param {string} date - 日期，格式 YYYY-MM-DD
+ * @returns {Promise<Object>} 删除结果
+ */
+export async function deleteRestDay(id) {
+    try {
+        await ensureCloudLogin()
+
+        const res = await callFunction({
+            name: "manageRestDays",
+            data: {
+                action: 'remove',
+                id
+            }
+        })
+
+        const result = res?.result
+        if (!result || !result.success) {
+            throw new Error(result?.message || '删除停跑日失败')
+        }
+
+        return result.data
+    } catch (err) {
+        console.error('删除停跑日失败:', err)
+        throw err
+    }
+}

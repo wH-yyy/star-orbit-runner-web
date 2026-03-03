@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
-import {addStaff, getStaffList, updateStaffStatus} from '../../api/admin';
-import { showSuccess, showError } from '../../utils/toast';
+import {addStaff, getStaffList, updateStaffStatus} from '@/api/admin.js';
+import { showSuccess, showError } from '@/utils/toast.js';
 
 // 工作人员账号数据
 const staffAccounts = ref([]);

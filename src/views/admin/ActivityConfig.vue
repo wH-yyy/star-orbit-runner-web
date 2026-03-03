@@ -1,6 +1,9 @@
 <template>
   <div class="rest-day-manager">
-    <h2>停跑日期管理</h2>
+    <!-- 本地消息提示 -->
+    <div v-if="message" :class="['message', messageType]">
+      {{ message }}
+    </div>
 
     <!-- 添加表单 -->
     <div class="add-form">
@@ -8,12 +11,7 @@
       <form @submit.prevent="handleAdd">
         <div class="form-item">
           <label for="restDate">日期：</label>
-          <input
-              type="date"
-              id="restDate"
-              v-model="newDate"
-              required
-          />
+          <input type="date" id="restDate" v-model="newDate" required />
         </div>
         <div class="form-item">
           <label for="reason">原因（可选）：</label>
@@ -49,7 +47,7 @@
           <td>{{ day.reason || '—' }}</td>
           <td>
             <button
-                @click="handleDelete(day._id, day.date)"
+                @click="handleDelete(day._id)"
                 :disabled="deletingId === day._id"
                 class="delete-btn"
             >
@@ -65,6 +63,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { getRestDays, addRestDay, deleteRestDay } from '@/api/admin'
 
 // 响应式数据
 const restDays = ref([])
@@ -72,8 +71,23 @@ const newDate = ref('')
 const newReason = ref('')
 const loading = ref(false)
 const adding = ref(false)
-const deletingId = ref(null)
-const error = ref('')
+const deletingId = ref(null) // 改为 deletingId，跟踪当前正在删除的记录的 _id
+
+// 本地消息提示
+const message = ref('')
+const messageType = ref('success')
+let messageTimer = null
+
+// 显示消息并自动消失
+const showMessage = (msg, type = 'success', duration = 3000) => {
+  if (messageTimer) clearTimeout(messageTimer)
+  message.value = msg
+  messageType.value = type
+  messageTimer = setTimeout(() => {
+    message.value = ''
+    messageTimer = null
+  }, duration)
+}
 
 // 按日期倒序排列
 const sortedRestDays = computed(() => {
@@ -83,20 +97,11 @@ const sortedRestDays = computed(() => {
 // 获取停跑日列表
 const fetchRestDays = async () => {
   loading.value = true
-  error.value = ''
   try {
-    const res = await callFunction({
-      name: 'manageRestDays',
-      data: { action: 'list' }
-    })
-    if (res.code === 200) {
-      restDays.value = res.data || []
-    } else {
-      throw new Error(res.message || '获取列表失败')
-    }
+    const data = await getRestDays()
+    restDays.value = data || []
   } catch (err) {
-    error.value = err.message
-    console.error('获取停跑日失败', err)
+    showMessage(err.message || '获取列表失败', 'error')
   } finally {
     loading.value = false
   }
@@ -106,82 +111,35 @@ const fetchRestDays = async () => {
 const handleAdd = async () => {
   if (!newDate.value) return
   adding.value = true
-  error.value = ''
   try {
-    const res = await callFunction({
-      name: 'manageRestDays',
-      data: {
-        action: 'add',
-        date: newDate.value,
-        reason: newReason.value || ''
-      }
-    })
-    if (res.code === 200) {
-      // 添加成功，刷新列表
-      await fetchRestDays()
-      newDate.value = ''
-      newReason.value = ''
-    } else {
-      throw new Error(res.message || '添加失败')
-    }
+    await addRestDay(newDate.value, newReason.value)
+    showMessage('添加成功', 'success')
+    await fetchRestDays()
+    newDate.value = ''
+    newReason.value = ''
   } catch (err) {
-    error.value = err.message
-    console.error('添加停跑日失败', err)
+    showMessage(err.message || '添加失败', 'error')
   } finally {
     adding.value = false
   }
 }
 
 // 删除停跑日
-const handleDelete = async (id, date) => {
-  if (!confirm(`确定要删除 ${date} 的停跑设置吗？`)) return
+const handleDelete = async (id) => {
+  const day = restDays.value.find(d => d._id === id)
+  if (!day) return
+  if (!confirm(`确定要删除 ${day.date} 的停跑设置吗？`)) return
+
   deletingId.value = id
-  error.value = ''
   try {
-    const res = await callFunction({
-      name: 'manageRestDays',
-      data: {
-        action: 'remove',
-        date // 根据云函数实现，可能需要 date 或 id
-      }
-    })
-    if (res.code === 200) {
-      // 删除成功，刷新列表
-      await fetchRestDays()
-    } else {
-      throw new Error(res.message || '删除失败')
-    }
+    await deleteRestDay(id)
+    showMessage('删除成功', 'success')
+    await fetchRestDays()
   } catch (err) {
-    error.value = err.message
-    console.error('删除停跑日失败', err)
+    showMessage(err.message || '删除失败', 'error')
   } finally {
     deletingId.value = null
   }
-}
-
-// 模拟调用云函数（实际项目中替换为真实SDK调用）
-async function callFunction({ name, data }) {
-  // 示例：使用微信云开发 Web SDK
-  // const res = await cloud.callFunction({ name, data })
-  // return res.result
-
-  // 模拟返回（开发时可删除）
-  console.log('调用云函数', name, data)
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      if (name === 'manageRestDays') {
-        if (data.action === 'list') {
-          resolve({ code: 200, data: [] }) // 初始空列表
-        } else if (data.action === 'add') {
-          resolve({ code: 200 })
-        } else if (data.action === 'remove') {
-          resolve({ code: 200 })
-        }
-      } else {
-        resolve({ code: 404, message: '未知函数' })
-      }
-    }, 500)
-  })
 }
 
 onMounted(() => {
@@ -207,6 +165,26 @@ h2 {
 h3 {
   margin: 20px 0 10px;
   color: #555;
+}
+
+/* 消息提示样式 */
+.message {
+  padding: 10px 15px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  text-align: center;
+  font-weight: 500;
+  transition: opacity 0.3s;
+}
+.message.success {
+  background-color: #e1f7e1;
+  color: #2e7d32;
+  border: 1px solid #a5d6a5;
+}
+.message.error {
+  background-color: #ffebee;
+  color: #c62828;
+  border: 1px solid #ef9a9a;
 }
 
 .add-form {
@@ -300,13 +278,5 @@ td {
   background: #fafafa;
   border-radius: 4px;
   color: #999;
-}
-
-.error {
-  color: #f56c6c;
-  background-color: #fef0f0;
-  padding: 10px;
-  border-radius: 4px;
-  margin: 10px 0;
 }
 </style>
