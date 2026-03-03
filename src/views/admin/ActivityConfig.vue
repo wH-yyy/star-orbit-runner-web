@@ -1,436 +1,312 @@
-<script setup>
-import { ref } from 'vue';
-
-// 活动配置数据
-const activityConfig = ref({
-  name: '2024年春季学期星荧夜跑',
-  startTime: '2024-02-20',
-  endTime: '2024-06-30',
-  runningHours: {
-    start: '20:00',
-    end: '22:00'
-  },
-  pauseDays: ['2024-04-01', '2024-05-01'], // 停跑日期
-  rules: {
-    minDistance: 2, // 最小距离(km)
-    maxPace: 10, // 最大配速(min/km)
-    minPace: 3, // 最小配速(min/km)
-    maxRunsPerDay: 1 // 每天最大打卡次数
-  }
-});
-
-// 保存配置
-const saveConfig = () => {
-  console.log('保存活动配置:', activityConfig.value);
-  // 这里可以添加API调用逻辑
-  alert('活动配置已保存，实际项目中会调用后端API更新配置');
-};
-
-// 添加停跑日期
-const addPauseDay = () => {
-  activityConfig.value.pauseDays.push('');
-};
-
-// 删除停跑日期
-const removePauseDay = (index) => {
-  activityConfig.value.pauseDays.splice(index, 1);
-};
-</script>
-
 <template>
-  <div class="activity-config-page">
-    <!-- 活动基本信息 -->
-    <div class="config-section">
-      <h3>基本信息</h3>
-      <div class="form-item">
-        <label class="form-label">活动名称</label>
-        <input
-            type="text"
-            v-model="activityConfig.name"
-            class="form-input"
-        />
-      </div>
-    </div>
+  <div class="rest-day-manager">
+    <h2>停跑日期管理</h2>
 
-    <!-- 活动时间配置 -->
-    <div class="config-section">
-      <h3>活动时间</h3>
-      <div class="form-item">
-        <label class="form-label">活动周期</label>
-        <div class="date-range">
+    <!-- 添加表单 -->
+    <div class="add-form">
+      <h3>新增停跑日</h3>
+      <form @submit.prevent="handleAdd">
+        <div class="form-item">
+          <label for="restDate">日期：</label>
           <input
               type="date"
-              v-model="activityConfig.startTime"
-              class="date-input"
-              placeholder="开始日期"
-          />
-          <span class="date-separator">至</span>
-          <input
-              type="date"
-              v-model="activityConfig.endTime"
-              class="date-input"
-              placeholder="结束日期"
+              id="restDate"
+              v-model="newDate"
+              required
           />
         </div>
-      </div>
-      <div class="form-item">
-        <label class="form-label">夜跑时间段</label>
-        <div class="time-range">
+        <div class="form-item">
+          <label for="reason">原因（可选）：</label>
           <input
-              type="time"
-              v-model="activityConfig.runningHours.start"
-              class="time-input"
-              placeholder="开始时间"
-          />
-          <span class="time-separator">至</span>
-          <input
-              type="time"
-              v-model="activityConfig.runningHours.end"
-              class="time-input"
-              placeholder="结束时间"
+              type="text"
+              id="reason"
+              v-model="newReason"
+              placeholder="例如：节假日、活动等"
           />
         </div>
-      </div>
+        <button type="submit" :disabled="adding">
+          {{ adding ? '提交中...' : '添加' }}
+        </button>
+      </form>
     </div>
 
-    <!-- 停跑日期配置 -->
-    <div class="config-section">
-      <h3>停跑日期</h3>
-      <div class="pause-days-list">
-        <div
-            v-for="(day, index) in activityConfig.pauseDays"
-            :key="index"
-            class="pause-day-item"
-        >
-          <input
-              type="date"
-              v-model="activityConfig.pauseDays[index]"
-              class="date-input"
-              placeholder="停跑日期"
-          />
-          <button
-              @click="removePauseDay(index)"
-              class="btn btn-danger btn-sm"
-          >
-            删除
-          </button>
-        </div>
-      </div>
-      <button @click="addPauseDay" class="btn btn-secondary btn-sm">
-        添加停跑日期
-      </button>
-    </div>
-
-    <!-- 活动规则配置 -->
-    <div class="config-section">
-      <h3>活动规则</h3>
-      <div class="rules-grid">
-        <div class="form-item">
-          <label class="form-label">最小距离(km)</label>
-          <input
-              type="number"
-              v-model.number="activityConfig.rules.minDistance"
-              class="form-input"
-              min="0"
-              step="0.1"
-          />
-        </div>
-        <div class="form-item">
-          <label class="form-label">最大配速(min/km)</label>
-          <input
-              type="number"
-              v-model.number="activityConfig.rules.maxPace"
-              class="form-input"
-              min="0"
-              step="0.1"
-          />
-        </div>
-        <div class="form-item">
-          <label class="form-label">最小配速(min/km)</label>
-          <input
-              type="number"
-              v-model.number="activityConfig.rules.minPace"
-              class="form-input"
-              min="0"
-              step="0.1"
-          />
-        </div>
-        <div class="form-item">
-          <label class="form-label">每天最大打卡次数</label>
-          <input
-              type="number"
-              v-model.number="activityConfig.rules.maxRunsPerDay"
-              class="form-input"
-              min="1"
-              step="1"
-          />
-        </div>
-      </div>
-    </div>
-
-    <!-- 保存按钮 -->
-    <div class="form-actions">
-      <button @click="saveConfig" class="btn btn-primary btn-lg">
-        保存配置
-      </button>
+    <!-- 停跑日列表 -->
+    <div class="rest-list">
+      <h3>当前停跑日</h3>
+      <div v-if="loading" class="loading">加载中...</div>
+      <div v-else-if="restDays.length === 0" class="empty">暂无停跑日</div>
+      <table v-else>
+        <thead>
+        <tr>
+          <th>日期</th>
+          <th>原因</th>
+          <th>操作</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr v-for="day in sortedRestDays" :key="day._id">
+          <td>{{ day.date }}</td>
+          <td>{{ day.reason || '—' }}</td>
+          <td>
+            <button
+                @click="handleDelete(day._id, day.date)"
+                :disabled="deletingId === day._id"
+                class="delete-btn"
+            >
+              {{ deletingId === day._id ? '删除中...' : '删除' }}
+            </button>
+          </td>
+        </tr>
+        </tbody>
+      </table>
     </div>
   </div>
 </template>
 
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+
+// 响应式数据
+const restDays = ref([])
+const newDate = ref('')
+const newReason = ref('')
+const loading = ref(false)
+const adding = ref(false)
+const deletingId = ref(null)
+const error = ref('')
+
+// 按日期倒序排列
+const sortedRestDays = computed(() => {
+  return [...restDays.value].sort((a, b) => (a.date > b.date ? -1 : 1))
+})
+
+// 获取停跑日列表
+const fetchRestDays = async () => {
+  loading.value = true
+  error.value = ''
+  try {
+    const res = await callFunction({
+      name: 'manageRestDays',
+      data: { action: 'list' }
+    })
+    if (res.code === 200) {
+      restDays.value = res.data || []
+    } else {
+      throw new Error(res.message || '获取列表失败')
+    }
+  } catch (err) {
+    error.value = err.message
+    console.error('获取停跑日失败', err)
+  } finally {
+    loading.value = false
+  }
+}
+
+// 添加停跑日
+const handleAdd = async () => {
+  if (!newDate.value) return
+  adding.value = true
+  error.value = ''
+  try {
+    const res = await callFunction({
+      name: 'manageRestDays',
+      data: {
+        action: 'add',
+        date: newDate.value,
+        reason: newReason.value || ''
+      }
+    })
+    if (res.code === 200) {
+      // 添加成功，刷新列表
+      await fetchRestDays()
+      newDate.value = ''
+      newReason.value = ''
+    } else {
+      throw new Error(res.message || '添加失败')
+    }
+  } catch (err) {
+    error.value = err.message
+    console.error('添加停跑日失败', err)
+  } finally {
+    adding.value = false
+  }
+}
+
+// 删除停跑日
+const handleDelete = async (id, date) => {
+  if (!confirm(`确定要删除 ${date} 的停跑设置吗？`)) return
+  deletingId.value = id
+  error.value = ''
+  try {
+    const res = await callFunction({
+      name: 'manageRestDays',
+      data: {
+        action: 'remove',
+        date // 根据云函数实现，可能需要 date 或 id
+      }
+    })
+    if (res.code === 200) {
+      // 删除成功，刷新列表
+      await fetchRestDays()
+    } else {
+      throw new Error(res.message || '删除失败')
+    }
+  } catch (err) {
+    error.value = err.message
+    console.error('删除停跑日失败', err)
+  } finally {
+    deletingId.value = null
+  }
+}
+
+// 模拟调用云函数（实际项目中替换为真实SDK调用）
+async function callFunction({ name, data }) {
+  // 示例：使用微信云开发 Web SDK
+  // const res = await cloud.callFunction({ name, data })
+  // return res.result
+
+  // 模拟返回（开发时可删除）
+  console.log('调用云函数', name, data)
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      if (name === 'manageRestDays') {
+        if (data.action === 'list') {
+          resolve({ code: 200, data: [] }) // 初始空列表
+        } else if (data.action === 'add') {
+          resolve({ code: 200 })
+        } else if (data.action === 'remove') {
+          resolve({ code: 200 })
+        }
+      } else {
+        resolve({ code: 404, message: '未知函数' })
+      }
+    }, 500)
+  })
+}
+
+onMounted(() => {
+  fetchRestDays()
+})
+</script>
+
 <style scoped>
-.activity-config-page {
-  width: 100%;
-  padding: 0;
+.rest-day-manager {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 
-.page-title {
-  font-size: 24px;
-  font-weight: 600;
-  margin-bottom: 24px;
-  color: #303133;
+h2 {
+  margin-top: 0;
+  color: #333;
+  border-bottom: 2px solid #42b983;
+  padding-bottom: 10px;
 }
 
-/* 配置区块样式 */
-.config-section {
-  background-color: #ffffff;
+h3 {
+  margin: 20px 0 10px;
+  color: #555;
+}
+
+.add-form {
+  background-color: #f8f8f8;
   border-radius: 8px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
-  padding: 24px;
-  margin-bottom: 24px;
+  padding: 20px;
+  margin-bottom: 30px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.config-section h3 {
-  font-size: 16px;
-  font-weight: 600;
-  margin-bottom: 16px;
-  color: #303133;
-  border-bottom: 1px solid #ebeef5;
-  padding-bottom: 8px;
-}
-
-/* 表单样式 */
 .form-item {
-  margin-bottom: 16px;
-}
-
-.form-label {
-  display: block;
-  font-size: 14px;
-  font-weight: 500;
-  color: #606266;
-  margin-bottom: 8px;
-}
-
-.form-input {
-  width: 100%;
-  padding: 10px 16px;
-  border: 1px solid #dcdfe6;
-  border-radius: 4px;
-  font-size: 14px;
-  transition: border-color 0.3s ease;
-  color: #606266;
-}
-
-.form-input:focus {
-  outline: none;
-  border-color: #409eff;
-  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.1);
-}
-
-.form-input::placeholder {
-  color: #c0c4cc;
-}
-
-/* 日期范围样式 */
-.date-range {
+  margin-bottom: 15px;
   display: flex;
   align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
+  gap: 10px;
 }
 
-.date-input {
+.form-item label {
+  width: 80px;
+  color: #666;
+}
+
+.form-item input {
   flex: 1;
-  min-width: 150px;
-  padding: 10px 16px;
-  border: 1px solid #dcdfe6;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
   border-radius: 4px;
   font-size: 14px;
-  transition: border-color 0.3s ease;
-  color: #606266;
 }
 
-.date-input:focus {
-  outline: none;
-  border-color: #409eff;
-  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.1);
+.form-item input[type="date"] {
+  font-family: inherit;
 }
 
-.date-input::placeholder {
-  color: #c0c4cc;
-}
-
-.date-separator {
-  color: #909399;
-  white-space: nowrap;
-}
-
-/* 时间范围样式 */
-.time-range {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.time-input {
-  flex: 1;
-  min-width: 100px;
-  padding: 10px 16px;
-  border: 1px solid #dcdfe6;
-  border-radius: 4px;
-  font-size: 14px;
-  transition: border-color 0.3s ease;
-  color: #606266;
-}
-
-.time-input:focus {
-  outline: none;
-  border-color: #409eff;
-  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.1);
-}
-
-.time-input::placeholder {
-  color: #c0c4cc;
-}
-
-.time-separator {
-  color: #909399;
-  white-space: nowrap;
-}
-
-/* 停跑日期样式 */
-.pause-days-list {
-  margin-bottom: 16px;
-}
-
-.pause-day-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.pause-day-item .date-input {
-  flex: 1;
-}
-
-/* 规则网格样式 */
-.rules-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
-}
-
-/* 按钮样式 */
-.btn {
-  padding: 8px 16px;
+button {
+  background-color: #42b983;
+  color: white;
   border: none;
+  padding: 10px 20px;
   border-radius: 4px;
-  font-size: 14px;
-  font-weight: 500;
   cursor: pointer;
-  transition: all 0.3s ease;
+  font-size: 14px;
+  transition: background-color 0.2s;
 }
 
-.btn-sm {
-  padding: 6px 12px;
+button:hover:not(:disabled) {
+  background-color: #3aa876;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.delete-btn {
+  background-color: #f56c6c;
+  padding: 5px 10px;
   font-size: 12px;
 }
 
-.btn-lg {
-  padding: 12px 24px;
-  font-size: 16px;
+.delete-btn:hover:not(:disabled) {
+  background-color: #e64242;
 }
 
-.btn-primary {
-  background-color: #409eff;
-  color: #ffffff;
-  border: 1px solid #409eff;
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: white;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
-.btn-primary:hover {
-  background-color: #66b1ff;
-  border-color: #66b1ff;
+th, td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
 }
 
-.btn-primary:active {
-  background-color: #3a8ee6;
-  border-color: #3a8ee6;
+th {
+  background-color: #f2f2f2;
+  font-weight: 600;
+  color: #444;
 }
 
-.btn-secondary {
-  background-color: #909399;
-  color: #ffffff;
-  border: 1px solid #909399;
+td {
+  color: #333;
 }
 
-.btn-secondary:hover {
-  background-color: #a6a9ad;
-  border-color: #a6a9ad;
-}
-
-.btn-secondary:active {
-  background-color: #82848a;
-  border-color: #82848a;
-}
-
-.btn-danger {
-  background-color: #f56c6c;
-  color: #ffffff;
-  border: 1px solid #f56c6c;
-}
-
-.btn-danger:hover {
-  background-color: #f78989;
-  border-color: #f78989;
-}
-
-.btn-danger:active {
-  background-color: #dd6161;
-  border-color: #dd6161;
-}
-
-/* 表单操作区域 */
-.form-actions {
-  margin-top: 32px;
+.loading, .empty {
   text-align: center;
+  padding: 30px;
+  background: #fafafa;
+  border-radius: 4px;
+  color: #999;
 }
 
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .date-range,
-  .time-range {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .date-input,
-  .time-input {
-    width: 100%;
-  }
-
-  .rules-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .pause-day-item {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .activity-config-page {
-    padding: 12px;
-  }
+.error {
+  color: #f56c6c;
+  background-color: #fef0f0;
+  padding: 10px;
+  border-radius: 4px;
+  margin: 10px 0;
 }
 </style>
