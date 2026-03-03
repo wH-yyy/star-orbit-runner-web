@@ -19,7 +19,7 @@
               type="text"
               id="reason"
               v-model="newReason"
-              placeholder="例如：节假日、活动等"
+              placeholder="例如：天气不好、场地被占用等"
           />
         </div>
         <button type="submit" :disabled="adding">
@@ -65,13 +65,22 @@
 import { ref, computed, onMounted } from 'vue'
 import { getRestDays, addRestDay, deleteRestDay } from '@/api/admin'
 
+// 获取今天的日期
+const getTodayDate = () => {
+  const today = new Date()
+  const year = today.getFullYear()
+  const month = String(today.getMonth() + 1).padStart(2, '0')
+  const day = String(today.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 // 响应式数据
 const restDays = ref([])
-const newDate = ref('')
+const newDate = ref(getTodayDate())
 const newReason = ref('')
 const loading = ref(false)
 const adding = ref(false)
-const deletingId = ref(null) // 改为 deletingId，跟踪当前正在删除的记录的 _id
+const deletingId = ref(null)
 
 // 本地消息提示
 const message = ref('')
@@ -149,32 +158,35 @@ onMounted(() => {
 
 <style scoped>
 .rest-day-manager {
-  max-width: 800px;
+  max-width: 1000px;
   margin: 0 auto;
-  padding: 20px;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  padding: 30px;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  font-size: 16px;
 }
 
 h2 {
   margin-top: 0;
   color: #333;
   border-bottom: 2px solid #42b983;
-  padding-bottom: 10px;
+  padding-bottom: 12px;
+  font-size: 28px;
 }
 
 h3 {
-  margin: 20px 0 10px;
+  margin: 24px 0 12px;
   color: #555;
+  font-size: 20px;
 }
 
 /* 消息提示样式 */
 .message {
-  padding: 10px 15px;
-  border-radius: 4px;
-  margin-bottom: 20px;
+  padding: 14px 20px;
+  border-radius: 6px;
+  margin-bottom: 24px;
   text-align: center;
   font-weight: 500;
-  transition: opacity 0.3s;
+  font-size: 16px;
 }
 .message.success {
   background-color: #e1f7e1;
@@ -189,32 +201,44 @@ h3 {
 
 .add-form {
   background-color: #f8f8f8;
-  border-radius: 8px;
-  padding: 20px;
-  margin-bottom: 30px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  border-radius: 10px;
+  padding: 24px 28px;
+  margin-bottom: 36px;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.08);
 }
 
 .form-item {
-  margin-bottom: 15px;
+  margin-bottom: 20px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 15px;
+  flex-wrap: nowrap;        /* 确保标签和输入框不换行 */
 }
 
 .form-item label {
-  width: 80px;
+  width: 120px;
   color: #666;
+  font-weight: 500;
+  font-size: 16px;
+  flex-shrink: 0;
 }
 
 .form-item input {
   flex: 1;
-  padding: 8px 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 14px;
+  padding: 10px 14px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 16px;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
+.form-item input:focus {
+  border-color: #42b983;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(66, 185, 131, 0.1);
+}
+
+/* 日期选择器保持默认样式，无额外美化 */
 .form-item input[type="date"] {
   font-family: inherit;
 }
@@ -223,15 +247,20 @@ button {
   background-color: #42b983;
   color: white;
   border: none;
-  padding: 10px 20px;
-  border-radius: 4px;
+  padding: 12px 24px;
+  border-radius: 6px;
   cursor: pointer;
-  font-size: 14px;
-  transition: background-color 0.2s;
+  font-size: 16px;
+  font-weight: 500;
+  transition: background-color 0.2s, transform 0.1s;
 }
 
 button:hover:not(:disabled) {
   background-color: #3aa876;
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
 button:disabled {
@@ -241,8 +270,8 @@ button:disabled {
 
 .delete-btn {
   background-color: #f56c6c;
-  padding: 5px 10px;
-  font-size: 12px;
+  padding: 8px 16px;
+  font-size: 14px;
 }
 
 .delete-btn:hover:not(:disabled) {
@@ -253,13 +282,16 @@ table {
   width: 100%;
   border-collapse: collapse;
   background-color: white;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  border-radius: 8px;
+  overflow: hidden;
 }
 
 th, td {
-  padding: 12px 15px;
+  padding: 16px 20px;
   text-align: left;
   border-bottom: 1px solid #eee;
+  font-size: 16px;
 }
 
 th {
@@ -274,9 +306,10 @@ td {
 
 .loading, .empty {
   text-align: center;
-  padding: 30px;
+  padding: 40px;
   background: #fafafa;
-  border-radius: 4px;
+  border-radius: 8px;
   color: #999;
+  font-size: 16px;
 }
 </style>
