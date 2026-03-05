@@ -195,6 +195,13 @@
     <div class="confirm-dialog">
       <h3>{{ confirmTitle }}</h3>
       <p>{{ confirmMessage }}</p>
+      <!-- 停跑时显示天数选择 -->
+      <div v-if="pendingAction === 'suspend'" class="ban-days-selector">
+        <label for="banDays">禁跑天数：</label>
+        <select id="banDays" v-model="banDays" class="filter-select">
+          <option v-for="day in banDaysOptions" :key="day" :value="day">{{ day }}天</option>
+        </select>
+      </div>
       <div class="dialog-actions">
         <button @click="cancelConfirm" class="btn btn-secondary">取消</button>
         <button @click="confirmAction" class="btn btn-danger">确认</button>
@@ -220,6 +227,10 @@ import { showSuccess, showError } from '@/utils/toast'
 const userList = ref([])
 const loading = ref(false)
 const error = ref('')
+
+// 停跑天数选项
+const banDays = ref(1)        // 当前选中的天数
+const banDaysOptions = [1, 3, 7]    // 可选天数
 
 // 操作消息提示
 const operationMsg = ref({
@@ -385,7 +396,8 @@ const handleSuspend = (userId) => {
   pendingUserId.value = userId
   pendingAction.value = 'suspend'
   confirmTitle.value = '确认停跑'
-  confirmMessage.value = '确定要将该用户设置为停跑状态吗？'
+  confirmMessage.value = '请选择停跑天数：'
+  banDays.value = 1                         // 默认1天
   showConfirmDialog.value = true
 }
 
@@ -405,47 +417,38 @@ const handleActivate = (userId) => {
   showConfirmDialog.value = true
 }
 
-// 确认操作
+// 确认停跑
 const confirmAction = async () => {
   if (!pendingUserId.value) return
 
   let status
+  let extraData = {}
   switch (pendingAction.value) {
     case 'suspend':
-      status = 1  // 停跑
+      status = 1
+      extraData.banDays = banDays.value   // 将天数传给 API
       break
     case 'ban':
-      status = 2  // 封号
+      status = 2
       break
     case 'activate':
-      status = 0  // 正常
+      status = 0
       break
     default:
       return
   }
 
   try {
-    await updateUserStatus(pendingUserId.value, status)
+    // 调用更新状态 API，第三个参数为停跑天数（仅停跑时有效）
+    await updateUserStatus(pendingUserId.value, status, extraData.banDays)
     showConfirmDialog.value = false
-
-    // 重新加载当前页数据
     loadUserList()
-
-    // 自定义成功提示
-    let actionText = ''
-    switch (pendingAction.value) {
-      case 'suspend':
-        actionText = '停跑';
-        break
-      case 'ban':
-        actionText = '封号';
-        break
-      case 'activate':
-        actionText = '恢复正常';
-        break
-    }
+    const actionText = {
+      suspend: '停跑',
+      ban: '封号',
+      activate: '恢复正常'
+    }[pendingAction.value]
     showSuccess(`用户${actionText}成功！`)
-
   } catch (err) {
     console.error('更新用户状态失败:', err)
     showError(`操作失败: ${err.message}`)
@@ -709,6 +712,26 @@ onUnmounted(() => {
 
 .btn-danger:hover {
   background-color: #f78989;
+}
+
+.ban-days-selector {
+  margin: 16px 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ban-days-selector label {
+  font-size: 14px;
+  color: #606266;
+  font-weight: 500;
+}
+.ban-days-selector select {
+  width: 120px;
+  padding: 6px 10px;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  background-color: #fff;
+  font-size: 14px;
 }
 
 /* 分页器样式 */

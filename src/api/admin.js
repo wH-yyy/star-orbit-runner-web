@@ -186,11 +186,12 @@ export async function getUserList(params = {}) {
 /**
  * 更新用户状态
  * @param {string} userId - 用户ID
- * @param {string} status - 新状态（active, suspended, banned）
+ * @param {number} status - 新状态（0正常，1停跑，2封号）
+ * @param {number} [banDays] - 停跑天数（当 status=1 时可选）
  * @returns {Promise<Object>} 更新结果
  */
-export async function updateUserStatus(userId, status) {
-    console.log("updateUserStatus called with:", { userId, status })
+export async function updateUserStatus(userId, status, banDays = null) {
+    console.log("updateUserStatus called with:", { userId, status, banDays })
 
     try {
         // 确保云开发登录状态
@@ -200,7 +201,8 @@ export async function updateUserStatus(userId, status) {
             name: "updateUserStatus",
             data: {
                 userId,
-                status
+                status,
+                banDays  // 传递给云函数，后端根据此字段设置过期时间
             }
         })
 
