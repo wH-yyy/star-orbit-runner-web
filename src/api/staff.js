@@ -548,3 +548,44 @@ export async function processAppeal(appealId, result, auditResult) {
     }
 }
 
+/**
+ * 一键通过当前工作人员的所有待审核记录
+ * @param {string} staffId - 工作人员ID
+ * @returns {Promise<Object>} 处理结果
+ */
+export async function batchApproveByStaff(staffId) {
+  console.log('batchApproveByStaff called with staffId:', staffId)
+
+  try {
+    if (!staffId) {
+      throw new Error('工作人员ID不能为空')
+    }
+
+    await ensureCloudLogin()
+
+    const res = await callFunction({
+      name: 'staff-api',
+      data: {
+        action: 'audit/batchApproveByStaff',
+        staffId
+      }
+    })
+
+    console.log('batchApproveByStaff 返回结果:', res)
+
+    const result = res?.result
+    if (!result) {
+      throw new Error('服务器无响应')
+    }
+
+    if (result.code !== 200) {
+      throw new Error(result.message || '一键通过失败')
+    }
+
+    return result.data
+
+  } catch (err) {
+    console.error('batchApproveByStaff 调用失败:', err)
+    throw new Error(err.message || '一键通过失败')
+  }
+}

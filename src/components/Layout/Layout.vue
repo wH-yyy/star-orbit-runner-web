@@ -41,7 +41,7 @@ import Sidebar from './Sidebar.vue'
 .main-content {
   flex: 1;
   overflow-y: auto;
-  padding: 24px;
+  padding: 10px 24px;
 }
 
 /* 响应式设计 */

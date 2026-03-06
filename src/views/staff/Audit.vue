@@ -1,6 +1,9 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { getAuditRecords, getAuditRecordDetail, submitAudit as submitAuditApi, getCurrentStaff } from '../../api/staff.js'
+import { useRouter } from 'vue-router'
+import { getAuditRecords, getCurrentStaff, batchApproveByStaff } from '../../api/staff.js'
+
+const router = useRouter()
 
 // 审核记录数据
 const auditRecords = ref([])
@@ -11,20 +14,6 @@ const successMsg = ref('')
 // 当前登录的工作人员信息
 const currentStaff = ref(null)
 
-// 图片预览相关变量
-const previewImage = ref('')
-const showImagePreview = ref(false)
-
-// 图片预览相关方法
-const openImagePreview = (imageUrl) => {
-  previewImage.value = imageUrl
-  showImagePreview.value = true
-}
-
-const closeImagePreview = () => {
-  showImagePreview.value = false
-}
-
 // 筛选条件
 const searchParams = ref({
   username: '',
@@ -33,37 +22,15 @@ const searchParams = ref({
   status: '0'
 })
 
-// 选中的记录
-const selectedRecord = ref(null)
-const isAuditDialogVisible = ref(false)
-
-// 审核表单
-const auditForm = ref({
-  result: '',
-  reasons: [],
-  remark: ''
-})
-
-// 预设的拒绝原因
-const rejectReasons = [
-  '配速异常',
-  '距离不足',
-  '时间不符合要求',
-  '截图不清晰',
-  '截图信息不完整',
-  '其他原因'
-]
-
-// 筛选后的记录
+// 筛选后的记录（按时间倒序）
 const filteredRecords = computed(() => {
   let filtered = auditRecords.value.filter(record => {
-    // 将 record.status 转换为字符串便于比较
     const recordStatus = String(record.status)
     const searchStatus = (searchParams.value.status && searchParams.value.status !== 'all')
       ? String(searchParams.value.status)
       : ''
     const recordDate = searchParams.value.date ? formatDateOnly(record.date || record.time) : ''
-    
+
     return (
       (searchParams.value.username ? record.username.includes(searchParams.value.username) : true) &&
       (searchParams.value.studentId ? record.studentId.includes(searchParams.value.studentId) : true) &&
@@ -71,54 +38,37 @@ const filteredRecords = computed(() => {
       (searchStatus ? recordStatus === searchStatus : true)
     )
   })
-  
-  // 按时间倒序排列（最新的在最上面）
+
+  // 按时间倒序排列
   return filtered.sort((a, b) => {
     const dateA = new Date(a.date || a.time || 0)
     const dateB = new Date(b.date || b.time || 0)
-    return dateB - dateA // 倒序
+    return dateB - dateA
   })
-})
-
-const isPendingStatus = (status) => {
-  return status === 0 || status === '0' || status === 'pending'
-}
-
-const canAuditSelected = computed(() => {
-  if (!selectedRecord.value) return false
-  return isPendingStatus(selectedRecord.value.status)
 })
 
 // 加载审核记录列表
 async function loadAuditRecords() {
   loading.value = true
   errorMsg.value = ''
-  
+
   try {
-    console.log('开始加载审核记录...')
-    
-    // 获取当前登录的工作人员信息
     if (!currentStaff.value) {
       currentStaff.value = getCurrentStaff()
     }
-    
+
     const params = {
       username: searchParams.value.username || undefined,
       studentId: searchParams.value.studentId || undefined,
       date: searchParams.value.date || undefined,
       status: searchParams.value.status || 'all',
-      staffId: currentStaff.value?._id || undefined,  // 传入工作人员ID，只查询分配给自己的记录
+      staffId: currentStaff.value?._id || undefined,
       page: 1,
       pageSize: 100
     }
-    
-    console.log('查询参数:', params)
-    
+
     const result = await getAuditRecords(params)
-    
-    console.log('审核记录加载成功:', result)
-    
-    // 处理返回的数据，确保格式正确
+
     auditRecords.value = (result.records || result.list || []).map(record => ({
       id: record._id || record.id,
       userId: record.userId,
@@ -129,121 +79,14 @@ async function loadAuditRecords() {
       date: record.date || record.checkInDate || '',
       time: record.time || record.checkInTime || '',
       status: record.status !== undefined ? record.status : 0,
-      // autoAuditResult: record.autoAuditResult || 'normal',
       screenshot: record.screenshot || record.screenshotUrl || '',
       reasons: record.reasons || [],
       remark: record.remark || ''
     }))
-    
-    console.log('处理后的记录数:', auditRecords.value.length)
-    
   } catch (err) {
     console.error('加载审核记录失败:', err)
     errorMsg.value = err.message || '加载审核记录失败'
     auditRecords.value = []
-  } finally {
-    loading.value = false
-  }
-}
-
-// 刷新列表
-function refreshRecords() {
-  loadAuditRecords()
-}
-
-// 打开审核对话框
-async function openAuditDialog(record) {
-  selectedRecord.value = record
-  const normalizedResult = record.status === 1 || record.status === 'approved'
-    ? 'approved'
-    : record.status === 2 || record.status === 'rejected'
-      ? 'rejected'
-      : ''
-  auditForm.value = {
-    result: normalizedResult,
-    reasons: [...(record.reasons || [])],
-    remark: record.remark || ''
-  }
-  isAuditDialogVisible.value = true
-  
-  // 如果需要获取更详细的信息，可以调用详情接口
-  try {
-    const detail = await getAuditRecordDetail(record.id)
-    console.log('审核记录详情:', detail)
-    // 可以用详情数据更新 selectedRecord
-    if (detail) {
-      selectedRecord.value = { ...selectedRecord.value, ...detail }
-    }
-  } catch (err) {
-    console.error('获取审核详情失败:', err)
-    // 不影响对话框打开，可以使用列表中的数据
-  }
-}
-
-// 提交审核
-async function submitAudit() {
-  if (!canAuditSelected.value) {
-    errorMsg.value = '仅待审核记录可提交审核'
-    return
-  }
-  if (!selectedRecord.value || !auditForm.value.result) {
-    errorMsg.value = '请选择审核结果'
-    return
-  }
-  
-  // 如果是拒绝，必须选择原因
-  if (auditForm.value.result === 'rejected' && auditForm.value.reasons.length === 0) {
-    errorMsg.value = '拒绝审核时必须选择至少一个原因'
-    return
-  }
-  
-  loading.value = true
-  errorMsg.value = ''
-  successMsg.value = ''
-  
-  try {
-    const auditData = {
-      recordId: selectedRecord.value.id,
-      result: auditForm.value.result,
-      reasons: auditForm.value.reasons,
-      remark: auditForm.value.remark || ''
-    }
-    
-    console.log('提交审核数据:', auditData)
-    
-    console.log('提交新审核')
-    const result = await submitAuditApi(auditData)
-    
-    console.log('审核提交成功:', result)
-    
-    successMsg.value = '审核已提交'
-    
-    // 更新本地记录
-    const record = auditRecords.value.find(r => r.id === selectedRecord.value.id)
-    if (record) {
-      record.status = auditForm.value.result === 'approved' ? 1 : 2
-      record.reasons = auditForm.value.reasons
-      record.remark = auditForm.value.remark || ''
-    }
-    
-    // 延迟关闭对话框，让用户看到成功消息
-    setTimeout(() => {
-      isAuditDialogVisible.value = false
-      selectedRecord.value = null
-      auditForm.value = {
-        result: '',
-        reasons: [],
-        remark: ''
-      }
-      successMsg.value = ''
-      
-      // 重新加载列表
-      loadAuditRecords()
-    }, 1000)
-    
-  } catch (err) {
-    console.error('提交审核失败:', err)
-    errorMsg.value = err.message || '提交审核失败'
   } finally {
     loading.value = false
   }
@@ -257,49 +100,107 @@ function resetFilters() {
     date: '',
     status: '0'
   }
-  // 重置后重新加载
   loadAuditRecords()
 }
 
-// 获取状态文本
+// 一键通过
+async function handleBatchApprove() {
+  if (!currentStaff.value) {
+    currentStaff.value = getCurrentStaff()
+    if (!currentStaff.value) {
+      errorMsg.value = '未获取到工作人员信息，请重新登录'
+      return
+    }
+  }
+
+  if (!confirm('确定要将所有待审核记录一键通过吗？')) return
+
+  loading.value = true
+  errorMsg.value = ''
+  successMsg.value = ''
+
+  try {
+    const result = await batchApproveByStaff(currentStaff.value._id)
+    successMsg.value = `一键通过完成，成功 ${result.successCount} 条`
+    await loadAuditRecords()
+  } catch (err) {
+    console.error('一键通过失败:', err)
+    errorMsg.value = err.message || '一键通过失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+// 快速审核：跳转到第一条记录的详情页，并传递所有记录的ID列表
+async function openQuickAudit() {
+  if (!currentStaff.value) {
+    currentStaff.value = getCurrentStaff()
+    if (!currentStaff.value) {
+      errorMsg.value = '未获取到工作人员信息，请重新登录'
+      return
+    }
+  }
+
+  loading.value = true
+  try {
+    // 获取分配给当前工作人员的所有记录（全部状态）
+    const result = await getAuditRecords({
+      staffId: currentStaff.value._id,
+      page: 1,
+      pageSize: 1000 // 足够大
+    })
+    const records = (result.records || result.list || []).map(record => ({
+      id: record._id || record.id,
+      username: record.username || record.userName || '',
+      studentId: record.studentId || '',
+      distance: record.distance,
+      duration: record.duration,
+      date: record.date || record.checkInDate || '',
+      time: record.time || record.checkInTime || '',
+      status: record.status !== undefined ? record.status : 0,
+      screenshot: record.screenshot || record.screenshotUrl || '',
+      reasons: record.reasons || [],
+      remark: record.remark || ''
+    }))
+
+    if (records.length === 0) {
+      successMsg.value = '暂无任何记录'
+      return
+    }
+
+    // 将记录ID列表转为逗号分隔字符串
+    const ids = records.map(r => r.id).join(',')
+    // 跳转到详情页，索引为0
+    router.push({
+      path: '/staff/audit-detail',
+      query: { ids, index: 0 }
+    })
+  } catch (err) {
+    console.error('加载快速审核记录失败:', err)
+    errorMsg.value = err.message || '加载快速审核记录失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+// 普通审核：点击某一行，跳转到详情页（只包含该记录）
+function goToAuditDetail(record) {
+  router.push({
+    path: '/staff/audit-detail',
+    query: { ids: record.id, index: 0 }
+  })
+}
+
+// 工具函数
 function getStatusText(status) {
-  // 支持数字状态码和字符串状态
-  const statusMap = {
-    0: '待审核',
-    1: '已通过',
-    2: '不通过',
-    3: '申诉中',
-    'pending': '待审核',
-    'approved': '通过',
-    'rejected': '拒绝'
-  }
-  return statusMap[status] || status
+  const map = { 0: '待审核', 1: '已通过', 2: '不通过', 3: '申诉中' }
+  return map[status] || status
 }
 
-// 获取状态类名
 function getStatusClass(status) {
-  // 支持数字状态码和字符串状态
-  const classMap = {
-    0: 'status-pending',
-    1: 'status-approved',
-    2: 'status-rejected',
-    3: 'status-appeal',
-    'pending': 'status-pending',
-    'approved': 'status-approved',
-    'rejected': 'status-rejected'
-  }
-  return classMap[status] || ''
+  const map = { 0: 'status-pending', 1: 'status-approved', 2: 'status-rejected', 3: 'status-appeal' }
+  return map[status] || ''
 }
-
-// 获取自动审核结果文本
-// function getAutoAuditText(result) {
-//   const resultMap = {
-//     normal: '正常',
-//     suspicious: '疑似异常',
-//     error: '错误'
-//   }
-//   return resultMap[result] || result
-// }
 
 function formatDateTime(value) {
   if (!value) return ''
@@ -317,9 +218,7 @@ function formatDateOnly(value) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
 }
 
-// 组件挂载时加载数据
 onMounted(() => {
-  console.log('Audit 页面已挂载，开始加载数据')
   loadAuditRecords()
 })
 </script>
@@ -334,6 +233,16 @@ onMounted(() => {
     <div v-if="successMsg" class="message-banner success">
       ✅ {{ successMsg }}
       <button @click="successMsg = ''" class="close-msg">×</button>
+    </div>
+
+    <!-- 操作栏：快速审核 + 一键通过 -->
+    <div class="action-bar">
+      <button @click="openQuickAudit" class="quick-audit-btn" :disabled="loading">
+        ⚡ 快速审核
+      </button>
+      <button @click="handleBatchApprove" class="batch-approve-btn" :disabled="loading">
+        ✅ 一键通过所有待审核
+      </button>
     </div>
 
     <!-- 搜索筛选 -->
@@ -372,13 +281,11 @@ onMounted(() => {
 
     <!-- 审核记录列表 -->
     <div class="audit-list">
-      <!-- 加载状态 -->
       <div v-if="loading && auditRecords.length === 0" class="loading-state">
         <div class="spinner"></div>
         <p>正在加载审核记录...</p>
       </div>
 
-      <!-- 数据表格 -->
       <table v-else class="audit-table">
         <thead>
           <tr>
@@ -388,7 +295,6 @@ onMounted(() => {
             <th>距离(km)</th>
             <th>时长</th>
             <th>打卡时间</th>
-<!--            <th>自动审核</th>-->
             <th>状态</th>
             <th>操作</th>
           </tr>
@@ -401,140 +307,23 @@ onMounted(() => {
             <td>{{ record.distance }}</td>
             <td>{{ record.duration }}</td>
             <td>{{ formatDateTime(record.date || record.time) }}</td>
-<!--            <td>{{ getAutoAuditText(record.autoAuditResult) }}</td>-->
             <td>
               <span :class="['status-badge', getStatusClass(record.status)]">
                 {{ getStatusText(record.status) }}
               </span>
             </td>
             <td>
-              <button @click="openAuditDialog(record)" class="audit-btn" :disabled="loading">
-                {{ isPendingStatus(record.status) ? '审核' : '查看' }}
+              <button @click="goToAuditDetail(record)" class="audit-btn" :disabled="loading">
+                {{ record.status === 0 ? '审核' : '查看' }}
               </button>
             </td>
           </tr>
         </tbody>
       </table>
-      
-      <!-- 空状态 -->
+
       <div v-if="!loading && filteredRecords.length === 0" class="empty-state">
         {{ errorMsg ? '加载失败' : '暂无审核记录' }}
       </div>
-    </div>
-
-    <!-- 审核对话框 -->
-    <div v-if="isAuditDialogVisible" class="audit-dialog-overlay">
-      <div class="audit-dialog">
-        <div class="dialog-header">
-          <h2>审核详情</h2>
-          <button @click="isAuditDialogVisible = false" class="close-btn">×</button>
-        </div>
-        <div class="dialog-content">
-          <div v-if="selectedRecord" class="record-details">
-            <div class="detail-row">
-              <span class="detail-label">姓名：</span>
-              <span class="detail-value">{{ selectedRecord.username }}</span>
-            </div>
-            <div class="detail-row">
-              <span class="detail-label">学号：</span>
-              <span class="detail-value">{{ selectedRecord.studentId }}</span>
-            </div>
-            <div class="detail-row">
-              <span class="detail-label">距离：</span>
-              <span class="detail-value">{{ selectedRecord.distance }} km</span>
-            </div>
-            <div class="detail-row">
-              <span class="detail-label">时长：</span>
-              <span class="detail-value">{{ selectedRecord.duration }}</span>
-            </div>
-            <div class="detail-row">
-              <span class="detail-label">打卡时间：</span>
-              <span class="detail-value">{{ formatDateTime(selectedRecord.date || selectedRecord.time) }}</span>
-            </div>
-<!--            <div class="detail-row">-->
-<!--              <span class="detail-label">自动审核：</span>-->
-<!--              <span class="detail-value">{{ getAutoAuditText(selectedRecord.autoAuditResult) }}</span>-->
-<!--            </div>-->
-            
-            <!-- 截图预览 -->
-            <div class="screenshot-section">
-              <h3>跑步截图</h3>
-              <div class="screenshot-preview">
-                <img
-                    :src="selectedRecord.screenshot"
-                    alt="跑步截图"
-                    @click="openImagePreview(selectedRecord.screenshot)"
-                    style="cursor: pointer;"
-                />
-              </div>
-            </div>
-            
-            <!-- 审核操作 -->
-            <div class="audit-section">
-              <h3>审核结果</h3>
-              <div class="audit-options">
-                <label class="radio-option">
-                  <input type="radio" v-model="auditForm.result" value="approved" :disabled="!canAuditSelected" />
-                  <span>通过</span>
-                </label>
-                <label class="radio-option">
-                  <input type="radio" v-model="auditForm.result" value="rejected" :disabled="!canAuditSelected" />
-                  <span>拒绝</span>
-                </label>
-              </div>
-              
-              <!-- 拒绝原因 -->
-              <div v-if="auditForm.result === 'rejected'" class="reasons-section">
-                <h4>拒绝原因（可多选）</h4>
-                <div class="reasons-list">
-                  <label v-for="reason in rejectReasons" :key="reason" class="checkbox-option">
-                    <input 
-                      type="checkbox" 
-                      :value="reason" 
-                      v-model="auditForm.reasons"
-                      :disabled="!canAuditSelected"
-                    />
-                    <span>{{ reason }}</span>
-                  </label>
-                </div>
-              </div>
-              
-              <!-- 备注 -->
-              <div class="remark-section">
-                <h4>备注（可选）</h4>
-                <textarea 
-                  v-model="auditForm.remark" 
-                  placeholder="请输入备注信息..."
-                  rows="3"
-                  class="remark-input"
-                  :disabled="!canAuditSelected"
-                ></textarea>
-              </div>
-              
-              <!-- 提示信息 -->
-              <div v-if="selectedRecord && !canAuditSelected" class="warning-tip">
-                ℹ️ 当前记录为已审核或申诉中的记录，仅支持查看
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="dialog-footer">
-          <button @click="isAuditDialogVisible = false" class="cancel-btn" :disabled="loading">
-            取消
-          </button>
-          <button v-if="canAuditSelected" @click="submitAudit" class="submit-btn" :disabled="loading || !auditForm.result">
-            {{ loading ? '提交中...' : '提交审核' }}
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 图片预览弹窗 -->
-  <div v-if="showImagePreview" class="image-preview-overlay" @click="closeImagePreview">
-    <div class="image-preview-container" @click.stop>
-      <button class="image-preview-close" @click="closeImagePreview">×</button>
-      <img :src="previewImage" alt="预览图片" class="preview-image">
     </div>
   </div>
 </template>
@@ -1106,30 +895,101 @@ onMounted(() => {
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
 }
 
+.action-bar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.quick-audit-btn,
+.batch-approve-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.quick-audit-btn {
+  background: #17a2b8;
+  color: white;
+}
+
+.quick-audit-btn:hover:not(:disabled) {
+  background: #138496;
+}
+
+.batch-approve-btn {
+  background: #28a745;
+  color: white;
+}
+
+.batch-approve-btn:hover:not(:disabled) {
+  background: #218838;
+}
+
+.quick-audit-btn:disabled,
+.batch-approve-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.option-btn input[type="radio"],
+.option-btn input[type="checkbox"] {
+  display: none;
+}
+
+/* 快速审核对话框的导航按钮 */
+.nav-btn {
+  padding: 8px 16px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: white;
+  color: #666;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.nav-btn:hover:not(:disabled) {
+  background: #f5f5f5;
+}
+
+.nav-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 快速审核对话框宽度稍大 */
+.quick-audit-dialog {
+  max-width: 900px;
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
   .filter-row {
     flex-direction: column;
   }
-  
+
   .filter-item {
     width: 100%;
   }
-  
+
   .audit-table {
     font-size: 12px;
   }
-  
+
   .audit-table th,
   .audit-table td {
     padding: 8px 12px;
   }
-  
+
   .audit-options {
     flex-direction: column;
     gap: 12px;
   }
-  
+
   .reasons-list {
     flex-direction: column;
     gap: 8px;

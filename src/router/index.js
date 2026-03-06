@@ -16,6 +16,7 @@ const AdminActivityConfig = () => import('../views/admin/ActivityConfig.vue')
 const StaffLayout = () => import('../views/staff/StaffLayout.vue')
 const StaffAudit = () => import('../views/staff/Audit.vue')
 const StaffAppeal = () => import('../views/staff/Appeal.vue')
+const StaffAuditDetail = () => import('../views/staff/AuditDetail.vue')
 
 // 路由规则
 const routes = [
@@ -74,6 +75,10 @@ const routes = [
             {path: '', redirect: 'audit'},
             {
                 path: 'audit', name: 'StaffAudit', component: StaffAudit,
+                meta: {requiresAuth: true, role: 'staff'}
+            },
+            {
+                path: 'audit-detail', name: 'StaffAuditDetail', component: StaffAuditDetail,
                 meta: {requiresAuth: true, role: 'staff'}
             },
             {
