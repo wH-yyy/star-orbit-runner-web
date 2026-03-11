@@ -35,6 +35,7 @@ import Sidebar from './Sidebar.vue'
   flex-direction: column;
   height: 100vh;
   overflow: hidden;
+  background-color: #f0f2f5;
 }
 
 /* 主内容区域样式 */

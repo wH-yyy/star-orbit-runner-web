@@ -36,6 +36,29 @@ const rejectReasons = [
   '其他原因'
 ]
 
+const imageSize = ref('small') // 可选值: 'small', 'medium', 'large'
+
+// 放大：小→中，中→大，大不变（按钮禁用）
+function zoomIn() {
+  if (imageSize.value === 'small') {
+    imageSize.value = 'medium'
+  } else if (imageSize.value === 'medium') {
+    imageSize.value = 'large'
+  }
+  // 已经是 large 时不操作
+}
+
+// 缩小：大→中，中→小，小不变（按钮禁用）
+function zoomOut() {
+  if (imageSize.value === 'large') {
+    imageSize.value = 'medium'
+  } else if (imageSize.value === 'medium') {
+    imageSize.value = 'small'
+  }
+  // 已经是 small 时不操作
+}
+
+
 // 图片预览
 const previewImage = ref('')
 const showImagePreview = ref(false)
@@ -143,32 +166,34 @@ async function loadCurrentRecord() {
   }
 }
 
-// 计算配速是否达标（示例逻辑，根据实际需求调整）
-const paceStatus = computed(() => {
-  if (!recordDetail.value?.running_pace) return 'unknown'
-  // 示例：配速超过 6'00" 为不达标
-  const pace = recordDetail.value.running_pace
-  const match = pace.match(/(\d+)'(\d+)"/)
-  if (match) {
-    const minutes = parseInt(match[1])
-    const seconds = parseInt(match[2])
-    const totalSeconds = minutes * 60 + seconds
-    return totalSeconds > 360 ? 'fail' : 'success' // 6分钟 = 360秒
-  }
-  return 'unknown'
-})
-
-// 计算跑步时间是否达标（示例）
-const timeStatus = computed(() => {
-  if (!recordDetail.value?.running_date) return 'unknown'
-  // 示例：时间必须在 20:00-22:00
-  const timeStr = recordDetail.value.running_date.split(' ')[1] // 假设格式 "11-20 21:36"
-  if (timeStr) {
-    const hour = parseInt(timeStr.split(':')[0])
-    return (hour >= 20 && hour < 22) ? 'success' : 'fail'
-  }
-  return 'unknown'
-})
+//========================================================================
+// // 计算配速是否达标（示例逻辑，根据实际需求调整）
+// const paceStatus = computed(() => {
+//   if (!recordDetail.value?.running_pace) return 'unknown'
+//   // 示例：配速超过 6'00" 为不达标
+//   const pace = recordDetail.value.running_pace
+//   const match = pace.match(/(\d+)'(\d+)"/)
+//   if (match) {
+//     const minutes = parseInt(match[1])
+//     const seconds = parseInt(match[2])
+//     const totalSeconds = minutes * 60 + seconds
+//     return totalSeconds > 360 ? 'fail' : 'success' // 6分钟 = 360秒
+//   }
+//   return 'unknown'
+// })
+//
+// // 计算跑步时间是否达标（示例）
+// const timeStatus = computed(() => {
+//   if (!recordDetail.value?.running_date) return 'unknown'
+//   // 示例：时间必须在 20:00-22:00
+//   const timeStr = recordDetail.value.running_date.split(' ')[1] // 假设格式 "11-20 21:36"
+//   if (timeStr) {
+//     const hour = parseInt(timeStr.split(':')[0])
+//     return (hour >= 20 && hour < 22) ? 'success' : 'fail'
+//   }
+//   return 'unknown'
+// })
+//========================================================================
 
 // 上下条切换
 function goPrev() {
@@ -344,25 +369,14 @@ onMounted(() => {
 
 <template>
   <div class="audit-detail-page">
-    <!-- 顶部导航 -->
-    <div class="detail-header">
-      <button @click="goBack" class="back-btn">← 返回列表</button>
-      <h2>审核详情 ({{ currentIndex + 1 }} / {{ recordIds.length }})</h2>
-    </div>
-
     <!-- 消息提示 -->
     <div v-if="errorMsg" class="message-banner error">
-      ❌ {{ errorMsg }}
+      {{ errorMsg }}
       <button @click="errorMsg = ''" class="close-msg">×</button>
     </div>
     <div v-if="successMsg" class="message-banner success">
-      ✅ {{ successMsg }}
+      {{ successMsg }}
       <button @click="successMsg = ''" class="close-msg">×</button>
-    </div>
-
-    <!-- 状态提示：当记录为不通过或申诉中时 -->
-    <div v-if="recordDetail && (recordDetail.status === 2 || recordDetail.status === 3)" class="status-warning">
-      ⚠️ 当前记录状态为 {{ getStatusText(recordDetail.status) }}，不支持修改
     </div>
 
     <!-- 三栏内容 -->
@@ -374,8 +388,19 @@ onMounted(() => {
     <div v-else-if="recordDetail" class="detail-layout">
       <!-- 左侧：截图 -->
       <div class="left-col">
-        <h3>跑步截图</h3>
-        <div class="screenshot-container">
+        <div class="left-col-header">
+          <button @click="goBack" class="back-btn"> < 返回 </button>
+          <h3>跑步截图</h3>
+          <div class="image-size-controls">
+            <button @click="zoomOut" :disabled="imageSize === 'small'" class="size-btn">
+              🔍 缩小
+            </button>
+            <button @click="zoomIn" :disabled="imageSize === 'large'" class="size-btn">
+              🔍 放大
+            </button>
+          </div>
+        </div>
+        <div :class="['screenshot-container', `size-${imageSize}`]">
           <img :src="recordDetail.screenshot" alt="跑步截图" @click="openImagePreview(recordDetail.screenshot)" />
         </div>
       </div>
@@ -385,72 +410,77 @@ onMounted(() => {
         <!-- 1. 绑定学生信息 -->
         <div class="info-block">
           <h3>绑定学生信息</h3>
-          <div class="info-item">
-            <span class="label">姓名：</span>
-            <span class="value">{{ recordDetail.username }}</span>
-          </div>
-          <div class="info-item">
-            <span class="label">学号：</span>
-            <span class="value">{{ recordDetail.studentId }}</span>
-          </div>
-          <div class="info-item">
-            <span class="label">学院班级：</span>
-            <span class="value">{{ recordDetail.college || '—' }} | {{ recordDetail.class || '—' }}</span>
+          <div class="student-info">
+            <div class="student-avatar">
+              <!-- 根据性别显示不同头像 -->
+              <img v-if="recordDetail.gender === '男'" src="../../assets/male-avatar.jpg" alt="男头像" class="avatar-img"
+              />
+              <img v-else-if="recordDetail.gender === '女'" src="../../assets/female-avatar.jpg" alt="女头像" class="avatar-img"
+              />
+              <!-- 性别未知时显示姓名首字母 -->
+              <span v-else class="avatar-text">{{ recordDetail.username?.charAt(0) || '?' }}</span>
+            </div>
+            <div class="student-details">
+              <div class="student-name">{{ recordDetail.username }}</div>
+              <div class="student-meta">
+                {{ recordDetail.studentId || '—' }} | {{ recordDetail.college || '—' }} | {{ recordDetail.className || '—' }}
+              </div>
+            </div>
           </div>
         </div>
 
-        <!-- 2. 截图识别数据（OCR 已提取） -->
+        <!-- 2. 截图识别数据（OCR 提取） -->
         <div class="info-block">
           <div class="block-header">
             <h3>截图识别数据</h3>
-            <span class="ocr-badge">OCR 已提取</span>
+            <span class="ocr-badge">OCR</span>
           </div>
 
           <!-- 运动里程 -->
           <div class="info-item">
-            <span class="label">运动里程：</span>
+            <span class="label">里程：</span>
             <div class="value-with-status">
               <span class="value">{{ recordDetail.distance }} km</span>
-              <span v-if="recordDetail.distance < 2.0" class="status-badge fail">
-                ❌ 未达标（需≥2.0km）
-              </span>
-              <span v-else class="status-badge success">
-                ✅ 达标
-              </span>
+<!--              <span v-if="recordDetail.distance < 2.0" class="status-badge fail">-->
+<!--                ❌ 未达标（需≥2.0km）-->
+<!--              </span>-->
+<!--              <span v-else class="status-badge success">-->
+<!--                ✅ 达标-->
+<!--              </span>-->
             </div>
           </div>
 
           <!-- 运动配速 -->
           <div class="info-item">
-            <span class="label">运动配速：</span>
+            <span class="label">配速：</span>
             <div class="value-with-status">
               <span class="value">{{ recordDetail.running_pace || '—' }}</span>
-              <span v-if="paceStatus === 'fail'" class="status-badge fail">
-                ❌ 配速异常
-              </span>
-              <span v-else-if="paceStatus === 'success'" class="status-badge success">
-                ✅ 达标
-              </span>
+<!--              <span v-if="paceStatus === 'fail'" class="status-badge fail">-->
+<!--                ❌ 配速异常-->
+<!--              </span>-->
+<!--              <span v-else-if="paceStatus === 'success'" class="status-badge success">-->
+<!--                ✅ 达标-->
+<!--              </span>-->
             </div>
           </div>
 
           <!-- 跑步时间 -->
           <div class="info-item">
-            <span class="label">跑步时间：</span>
+            <span class="label">时间：</span>
             <div class="value-with-status">
               <span class="value">{{ formatDateTime(recordDetail.running_date || recordDetail.date) }}</span>
-              <span v-if="timeStatus === 'fail'" class="status-badge fail">
-                ❌ 不在规定时段
-              </span>
-              <span v-else-if="timeStatus === 'success'" class="status-badge success">
-                ✅ 达标
-              </span>
+<!--              <span v-if="timeStatus === 'fail'" class="status-badge fail">-->
+<!--                ❌ 不在规定时段-->
+<!--              </span>-->
+<!--              <span v-else-if="timeStatus === 'success'" class="status-badge success">-->
+<!--                ✅ 达标-->
+<!--              </span>-->
             </div>
           </div>
 
           <!-- 运动时长（可选） -->
           <div class="info-item">
-            <span class="label">运动时长：</span>
+            <span class="label">时长：</span>
             <span class="value">{{ recordDetail.duration }}</span>
           </div>
         </div>
@@ -508,21 +538,28 @@ onMounted(() => {
 
         <!-- 通过/不通过 按钮 -->
         <div class="action-buttons">
-          <button @click="submitApprove" class="approve-btn"
-                  :disabled="loading || !canEdit || (recordDetail.status === 1)">
-            {{ loading ? '处理中...' : '✅ 通过' }}
-          </button>
           <button @click="submitReject" class="reject-btn"
                   :disabled="loading || !canEdit || !canReject">
-            {{ loading ? '处理中...' : '❌ 不通过' }}
+            {{ loading ? '处理中...' : '不通过' }}
+          </button>
+          <button @click="submitApprove" class="approve-btn"
+                  :disabled="loading || !canEdit || (recordDetail.status === 1)">
+            {{ loading ? '处理中...' : '通过' }}
           </button>
         </div>
 
         <!-- 下排导航按钮 -->
         <div class="nav-buttons">
-          <button @click="goPrev" :disabled="!hasPrev || loading" class="nav-btn prev-btn">← 上一条</button>
-          <button @click="goNext" :disabled="!hasNext || loading" class="nav-btn next-btn">下一条 →</button>
+          <button @click="goPrev" :disabled="!hasPrev || loading" class="nav-btn prev-btn">< 上一条</button>
+          <p> {{ currentIndex + 1 }} / {{ recordIds.length }} </p>
+          <button @click="goNext" :disabled="!hasNext || loading" class="nav-btn next-btn">下一条 ></button>
         </div>
+
+        <!-- 状态提示：当记录为不通过或申诉中时 -->
+        <div v-if="recordDetail && (recordDetail.status === 2 || recordDetail.status === 3)" class="status-warning">
+          ⚠️ 当前记录状态为{{ getStatusText(recordDetail.status) }}，不支持修改
+        </div>
+
       </div>
     </div>
 
@@ -545,7 +582,7 @@ onMounted(() => {
 .audit-detail-page {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 20px;
+  padding: 0;
 }
 
 .detail-header {
@@ -566,7 +603,6 @@ onMounted(() => {
   border: 1px solid #ddd;
   border-radius: 4px;
   background: white;
-  cursor: pointer;
 }
 
 .back-btn:hover {
@@ -624,7 +660,30 @@ onMounted(() => {
   flex: 1;
 }
 
-.left-col h3,
+.left-col-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* 左右分布，标题居中靠 flex 自然居中 */
+  margin-bottom: 16px;
+  position: relative; /* 可选，为绝对定位标题做准备 */
+}
+
+.left-col-header h3 {
+  margin: 0;
+  position: absolute; /* 使用绝对定位使标题严格居中 */
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap; /* 防止换行 */
+}
+
+.left-col h3{
+  margin-top: 0;
+  margin-bottom: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
 .middle-col h3,
 .right-col h3 {
   margin-top: 0;
@@ -632,6 +691,32 @@ onMounted(() => {
   font-size: 18px;
   font-weight: 600;
   color: #333;
+}
+
+/* 图片尺寸控制按钮组 */
+.image-size-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.size-btn {
+  padding: 4px 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.size-btn:hover:not(:disabled) {
+  background: #f0f0f0;
+}
+
+.size-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #f5f5f5;
 }
 
 .screenshot-container {
@@ -643,14 +728,28 @@ onMounted(() => {
   background: #fafafa;
   border-radius: 8px;
   padding: 4px;
+  transition: all 0.3s ease; /* 添加过渡效果，使尺寸变化平滑 */
 }
 
 .screenshot-container img {
   max-width: 100%;
-  max-height: 1500px;
   object-fit: contain;
   cursor: pointer;
   border-radius: 4px;
+  transition: max-height 0.3s ease;
+}
+
+/* 定义三个尺寸 */
+.screenshot-container.size-small img {
+  max-height: 650px;
+}
+
+.screenshot-container.size-medium img {
+  max-height: 800px;
+}
+
+.screenshot-container.size-large img {
+  max-height: 1000px;
 }
 
 .info-item {
@@ -669,6 +768,102 @@ onMounted(() => {
 .info-item .value {
   color: #333;
   flex: 1;
+}
+
+/* 绑定学生信息卡片样式 */
+.student-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 0;
+}
+
+/* 绑定学生信息卡片样式 */
+.student-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 0;
+}
+
+.student-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #f0f0f0; /* 背景色，当图片加载失败时显示 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-text {
+  color: white;
+  font-size: 24px;
+  font-weight: 500;
+  text-transform: uppercase;
+  background: #667eea; /* 主题色 */
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.student-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.student-name {
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+  line-height: 1.3;
+}
+
+.student-meta {
+  font-size: 14px;
+  color: #666;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.avatar-text {
+  color: white;
+  font-size: 24px;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.student-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.student-name {
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+  line-height: 1.3;
+}
+
+.student-meta {
+  font-size: 14px;
+  color: #666;
+  line-height: 1.5;
+  word-break: break-word;
 }
 
 .status-badge {
@@ -807,7 +1002,7 @@ onMounted(() => {
   color: #856404;
   padding: 12px 20px;
   border-radius: 8px;
-  margin-bottom: 20px;
+  margin: 14px 0;
   font-size: 14px;
 }
 
@@ -903,11 +1098,18 @@ onMounted(() => {
   background: #c82333;
 }
 
-.approve-btn:disabled,
+/* 禁用状态的通过按钮 */
+.approve-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #a8d5ba;  /* 绿灰色 */
+}
+
+/* 禁用状态的不通过按钮 */
 .reject-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-  background: #ccc;
+  background: #f4b0b0;  /* 红灰色 */
 }
 
 /* 下排导航按钮 */
@@ -917,25 +1119,40 @@ onMounted(() => {
   width: 100%;
 }
 
+.nav-buttons p {
+  margin: 0;                /* 移除默认上下边距 */
+  line-height: 1;           /* 防止多余行高影响高度 */
+  display: flex;
+  align-items: center;      /* 文本垂直居中 */
+  color: #666;              /* 保持与现有文字颜色一致（可选） */
+  font-size: 14px;          /* 可根据需要调整字号 */
+}
+
 .nav-buttons .nav-btn {
   flex: 1;
-  padding: 10px;
-  border: 1px solid #ddd;
+  padding: 12px;
+  border: none;
   border-radius: 6px;
-  background: white;
-  color: #666;
-  font-size: 14px;
+  color: white;
+  font-size: 16px;
   cursor: pointer;
   transition: all 0.3s ease;
   text-align: center;
 }
 
-.nav-buttons .nav-btn:hover:not(:disabled) {
-  background: #f5f5f5;
+/* 可点击状态 - 蓝色背景 */
+.nav-buttons .nav-btn:not(:disabled) {
+  background: #667eea;  /* 蓝色背景 */
+}
+
+/* 可点击状态悬停效果 */
+.nav-buttons .nav-btn:not(:disabled):hover {
+  background: #5a6fe0;  /* 深一点的蓝色 */
 }
 
 .nav-buttons .nav-btn:disabled {
-  opacity: 0.5;
+  background: #a0b0cc;  /* 蓝灰色背景 */
+  opacity: 0.6;
   cursor: not-allowed;
 }
 
@@ -1051,6 +1268,16 @@ onMounted(() => {
   .middle-col,
   .right-col {
     width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .left-col-header h3 {
+    font-size: 16px;
+  }
+  .size-btn {
+    padding: 2px 4px;
+    font-size: 12px;
   }
 }
 </style>

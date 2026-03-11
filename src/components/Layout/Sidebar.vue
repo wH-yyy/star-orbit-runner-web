@@ -74,8 +74,7 @@ const isActive = (path) => {
 /* 侧边栏样式 */
 .sidebar {
   width: 240px;
-  background-color: #1a365d;
-  border-right: 1px solid #2a4365;
+  background-color: #1a3a5f;
   display: flex;
   flex-direction: column;
   transition: all 0.3s ease;
@@ -83,8 +82,8 @@ const isActive = (path) => {
 
 .sidebar-header {
   padding: 24px;
-  border-bottom: 1px solid #2a4365;
   text-align: center;
+  background-color: #1a3a5f;
 }
 
 .sidebar-header h1 {
@@ -96,7 +95,7 @@ const isActive = (path) => {
 
 .sidebar-header p {
   font-size: 12px;
-  color: #a0aec0;
+  color: #a6a6a6;
 }
 
 .sidebar-nav {
@@ -108,7 +107,7 @@ const isActive = (path) => {
   display: flex;
   align-items: center;
   padding: 12px 24px;
-  color: #a0aec0;
+  color: #ffffff;
   text-decoration: none;
   transition: all 0.3s ease;
   border-left: 3px solid transparent;

@@ -25,6 +25,7 @@ const pageTitle = computed(() => {
     'AdminStaff': '工作账号分派',
     'AdminSettings': '活动配置',
     'StaffAudit': '审核',
+    'StaffAuditDetail': '审核详情',
     'StaffAppeal': '申诉'
   }
   return routeMap[route.name] || '星轨Runner'
