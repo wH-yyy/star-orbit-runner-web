@@ -17,6 +17,7 @@ const StaffLayout = () => import('../views/staff/StaffLayout.vue')
 const StaffAudit = () => import('../views/staff/Audit.vue')
 const StaffAppeal = () => import('../views/staff/Appeal.vue')
 const StaffAuditDetail = () => import('../views/staff/AuditDetail.vue')
+const StaffAppealDetail = () => import('../views/staff/AppealDetail.vue')
 
 // 路由规则
 const routes = [
@@ -81,8 +82,14 @@ const routes = [
                 path: 'audit-detail', name: 'StaffAuditDetail', component: StaffAuditDetail,
                 meta: {requiresAuth: true, role: 'staff'}
             },
+            // 申诉列表页（静态路由）
             {
                 path: 'appeal', name: 'StaffAppeal', component: StaffAppeal,
+                meta: {requiresAuth: true, role: 'staff'}
+            },
+            // 申诉详情页（动态路由，必须放在静态路由之后）
+            {
+                path: 'appeal/:id', name: 'StaffAppealDetail', component: StaffAppealDetail,
                 meta: {requiresAuth: true, role: 'staff'}
             }
         ]

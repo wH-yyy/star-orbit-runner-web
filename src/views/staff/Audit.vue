@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { getAuditRecords, getCurrentStaff, batchApproveByStaff } from '../../api/staff.js'
 
@@ -13,6 +13,9 @@ const successMsg = ref('')
 
 // 当前登录的工作人员信息
 const currentStaff = ref(null)
+
+// 防抖计时器
+let debounceTimer = null
 
 // 筛选条件
 const searchParams = ref({
@@ -100,6 +103,9 @@ function resetFilters() {
     date: '',
     status: '0'
   }
+  // 取消防抖计时器
+  if (debounceTimer) clearTimeout(debounceTimer)
+  // 立即加载
   loadAuditRecords()
 }
 
@@ -218,6 +224,14 @@ function formatDateOnly(value) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
 }
 
+// 监听筛选条件变化，自动加载数据（防抖 300ms）
+watch(searchParams, () => {
+  if (debounceTimer) clearTimeout(debounceTimer)
+  debounceTimer = setTimeout(() => {
+    loadAuditRecords()
+  }, 300)
+}, { deep: true, immediate: false })
+
 onMounted(() => {
   loadAuditRecords()
 })
@@ -233,16 +247,6 @@ onMounted(() => {
     <div v-if="successMsg" class="message-banner success">
       ✅ {{ successMsg }}
       <button @click="successMsg = ''" class="close-msg">×</button>
-    </div>
-
-    <!-- 操作栏：快速审核 + 一键通过 -->
-    <div class="action-bar">
-      <button @click="openQuickAudit" class="quick-audit-btn" :disabled="loading">
-        ⚡ 快速审核
-      </button>
-      <button @click="handleBatchApprove" class="batch-approve-btn" :disabled="loading">
-        ✅ 一键通过所有待审核
-      </button>
     </div>
 
     <!-- 搜索筛选 -->
@@ -271,10 +275,13 @@ onMounted(() => {
           </select>
         </div>
         <div class="filter-actions">
-          <button @click="loadAuditRecords" class="search-btn" :disabled="loading">
-            {{ loading ? '查询中...' : '🔍 查询' }}
-          </button>
           <button @click="resetFilters" class="reset-btn" :disabled="loading">重置</button>
+          <button @click="openQuickAudit" class="quick-audit-btn" :disabled="loading">
+            快速审核
+          </button>
+          <button @click="handleBatchApprove" class="batch-approve-btn" :disabled="loading">
+            一键通过所有待审核
+          </button>
         </div>
       </div>
     </div>
@@ -330,7 +337,7 @@ onMounted(() => {
 
 <style scoped>
 .audit-page {
-  padding: 20px 0;
+  padding: 0;
 }
 
 /* 消息提示 */
@@ -423,9 +430,9 @@ onMounted(() => {
 .search-filters {
   background: white;
   border-radius: 12px;
-  padding: 20px;
+  padding: 16px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  margin-bottom: 24px;
+  margin-bottom: 10px;
 }
 
 .filter-row {
@@ -469,9 +476,8 @@ onMounted(() => {
   min-width: 220px;
 }
 
-.search-btn {
+.reset-btn {
   padding: 8px 16px;
-  border: none;
   border-radius: 6px;
   background: #667eea;
   color: white;
@@ -480,32 +486,46 @@ onMounted(() => {
   transition: all 0.3s ease;
 }
 
-.search-btn:hover:not(:disabled) {
-  background: #5a6fe0;
-}
-
-.search-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.reset-btn {
-  padding: 8px 16px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  background: white;
-  color: #666;
-  cursor: pointer;
-  font-size: 14px;
-  transition: all 0.3s ease;
-}
-
 .reset-btn:hover:not(:disabled) {
-  background: #f5f5f5;
+  background: #5a6fe0;
 }
 
 .reset-btn:disabled {
   opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.quick-audit-btn,
+.batch-approve-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.quick-audit-btn {
+  background: #17a2b8;
+  color: white;
+}
+
+.quick-audit-btn:hover:not(:disabled) {
+  background: #138496;
+}
+
+.batch-approve-btn {
+  background: #28a745;
+  color: white;
+}
+
+.batch-approve-btn:hover:not(:disabled) {
+  background: #218838;
+}
+
+.quick-audit-btn:disabled,
+.batch-approve-btn:disabled {
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
@@ -893,46 +913,6 @@ onMounted(() => {
   object-fit: contain;
   border-radius: 8px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-}
-
-.action-bar {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.quick-audit-btn,
-.batch-approve-btn {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 6px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.quick-audit-btn {
-  background: #17a2b8;
-  color: white;
-}
-
-.quick-audit-btn:hover:not(:disabled) {
-  background: #138496;
-}
-
-.batch-approve-btn {
-  background: #28a745;
-  color: white;
-}
-
-.batch-approve-btn:hover:not(:disabled) {
-  background: #218838;
-}
-
-.quick-audit-btn:disabled,
-.batch-approve-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 .option-btn input[type="radio"],
