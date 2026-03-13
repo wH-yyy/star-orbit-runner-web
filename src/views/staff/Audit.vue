@@ -177,9 +177,9 @@ async function openQuickAudit() {
     // 将记录ID列表转为逗号分隔字符串
     const ids = records.map(r => r.id).join(',')
     // 跳转到详情页，索引为0
-    router.push({
-      path: '/staff/audit-detail',
-      query: { ids, index: 0 }
+    await router.push({
+      path: `/staff/audit/${records[0].id}`,
+      query: {ids, index: 0}
     })
   } catch (err) {
     console.error('加载快速审核记录失败:', err)
@@ -192,7 +192,7 @@ async function openQuickAudit() {
 // 普通审核：点击某一行，跳转到详情页（只包含该记录）
 function goToAuditDetail(record) {
   router.push({
-    path: '/staff/audit-detail',
+    path: `/staff/audit/${record.id}`,
     query: { ids: record.id, index: 0 }
   })
 }

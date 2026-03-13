@@ -10,6 +10,7 @@ const router = useRouter()
 const currentStaff = ref(null)
 
 // 记录ID列表和当前索引
+const currentId = ref('')
 const recordIds = ref([])
 const currentIndex = ref(0)
 
@@ -123,17 +124,42 @@ const canEdit = computed(() => {
 })
 
 // 解析路由参数
-function parseRouteQuery() {
-  const ids = route.query.ids
-  const index = route.query.index
-  if (ids) {
-    recordIds.value = ids.split(',').filter(id => id.trim() !== '')
-  } else {
-    recordIds.value = []
+function parseRouteParams() {
+  const id = route.params.id
+  const idsQuery = route.query.ids
+  const indexQuery = route.query.index
+
+  if (!id) {
+    // 如果没有 id，可能路由错误，可跳转回列表页
+    router.push('/staff/audit')
+    return
   }
-  currentIndex.value = index !== undefined ? parseInt(index, 10) : 0
-  if (currentIndex.value < 0) currentIndex.value = 0
-  if (currentIndex.value >= recordIds.value.length) currentIndex.value = recordIds.value.length - 1
+
+  currentId.value = id
+
+  // 解析 ID 列表
+  if (idsQuery && typeof idsQuery === 'string') {
+    recordIds.value = idsQuery.split(',').filter(id => id.trim() !== '')
+  } else {
+    // 如果没有 ids 参数，则列表只有当前 ID
+    recordIds.value = [id]
+  }
+
+  // 确定当前索引
+  if (indexQuery !== undefined) {
+    const idx = parseInt(indexQuery, 10)
+    if (!isNaN(idx) && idx >= 0 && idx < recordIds.value.length) {
+      currentIndex.value = idx
+    } else {
+      // 索引无效，根据当前 ID 查找
+      const foundIdx = recordIds.value.findIndex(i => i === id)
+      currentIndex.value = foundIdx !== -1 ? foundIdx : 0
+    }
+  } else {
+    // 没有索引，根据当前 ID 查找
+    const foundIdx = recordIds.value.findIndex(i => i === id)
+    currentIndex.value = foundIdx !== -1 ? foundIdx : 0
+  }
 }
 
 // 根据当前索引加载记录详情
@@ -199,10 +225,13 @@ async function loadCurrentRecord() {
 function goPrev() {
   if (hasPrev.value) {
     currentIndex.value--
-    loadCurrentRecord()
-    // 更新 URL query 中的 index
-    router.replace({
-      query: { ...route.query, index: currentIndex.value }
+    const newId = recordIds.value[currentIndex.value]
+    router.push({
+      path: `/staff/audit/${newId}`,
+      query: {
+        ids: recordIds.value.join(','),
+        index: currentIndex.value
+      }
     })
   }
 }
@@ -210,9 +239,13 @@ function goPrev() {
 function goNext() {
   if (hasNext.value) {
     currentIndex.value++
-    loadCurrentRecord()
-    router.replace({
-      query: { ...route.query, index: currentIndex.value }
+    const newId = recordIds.value[currentIndex.value]
+    router.push({
+      path: `/staff/audit/${newId}`,
+      query: {
+        ids: recordIds.value.join(','),
+        index: currentIndex.value
+      }
     })
   }
 }
@@ -353,10 +386,14 @@ function goBack() {
 }
 
 // 监听路由参数变化
-watch(() => route.query, () => {
-  parseRouteQuery()
-  loadCurrentRecord()
-}, { immediate: true })
+watch(
+  () => [route.params.id, route.query.ids, route.query.index],
+  () => {
+    parseRouteParams()
+    loadCurrentRecord()
+  },
+  { immediate: true }
+)
 
 onMounted(() => {
   currentStaff.value = getCurrentStaff()

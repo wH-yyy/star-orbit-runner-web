@@ -79,7 +79,7 @@ const routes = [
                 meta: {requiresAuth: true, role: 'staff'}
             },
             {
-                path: 'audit-detail', name: 'StaffAuditDetail', component: StaffAuditDetail,
+                path: 'audit/:id', name: 'StaffAuditDetail', component: StaffAuditDetail,
                 meta: {requiresAuth: true, role: 'staff'}
             },
             // 申诉列表页（静态路由）
