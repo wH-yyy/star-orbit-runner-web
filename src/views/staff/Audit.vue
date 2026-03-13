@@ -191,9 +191,15 @@ async function openQuickAudit() {
 
 // 普通审核：点击某一行，跳转到详情页（只包含该记录）
 function goToAuditDetail(record) {
+  // 获取当前筛选后的所有记录ID列表
+  const allIds = filteredRecords.value.map(r => r.id)
+  const currentIndex = filteredRecords.value.findIndex(r => r.id === record.id)
   router.push({
     path: `/staff/audit/${record.id}`,
-    query: { ids: record.id, index: 0 }
+    query: { 
+      ids: allIds.join(','), 
+      index: currentIndex 
+    }
   })
 }
 
