@@ -20,6 +20,11 @@ const loading = ref(false)
 const errorMsg = ref('')
 const successMsg = ref('')
 
+const toastVisible = ref(false)
+const toastText = ref('')
+const toastType = ref('') // 'error' 或 'success'
+let toastTimer = null
+
 // 审核表单
 const auditForm = ref({
   result: '',
@@ -38,6 +43,10 @@ const rejectReasons = [
 ]
 
 const imageSize = ref('small') // 可选值: 'small', 'medium', 'large'
+
+const showConfirm = ref(false)
+const confirmType = ref('') // 'approve' 或 'reject'
+const confirmLoading = ref(false)
 
 // 放大：小→中，中→大，大不变（按钮禁用）
 function zoomIn() {
@@ -111,11 +120,16 @@ const hasNext = computed(() => currentIndex.value < recordIds.value.length - 1)
 
 // 计算属性：不通过按钮是否可点击
 const canReject = computed(() => {
-  // 状态为不通过或申诉中时，按钮禁用
   if (recordDetail.value && (recordDetail.value.status === 2 || recordDetail.value.status === 3)) {
     return false
   }
-  return auditForm.value.reasons.length > 0
+  const hasReasons = auditForm.value.reasons.length > 0
+  if (!hasReasons) return false
+  // 如果包含“其他原因”，必须填写备注
+  if (auditForm.value.reasons.includes('其他原因')) {
+    return auditForm.value.remark && auditForm.value.remark.trim() !== ''
+  }
+  return true
 })
 
 // 计算属性：是否允许修改（状态为待审核或已通过时才允许修改）
@@ -185,41 +199,12 @@ async function loadCurrentRecord() {
     }
   } catch (err) {
     console.error('加载记录详情失败:', err)
-    errorMsg.value = err.message || '加载记录详情失败'
+    showToast(err.message || '加载记录详情失败', 'error')
     recordDetail.value = null
   } finally {
     loading.value = false
   }
 }
-
-//========================================================================
-// // 计算配速是否达标（示例逻辑，根据实际需求调整）
-// const paceStatus = computed(() => {
-//   if (!recordDetail.value?.running_pace) return 'unknown'
-//   // 示例：配速超过 6'00" 为不达标
-//   const pace = recordDetail.value.running_pace
-//   const match = pace.match(/(\d+)'(\d+)"/)
-//   if (match) {
-//     const minutes = parseInt(match[1])
-//     const seconds = parseInt(match[2])
-//     const totalSeconds = minutes * 60 + seconds
-//     return totalSeconds > 360 ? 'fail' : 'success' // 6分钟 = 360秒
-//   }
-//   return 'unknown'
-// })
-//
-// // 计算跑步时间是否达标（示例）
-// const timeStatus = computed(() => {
-//   if (!recordDetail.value?.running_date) return 'unknown'
-//   // 示例：时间必须在 20:00-22:00
-//   const timeStr = recordDetail.value.running_date.split(' ')[1] // 假设格式 "11-20 21:36"
-//   if (timeStr) {
-//     const hour = parseInt(timeStr.split(':')[0])
-//     return (hour >= 20 && hour < 22) ? 'success' : 'fail'
-//   }
-//   return 'unknown'
-// })
-//========================================================================
 
 // 上下条切换
 function goPrev() {
@@ -250,13 +235,42 @@ function goNext() {
   }
 }
 
+function openConfirm(type) {
+  if (type === 'reject' && !canReject.value) {
+    showToast('请选择不通过原因', 'error')
+    return
+  }
+  if (type === 'approve' && !canEdit.value) {
+    showToast('当前记录不支持修改', 'error')
+    return
+  }
+  confirmType.value = type
+  showConfirm.value = true
+}
+
+async function handleConfirm() {
+  confirmLoading.value = true
+  try {
+    if (confirmType.value === 'approve') {
+      await submitApprove()
+    } else {
+      await submitReject()
+    }
+    showConfirm.value = false
+  } catch (err) {
+    // 错误已在对应函数中处理为 Toast
+  } finally {
+    confirmLoading.value = false
+  }
+}
+
 // 提交通过审核
 async function submitApprove() {
   if (!recordDetail.value) return
 
   // 状态为不通过或申诉中时，不允许操作
   if (recordDetail.value.status === 2 || recordDetail.value.status === 3) {
-    errorMsg.value = '不通过或申诉中的记录不支持修改状态'
+    showToast('不通过或申诉中的记录不支持修改状态', 'error')
     return
   }
 
@@ -281,7 +295,7 @@ async function submitApprove() {
       result = await updateAuditResult(auditData)
     }
 
-    successMsg.value = '已通过'
+    showToast('已通过', 'success')
 
     // 更新本地记录的状态
     if (recordDetail.value) {
@@ -299,12 +313,12 @@ async function submitApprove() {
     } else {
       // 没有下一条，停留并显示完成提示
       setTimeout(() => {
-        successMsg.value = '所有记录审核完成'
+        showToast('所有记录审核完成', 'success')
       }, 1000)
     }
   } catch (err) {
     console.error('提交通过失败:', err)
-    errorMsg.value = err.message || '提交通过失败'
+    showToast(err.message || '提交通过失败', 'error')
   } finally {
     loading.value = false
   }
@@ -316,17 +330,12 @@ async function submitReject() {
 
   // 状态为不通过或申诉中时，不允许操作
   if (recordDetail.value.status === 2 || recordDetail.value.status === 3) {
-    errorMsg.value = '不通过或申诉中的记录不支持修改状态'
+    showToast('不通过或申诉中的记录不支持修改状态', 'error')
     return
   }
 
   if (auditForm.value.reasons.length === 0) {
-    errorMsg.value = '请至少选择一个不通过原因'
-    return
-  }
-
-  // 确认弹窗
-  if (!confirm('确定要将此记录判为不通过吗？')) {
+    showToast('请至少选择一个不通过原因', 'error')
     return
   }
 
@@ -351,7 +360,7 @@ async function submitReject() {
       result = await updateAuditResult(auditData)
     }
 
-    successMsg.value = '已拒绝'
+    showToast('已拒绝', 'success')
 
     // 更新本地记录的状态
     if (recordDetail.value) {
@@ -369,15 +378,26 @@ async function submitReject() {
     } else {
       // 没有下一条，停留并显示完成提示
       setTimeout(() => {
-        successMsg.value = '所有记录审核完成'
+        showToast('所有记录审核完成', 'success')
       }, 1000)
     }
   } catch (err) {
     console.error('提交不通过失败:', err)
-    errorMsg.value = err.message || '提交不通过失败'
+    showToast(err.message || '提交不通过失败', 'error')
   } finally {
     loading.value = false
   }
+}
+
+// 显示 Toast 的方法
+function showToast(message, type = 'success') {
+  if (toastTimer) clearTimeout(toastTimer)
+  toastText.value = message
+  toastType.value = type
+  toastVisible.value = true
+  toastTimer = setTimeout(() => {
+    toastVisible.value = false
+  }, 3000)
 }
 
 // 返回列表页
@@ -398,7 +418,7 @@ watch(
 onMounted(() => {
   currentStaff.value = getCurrentStaff()
   if (!currentStaff.value) {
-    errorMsg.value = '未获取到工作人员信息，请重新登录'
+    showToast('未获取到工作人员信息，请重新登录', 'error')
     // 可跳转到登录页
   }
 })
@@ -406,17 +426,7 @@ onMounted(() => {
 
 <template>
   <div class="audit-detail-page">
-    <!-- 消息提示 -->
-    <div v-if="errorMsg" class="message-banner error">
-      {{ errorMsg }}
-      <button @click="errorMsg = ''" class="close-msg">×</button>
-    </div>
-    <div v-if="successMsg" class="message-banner success">
-      {{ successMsg }}
-      <button @click="successMsg = ''" class="close-msg">×</button>
-    </div>
-
-    <!-- 三栏内容 -->
+    <!-- 两栏内容 -->
     <div v-if="loading && !recordDetail" class="loading-state">
       <div class="spinner"></div>
       <p>加载中...</p>
@@ -429,96 +439,37 @@ onMounted(() => {
           <button @click="goBack" class="back-btn"> < 返回 </button>
           <h3>跑步截图</h3>
           <div class="image-size-controls">
-            <button @click="zoomOut" :disabled="imageSize === 'small'" class="size-btn">
-              🔍 缩小
-            </button>
-            <button @click="zoomIn" :disabled="imageSize === 'large'" class="size-btn">
-              🔍 放大
-            </button>
+            <button @click="zoomOut" :disabled="imageSize === 'small'" class="size-btn">🔍 缩小</button>
+            <button @click="zoomIn" :disabled="imageSize === 'large'" class="size-btn">🔍 放大</button>
           </div>
         </div>
-        <div :class="['screenshot-container', `size-${imageSize}`]">
-          <img :src="recordDetail.screenshot" alt="跑步截图" @click="openImagePreview(recordDetail.screenshot)" />
+      
+        <div class="mode-info">{{ recordDetail.mode }}</div>
+
+        <!-- 根据 mode 显示不同布局 -->
+        <div v-if="recordDetail.mode === '在任意场地跑，提供步数截图'" class="dual-image-layout">
+          <div :class="['screenshot-container', `size-${imageSize}`]">
+            <img :src="recordDetail.screenshot" alt="跑步截图" @click="openImagePreview(recordDetail.screenshot)" />
+          </div>
+          <div :class="['screenshot-container', `size-${imageSize}`]">
+            <img :src="recordDetail.stepImageFileID" alt="步数截图" @click="openImagePreview(recordDetail.stepImageFileID)" />
+          </div>
+        </div>
+        <div v-else class="single-image-layout">
+          <div :class="['screenshot-container', `size-${imageSize}`]">
+            <img :src="recordDetail.screenshot" alt="跑步截图" @click="openImagePreview(recordDetail.screenshot)" />
+          </div>
         </div>
       </div>
 
-      <!-- 中间：用户信息（分为三块） -->
-      <div class="middle-col">
+      <!-- 右侧：审核裁决 -->
+      <div class="right-col">
         <!-- 1. 绑定学生信息 -->
-        <div class="info-block">
-          <h3>绑定学生信息</h3>
-          <div class="student-info">
-            <div class="student-avatar">
-              <!-- 根据性别显示不同头像 -->
-              <img v-if="recordDetail.gender === '男'" src="../../assets/male-avatar.jpg" alt="男头像" class="avatar-img"
-              />
-              <img v-else-if="recordDetail.gender === '女'" src="../../assets/female-avatar.jpg" alt="女头像" class="avatar-img"
-              />
-              <!-- 性别未知时显示姓名首字母 -->
-              <span v-else class="avatar-text">{{ recordDetail.username?.charAt(0) || '?' }}</span>
-            </div>
-            <div class="student-details">
-              <div class="student-name">{{ recordDetail.username }}</div>
-              <div class="student-meta">
-                {{ recordDetail.studentId || '—' }} | {{ recordDetail.college || '—' }} | {{ recordDetail.className || '—' }}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 2. 截图识别数据（OCR 提取） -->
-        <div class="info-block">
-          <div class="block-header">
-            <h3>截图识别数据</h3>
-            <span class="ocr-badge">OCR</span>
-          </div>
-
-          <!-- 运动里程 -->
-          <div class="info-item">
-            <span class="label">里程：</span>
-            <div class="value-with-status">
-              <span class="value">{{ recordDetail.distance }} km</span>
-<!--              <span v-if="recordDetail.distance < 2.0" class="status-badge fail">-->
-<!--                ❌ 未达标（需≥2.0km）-->
-<!--              </span>-->
-<!--              <span v-else class="status-badge success">-->
-<!--                ✅ 达标-->
-<!--              </span>-->
-            </div>
-          </div>
-
-          <!-- 运动配速 -->
-          <div class="info-item">
-            <span class="label">配速：</span>
-            <div class="value-with-status">
-              <span class="value">{{ recordDetail.running_pace || '—' }}</span>
-<!--              <span v-if="paceStatus === 'fail'" class="status-badge fail">-->
-<!--                ❌ 配速异常-->
-<!--              </span>-->
-<!--              <span v-else-if="paceStatus === 'success'" class="status-badge success">-->
-<!--                ✅ 达标-->
-<!--              </span>-->
-            </div>
-          </div>
-
-          <!-- 跑步时间 -->
-          <div class="info-item">
-            <span class="label">时间：</span>
-            <div class="value-with-status">
-              <span class="value">{{ formatDateTime(recordDetail.running_date || recordDetail.date) }}</span>
-<!--              <span v-if="timeStatus === 'fail'" class="status-badge fail">-->
-<!--                ❌ 不在规定时段-->
-<!--              </span>-->
-<!--              <span v-else-if="timeStatus === 'success'" class="status-badge success">-->
-<!--                ✅ 达标-->
-<!--              </span>-->
-            </div>
-          </div>
-
-          <!-- 运动时长（可选） -->
-          <div class="info-item">
-            <span class="label">时长：</span>
-            <span class="value">{{ recordDetail.duration }}</span>
+        
+        <div class="student-info">
+          <div class="student-name">{{ recordDetail.username }}</div>
+          <div class="student-meta">
+            {{ recordDetail.studentId || '—' }}
           </div>
         </div>
 
@@ -540,10 +491,9 @@ onMounted(() => {
             <span class="value">{{ formatDateTime(recordDetail.auditTime) }}</span>
           </div>
         </div>
-      </div>
 
-      <!-- 右侧：审核裁决 -->
-      <div class="right-col">
+
+
         <h3>审核裁决</h3>
 
         <!-- 拒绝原因（多选按钮样式） -->
@@ -563,7 +513,12 @@ onMounted(() => {
 
         <!-- 备注 -->
         <div class="remark-section">
-          <h4>备注（可选）</h4>
+            <h4>
+              备注
+              <span v-if="auditForm.reasons.includes('其他原因') && !auditForm.remark" class="required-tip">
+                请输入原因
+              </span>
+            </h4>
           <textarea
             v-model="auditForm.remark"
             placeholder="请输入备注信息..."
@@ -575,11 +530,11 @@ onMounted(() => {
 
         <!-- 通过/不通过 按钮 -->
         <div class="action-buttons">
-          <button @click="submitReject" class="reject-btn"
+          <button @click="openConfirm('reject')" class="reject-btn"
                   :disabled="loading || !canEdit || !canReject">
             {{ loading ? '处理中...' : '不通过' }}
           </button>
-          <button @click="submitApprove" class="approve-btn"
+          <button @click="openConfirm('approve')" class="approve-btn"
                   :disabled="loading || !canEdit || (recordDetail.status === 1)">
             {{ loading ? '处理中...' : '通过' }}
           </button>
@@ -613,6 +568,25 @@ onMounted(() => {
       </div>
     </div>
   </div>
+
+  <!-- 浮动消息提示 -->
+  <transition name="fade">
+    <div v-if="toastVisible" class="toast-message" :class="toastType">
+      {{ toastText }}
+    </div>
+  </transition>
+
+  <!-- 自定义确认对话框 -->
+  <div v-if="showConfirm" class="confirm-dialog-overlay" @click.self="showConfirm=false">
+    <div class="confirm-dialog">
+      <p>确定要将此记录判为{{ confirmType === 'approve' ? '通过' : '不通过' }}吗？</p>
+      <div class="confirm-actions">
+        <button @click="showConfirm=false" :disabled="confirmLoading">取消</button>
+        <button @click="handleConfirm" :disabled="confirmLoading">确定</button>
+      </div>
+    </div>
+  </div>
+
 </template>
 
 <style scoped>
@@ -675,7 +649,6 @@ onMounted(() => {
 }
 
 .left-col,
-.middle-col,
 .right-col {
   background: white;
   border-radius: 12px;
@@ -685,12 +658,8 @@ onMounted(() => {
 
 .left-col {
   flex: 1.2;
-  display: flex;
+  display: block;
   flex-direction: column;
-}
-
-.middle-col {
-  flex: 0.8;
 }
 
 .right-col {
@@ -701,7 +670,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between; /* 左右分布，标题居中靠 flex 自然居中 */
-  margin-bottom: 16px;
+  margin-bottom: 0;
   position: relative; /* 可选，为绝对定位标题做准备 */
 }
 
@@ -721,7 +690,15 @@ onMounted(() => {
   color: #333;
 }
 
-.middle-col h3,
+.mode-info {
+  font-size: 14px;
+  color: #999;
+  margin-bottom: 0;
+  text-align: center;
+  padding: 0 4px;
+  word-break: break-word;
+}
+
 .right-col h3 {
   margin-top: 0;
   margin-bottom: 16px;
@@ -757,7 +734,7 @@ onMounted(() => {
 }
 
 .screenshot-container {
-  flex: 1;
+  /* 移除 flex: 1 */
   display: flex;
   justify-content: center;
   align-items: center;
@@ -765,11 +742,13 @@ onMounted(() => {
   background: #fafafa;
   border-radius: 8px;
   padding: 4px;
-  transition: all 0.3s ease; /* 添加过渡效果，使尺寸变化平滑 */
+  transition: all 0.3s ease;
+  width: 100%;               /* 确保容器宽度占满 */
 }
 
 .screenshot-container img {
   max-width: 100%;
+  height: auto;              /* 高度自适应，保持宽高比 */
   object-fit: contain;
   cursor: pointer;
   border-radius: 4px;
@@ -778,15 +757,33 @@ onMounted(() => {
 
 /* 定义三个尺寸 */
 .screenshot-container.size-small img {
-  max-height: 650px;
+  max-height: 75vh;
 }
 
 .screenshot-container.size-medium img {
-  max-height: 800px;
+  max-height: 100vh;
 }
 
 .screenshot-container.size-large img {
-  max-height: 1000px;
+  max-height: 120vh;
+}
+
+/* 双图布局 */
+.dual-image-layout {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+}
+
+.dual-image-layout .screenshot-container {
+  flex: 1;
+  width: 50%;
+  max-width: 50%;
+}
+
+/* 单图布局 */
+.single-image-layout .screenshot-container {
+  width: 100%;
 }
 
 .info-item {
@@ -813,14 +810,8 @@ onMounted(() => {
   align-items: center;
   gap: 16px;
   padding: 12px 0;
-}
-
-/* 绑定学生信息卡片样式 */
-.student-info {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 12px 0;
+  margin-bottom: 10px;
+  border-bottom: 1px solid #f0f0f0;
 }
 
 .student-avatar {
@@ -854,27 +845,6 @@ onMounted(() => {
   justify-content: center;
 }
 
-.student-details {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.student-name {
-  font-size: 20px;
-  font-weight: 600;
-  color: #333;
-  line-height: 1.3;
-}
-
-.student-meta {
-  font-size: 14px;
-  color: #666;
-  line-height: 1.5;
-  word-break: break-word;
-}
-
 .avatar-text {
   color: white;
   font-size: 24px;
@@ -897,10 +867,10 @@ onMounted(() => {
 }
 
 .student-meta {
-  font-size: 14px;
-  color: #666;
-  line-height: 1.5;
-  word-break: break-word;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  line-height: 1.3;
 }
 
 .status-badge {
@@ -933,8 +903,8 @@ onMounted(() => {
 
 /* 中间列区块分割 */
 .info-block {
-  margin-bottom: 24px;
-  padding-bottom: 16px;
+  margin-bottom: 10px;
+  padding-bottom: 0;
   border-bottom: 1px solid #f0f0f0;
 }
 
@@ -1004,15 +974,6 @@ onMounted(() => {
   border: 1px solid #d9d9d9;
 }
 
-/* 调整原有样式 */
-.middle-col h3 {
-  margin-top: 0;
-  margin-bottom: 12px;
-  font-size: 16px;
-  font-weight: 600;
-  color: #333;
-}
-
 .info-item {
   display: flex;
   margin-bottom: 12px;
@@ -1030,6 +991,13 @@ onMounted(() => {
 .info-item .value {
   color: #333;
   flex: 1;
+}
+
+
+.reasons-section h4,
+.remark-section h4 {
+  font-weight: 500;
+  margin: 10px auto;
 }
 
 /* 状态警告提示 */
@@ -1055,7 +1023,7 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 8px 16px;
+  padding: 4px 8px;
   border: 1px solid #ddd;
   border-radius: 20px;
   background: white;
@@ -1082,6 +1050,13 @@ onMounted(() => {
   display: none;
 }
 
+.required-tip {
+  color: red;
+  font-size: 12px;
+  margin-left: 8px;
+  font-weight: normal;
+}
+
 .remark-input {
   width: 100%;
   padding: 10px;
@@ -1091,7 +1066,7 @@ onMounted(() => {
   font-family: inherit;
   resize: vertical;
   box-sizing: border-box;
-  margin-bottom: 20px;
+  margin-bottom: 10px;
 }
 
 .remark-input:disabled {
@@ -1295,6 +1270,85 @@ onMounted(() => {
   border-radius: 8px;
 }
 
+.toast-message {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  z-index: 9999;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  color: white;
+}
+.toast-message.error { background: #ff4d4f; }
+.toast-message.success { background: #52c41a; }
+
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.3s;
+}
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
+}
+
+.confirm-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+}
+
+.confirm-dialog {
+  background: white;
+  padding: 24px;
+  border-radius: 12px;
+  min-width: 320px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+}
+
+.confirm-dialog p {
+  margin: 0 0 20px;
+  font-size: 16px;
+  color: #333;
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.confirm-actions button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s;
+}
+
+.confirm-actions button:first-child {
+  background: #f0f0f0;
+  color: #666;
+}
+
+.confirm-actions button:last-child {
+  background: #667eea;
+  color: white;
+}
+
+.confirm-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* 响应式调整 */
 @media (max-width: 1200px) {
   .detail-layout {
@@ -1302,7 +1356,6 @@ onMounted(() => {
   }
 
   .left-col,
-  .middle-col,
   .right-col {
     width: 100%;
   }
