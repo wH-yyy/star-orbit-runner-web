@@ -3,6 +3,11 @@ import { ref, onMounted, watch, nextTick, onBeforeUnmount } from 'vue';
 import * as echarts from 'echarts';
 import { getStatsForAdmin, exportDataApi } from "@/api/admin.js";
 
+// 导入SVG图标
+import UserManagementIcon from '@/assets/总用户数.svg'
+import SubmissionIcon from '@/assets/提交数.svg'
+import PendingReviewIcon from '@/assets/待审核.svg'
+
 // 定义统计数据
 const stats = ref({
   totalUsers: 0,
@@ -324,21 +329,21 @@ const exportData = () => {
     <!-- 统计卡片区域 -->
     <div v-else class="stats-grid">
       <div class="stat-card">
-        <div class="stat-icon">👥</div>
+        <img :src="UserManagementIcon" class="stat-icon" />
         <div class="stat-info">
           <h3>总用户数</h3>
           <p class="stat-value">{{ stats.totalUsers.toLocaleString() }}</p>
         </div>
       </div>
       <div class="stat-card">
-        <div class="stat-icon">📋</div>
+        <img :src="SubmissionIcon" class="stat-icon" />
         <div class="stat-info">
           <h3>总提交数</h3>
           <p class="stat-value">{{ stats.totalSubmissions.toLocaleString() }}</p>
         </div>
       </div>
       <div class="stat-card">
-        <div class="stat-icon">⏳</div>
+        <img :src="PendingReviewIcon" class="stat-icon" />
         <div class="stat-info">
           <h3>待审核数</h3>
           <p class="stat-value">{{ stats.pendingReviews.toLocaleString() }}</p>
@@ -828,9 +833,11 @@ const exportData = () => {
 }
 
 .stat-icon {
-  font-size: clamp(2rem, 4vw, 2.5rem); /* 32-40px */
+  width: clamp(32px, 4vw, 40px);
+  height: clamp(32px, 4vw, 40px);
   margin-right: clamp(12px, 2vw, 20px);
   flex-shrink: 0;
+  object-fit: contain;
 }
 
 .stat-info {

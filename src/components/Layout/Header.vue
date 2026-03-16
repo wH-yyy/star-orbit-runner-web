@@ -4,6 +4,10 @@ import { useRouter, useRoute } from 'vue-router'
 import { useStore } from 'vuex'
 import EditProfileDialog from '../EditProfileDialog.vue'
 
+// 导入SVG图标
+import UserIcon from '@/assets/个人.svg'
+import LogoutIcon from '@/assets/退出登录.svg'
+
 const router = useRouter()
 const route = useRoute()
 const store = useStore()
@@ -14,7 +18,7 @@ const showEditDialog = ref(false)
 const userInfo = computed(() => ({
   name: store.state.user.info?.name || '用户',
   email: store.state.user.info?.email || '',
-  avatar: '👤'
+  avatar: UserIcon
 }))
 
 // 获取当前页标题
@@ -116,18 +120,14 @@ onMounted(() => {
     </div>
     <div class="top-bar-right">
       <div class="user-info" @click="toggleDropdown">
-        <span class="user-avatar">{{ userInfo.avatar }}</span>
+        <img :src="userInfo.avatar" class="user-avatar" />
         <span class="user-name">{{ userInfo.name }}</span>
         <span class="dropdown-arrow">{{ showDropdown ? '▼' : '▶' }}</span>
 
         <!-- 下拉菜单 -->
         <div v-if="showDropdown" class="user-dropdown">
-<!--          <div class="dropdown-item" @click="editProfile">-->
-<!--            <span class="dropdown-icon">✏️</span>-->
-<!--            <span>编辑个人信息</span>-->
-<!--          </div>-->
           <div class="dropdown-item" @click="logout">
-            <span class="dropdown-icon">🚪</span>
+            <img :src="LogoutIcon" class="dropdown-icon" />
             <span>退出登录</span>
           </div>
         </div>
@@ -195,15 +195,10 @@ onMounted(() => {
 }
 
 .user-avatar {
-  font-size: 24px;
   width: 40px;
   height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: rgb(255, 255, 255);
   border-radius: 50%;
-  color: #ffffff;
+  object-fit: cover;
 }
 
 .user-name {
@@ -248,7 +243,9 @@ onMounted(() => {
 }
 
 .dropdown-icon {
-  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
 }
 
 /* 响应式设计 */

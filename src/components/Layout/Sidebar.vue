@@ -3,6 +3,17 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useStore } from 'vuex'
 
+// 导入SVG图标路径
+import OverviewIcon from '@/assets/首页概览.svg'
+import UserManagementIcon from '@/assets/用户管理.svg'
+import StaffIcon from '@/assets/工作人员.svg'
+import ActivityConfigIcon from '@/assets/活动配置.svg'
+import AuditIcon from '@/assets/审核.svg'
+import AppealIcon from '@/assets/申诉.svg'
+import UserIcon from '@/assets/个人.svg'
+import AdminIcon from '@/assets/管理员.svg'
+import LogoutIcon from '@/assets/退出登录.svg'
+
 const route = useRoute()
 const store = useStore()
 
@@ -11,16 +22,16 @@ const userRole = computed(() => store.state.user.role)
 
 // 管理员菜单项
 const adminMenuItems = [
-  { path: '/admin/overview', icon: '📊', label: '概览' },
-  { path: '/admin/user-management', icon: '👥', label: '用户管理' },
-  { path: '/admin/staff-account', icon: '👤', label: '工作账号分派' },
-  { path: '/admin/activity-config', icon: '⚙️', label: '活动配置' }
+  { path: '/admin/overview', icon: OverviewIcon, label: '概览' },
+  { path: '/admin/user-management', icon: UserManagementIcon, label: '用户管理' },
+  { path: '/admin/staff-account', icon: StaffIcon, label: '工作账号分派' },
+  { path: '/admin/activity-config', icon: ActivityConfigIcon, label: '活动配置' }
 ]
 
 // 工作人员菜单项
 const staffMenuItems = [
-  { path: '/staff/audit', icon: '📋', label: '审核' },
-  { path: '/staff/appeal', icon: '📄', label: '申诉' }
+  { path: '/staff/audit', icon: AuditIcon, label: '审核' },
+  { path: '/staff/appeal', icon: AppealIcon, label: '申诉' }
 ]
 
 // 根据用户角色获取菜单项
@@ -63,7 +74,7 @@ const isActive = (path) => {
         class="nav-item"
         :class="{ 'router-link-active': isActive(item.path) }"
       >
-        <span class="nav-icon">{{ item.icon }}</span>
+        <img :src="item.icon" class="nav-icon" />
         <span class="nav-text">{{ item.label }}</span>
       </router-link>
     </nav>
@@ -127,6 +138,8 @@ const isActive = (path) => {
 .nav-icon {
   font-size: 18px;
   margin-right: 12px;
+  width: 18px;
+  height: 18px;
 }
 
 .nav-text {
