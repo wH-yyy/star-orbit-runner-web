@@ -204,18 +204,10 @@
       </div>
     </div>
   </div>
-
-  <!-- 操作结果提示 -->
-  <transition name="fade">
-    <div v-if="operationMsg.show"
-         :class="['operation-notification', `operation-${operationMsg.type}`]">
-      {{ operationMsg.text }}
-    </div>
-  </transition>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { getUserList, updateUserStatus } from '@/api/admin'
 import { showSuccess, showError } from '@/utils/toast'
 
@@ -227,26 +219,6 @@ const error = ref('')
 // 停跑天数选项
 const banDays = ref(1)        // 当前选中的天数
 const banDaysOptions = [1, 3, 7]    // 可选天数
-
-// 操作消息提示
-const operationMsg = ref({
-  show: false,
-  text: '',
-  type: 'success'
-})
-let msgTimer = null
-
-const showOperationMessage = (text, type = 'success') => {
-  if (msgTimer) clearTimeout(msgTimer)
-  operationMsg.value = {
-    show: true,
-    text,
-    type
-  }
-  msgTimer = setTimeout(() => {
-    operationMsg.value.show = false
-  }, 2000)
-}
 
 const statusMap = {
   0: '正常',
@@ -268,7 +240,7 @@ const totalPages = computed(() => Math.ceil(total.value / pageSize.value))
 
 // 搜索和筛选相关
 const searchKeyword = ref('')
-const searchFields = ref(['name', 'stu_id', 'class_name'])
+const searchFields = ref(['name', 'stu_id', 'class_name']) // 固定搜索字段
 const selectedCampus = ref('')
 const selectedCollege = ref('')
 const selectedGender = ref('')
@@ -294,10 +266,7 @@ const visiblePages = computed(() => {
   const maxVisible = 5
   let start = Math.max(1, currentPage.value - Math.floor(maxVisible / 2))
   let end = Math.min(totalPages.value, start + maxVisible - 1)
-
-  // 调整起始位置
   start = Math.max(1, end - maxVisible + 1)
-
   for (let i = start; i <= end; i++) {
     pages.push(i)
   }
@@ -310,25 +279,19 @@ const loadUserList = async () => {
   error.value = ''
 
   try {
-    // 构建查询参数
     const params = {
       page: currentPage.value,
       pageSize: pageSize.value,
       searchKeyword: searchKeyword.value.trim(),
       searchFields: searchFields.value,
-      // 只有当不是"全部"时才传递筛选条件
       campus: selectedCampus.value ? [selectedCampus.value] : [],
       college: selectedCollege.value ? [selectedCollege.value] : [],
       gender: selectedGender.value ? [selectedGender.value] : []
     }
 
-    console.log('加载用户列表参数:', params)
-
-    // 调用正确的函数
     const data = await getUserList(params)
     userList.value = data.list
     total.value = data.total
-    console.log('加载用户列表成功:', data)
   } catch (err) {
     error.value = err.message || '获取用户列表失败'
     console.error('获取用户列表失败:', err)
@@ -393,7 +356,7 @@ const handleSuspend = (userId) => {
   pendingAction.value = 'suspend'
   confirmTitle.value = '确认停跑'
   confirmMessage.value = '请选择停跑天数：'
-  banDays.value = 1                         // 默认1天
+  banDays.value = 1
   showConfirmDialog.value = true
 }
 
@@ -413,7 +376,7 @@ const handleActivate = (userId) => {
   showConfirmDialog.value = true
 }
 
-// 确认停跑
+// 确认操作
 const confirmAction = async () => {
   if (!pendingUserId.value) return
 
@@ -422,7 +385,7 @@ const confirmAction = async () => {
   switch (pendingAction.value) {
     case 'suspend':
       status = 1
-      extraData.banDays = banDays.value   // 将天数传给 API
+      extraData.banDays = banDays.value
       break
     case 'ban':
       status = 2
@@ -435,7 +398,6 @@ const confirmAction = async () => {
   }
 
   try {
-    // 调用更新状态 API，第三个参数为停跑天数（仅停跑时有效）
     await updateUserStatus(pendingUserId.value, status, extraData.banDays)
     showConfirmDialog.value = false
     loadUserList()
@@ -467,23 +429,9 @@ const resetPendingAction = () => {
   confirmMessage.value = ''
 }
 
-// 监听搜索字段变化
-watch(searchFields, (newVal) => {
-  if (newVal.length === 0) {
-    // 如果所有选项都被取消，恢复默认选择
-    setTimeout(() => {
-      searchFields.value = ['name', 'stu_id', 'class_name']
-    })
-  }
-})
-
 // 组件挂载时加载数据
 onMounted(() => {
   loadUserList()
-})
-
-onUnmounted(() => {
-  if (msgTimer) clearTimeout(msgTimer)
 })
 </script>
 
@@ -835,32 +783,6 @@ onUnmounted(() => {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-}
-
-/* 操作结果提示样式 */
-.operation-notification {
-  position: fixed;
-  top: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 12px 24px;
-  border-radius: 4px;
-  font-size: 14px;
-  color: #fff;
-  z-index: 1000;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  animation: slideDown 0.3s ease;
-}
-
-@keyframes slideDown {
-  from {
-    transform: translateX(-50%) translateY(-20px);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(-50%) translateY(0);
-    opacity: 1;
-  }
 }
 
 /* 响应式设计 */

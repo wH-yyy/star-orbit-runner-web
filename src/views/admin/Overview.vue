@@ -957,43 +957,6 @@ const exportData = () => {
   margin: 0;
 }
 
-/* 统计说明 */
-.stats-description {
-  background-color: #f8f9fa;
-  border-radius: 8px;
-  padding: clamp(16px, 2vw, 20px);
-  margin-top: clamp(24px, 3vw, 30px);
-  width: 100%;
-}
-
-.stats-description h3 {
-  font-size: clamp(1rem, 1.2vw, 1.125rem);
-  font-weight: 600;
-  color: #303133;
-  margin-bottom: clamp(12px, 1.5vw, 15px);
-}
-
-.stats-description ul {
-  list-style-type: none;
-  padding: 0;
-  margin: 0;
-}
-
-.stats-description li {
-  font-size: clamp(0.875rem, 1vw, 0.875rem);
-  color: #606266;
-  margin-bottom: clamp(8px, 1vw, 10px);
-  line-height: 1.5;
-}
-
-.stats-description li:last-child {
-  margin-bottom: 0;
-}
-
-.stats-description strong {
-  color: #303133;
-}
-
 /* 响应式设计 - 平板 */
 @media (max-width: 1024px) {
   .stats-grid {
