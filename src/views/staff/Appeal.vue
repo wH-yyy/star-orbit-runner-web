@@ -182,10 +182,10 @@ onMounted(() => {
 <template>
   <div class="appeal-container">
     <!-- 统计 -->
-    <div class="stats-info">
+    <!-- <div class="stats-info">
       <p>待处理申诉: <strong>{{ appeals.filter(a => a.status === 0).length }}</strong> 条</p>
       <p>总申诉数: <strong>{{ pagination.total }}</strong> 条</p>
-    </div>
+    </div> -->
 
     <!-- 筛选栏 -->
     <div class="filter-bar">
@@ -204,14 +204,17 @@ onMounted(() => {
 
     <!-- 申诉列表 -->
     <div class="table-container">
-      <div v-if="loading" class="loading">加载中...</div>
+      <div v-if="loading" class="loading-state">
+        <div class="spinner"></div>
+        <p>正在加载申诉记录...</p>
+      </div>
 
       <table v-else class="appeal-table">
         <thead>
           <tr>
             <th>序号</th>
-            <th>学号</th>
             <th>姓名</th>
+            <th>学号</th>
             <th>申诉理由</th>
             <th>申诉时间</th>
             <th>状态</th>
@@ -221,8 +224,8 @@ onMounted(() => {
         <tbody>
           <tr v-for="(appeal, index) in filteredAppeals" :key="appeal._id">
             <td class="index-cell">{{ (pagination.page - 1) * pagination.pageSize + index + 1 }}</td>
-            <td>{{ appeal.stu_id }}</td>
             <td>{{ appeal.name }}</td>
+            <td>{{ appeal.stu_id }}</td>
             <td class="reason-cell">{{ appeal.appealReason || '-' }}</td>
             <td>{{ formatTime(appeal.createTime) }}</td>
             <td>
@@ -239,44 +242,45 @@ onMounted(() => {
         </tbody>
       </table>
 
+      <!-- 分页 -->
+      <div v-if="!loading && pagination.total > 0" class="pagination">
+        <div class="pagination-left">
+          <span>每页显示：</span>
+          <select v-model="pagination.pageSize" @change="changePageSize(pagination.pageSize)">
+            <option v-for="size in pageSizeOptions" :key="size" :value="size">{{ size }}条</option>
+          </select>
+        </div>
+        <div class="pagination-center">
+          <button @click="goToFirstPage" :disabled="pagination.page <= 1">首页</button>
+          <button @click="prevPage" :disabled="pagination.page <= 1">上一页</button>
+
+          <!-- 页码按钮 -->
+          <span class="page-buttons">
+            <button
+              v-for="pageNum in visiblePages"
+              :key="pageNum"
+              @click="goToPage(pageNum)"
+              :class="{ 'current': pageNum === pagination.page }"
+              :disabled="pageNum === '...'"
+            >
+              {{ pageNum }}
+            </button>
+          </span>
+
+          <button @click="nextPage" :disabled="pagination.page >= pagination.totalPages">下一页</button>
+          <button @click="goToLastPage" :disabled="pagination.page >= pagination.totalPages">末页</button>
+
+          <span class="page-info">
+            第 {{ pagination.page }} 页 / 共 {{ pagination.totalPages }} 页 (共 {{ pagination.total }} 条)
+          </span>
+        </div>
+      </div>
+
       <div v-if="!loading && filteredAppeals.length === 0" class="empty-state">
         暂无申诉数据
       </div>
     </div>
-
-    <!-- 分页 -->
-    <div v-if="!loading && pagination.total > 0" class="pagination">
-      <div class="pagination-left">
-        <span>每页显示：</span>
-        <select v-model="pagination.pageSize" @change="changePageSize(pagination.pageSize)">
-          <option v-for="size in pageSizeOptions" :key="size" :value="size">{{ size }}条</option>
-        </select>
-      </div>
-      <div class="pagination-center">
-        <button @click="goToFirstPage" :disabled="pagination.page <= 1">首页</button>
-        <button @click="prevPage" :disabled="pagination.page <= 1">上一页</button>
-
-        <!-- 页码按钮 -->
-        <span class="page-buttons">
-          <button
-            v-for="pageNum in visiblePages"
-            :key="pageNum"
-            @click="goToPage(pageNum)"
-            :class="{ 'current': pageNum === pagination.page }"
-            :disabled="pageNum === '...'"
-          >
-            {{ pageNum }}
-          </button>
-        </span>
-
-        <button @click="nextPage" :disabled="pagination.page >= pagination.totalPages">下一页</button>
-        <button @click="goToLastPage" :disabled="pagination.page >= pagination.totalPages">末页</button>
-
-        <span class="page-info">
-          第 {{ pagination.page }} 页 / 共 {{ pagination.totalPages }} 页 (共 {{ pagination.total }} 条)
-        </span>
-      </div>
-    </div>
+    
   </div>
 </template>
 
@@ -310,9 +314,9 @@ onMounted(() => {
 /* 筛选栏 */
 .filter-bar {
   background: white;
-  padding: 20px;
+  padding: 16px;
   border-radius: 8px;
-  margin-bottom: 20px;
+  margin-bottom: 10px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -361,9 +365,9 @@ onMounted(() => {
 /* 表格容器 */
 .table-container {
   background: white;
-  border-radius: 8px;
+  border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   margin-bottom: 20px;
 }
 .loading, .empty-state {
@@ -381,7 +385,7 @@ onMounted(() => {
 }
 .appeal-table th {
   background: #fafafa;
-  padding: 16px 12px;
+  padding: 12px 16px;
   text-align: left;
   font-weight: 600;
   color: #333;
@@ -389,7 +393,8 @@ onMounted(() => {
   white-space: nowrap;
 }
 .appeal-table td {
-  padding: 14px 12px;
+  text-align: left;
+  padding: 12px 16px;
   border-bottom: 1px solid #f0f0f0;
   vertical-align: middle;
 }
@@ -486,7 +491,7 @@ onMounted(() => {
 }
 .pagination-center button:hover:not(:disabled) {
   border-color: #1890ff;
-  color: #1890ff;
+  color: #ffffff;
 }
 .pagination-center button:disabled {
   color: #d9d9d9;
@@ -525,5 +530,22 @@ onMounted(() => {
   color: #999;
   cursor: default;
   background: #f5f5f5;
+}
+
+/* 加载状态 */
+.loading-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #999;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 20px;
 }
 </style>

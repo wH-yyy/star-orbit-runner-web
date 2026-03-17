@@ -11,6 +11,17 @@ const loading = ref(false)
 const errorMsg = ref('')
 const successMsg = ref('')
 
+// 分页
+const pagination = ref({
+  page: 1,
+  pageSize: 10,
+  total: 0,
+  totalPages: 0
+})
+
+// 每页显示条数选项
+const pageSizeOptions = [5, 10, 15, 20, 30, 50, 100]
+
 // 当前登录的工作人员信息
 const currentStaff = ref(null)
 
@@ -25,33 +36,12 @@ const searchParams = ref({
   status: '0'
 })
 
+
 // 筛选后的记录（按时间倒序）
-const filteredRecords = computed(() => {
-  let filtered = auditRecords.value.filter(record => {
-    const recordStatus = String(record.status)
-    const searchStatus = (searchParams.value.status && searchParams.value.status !== 'all')
-      ? String(searchParams.value.status)
-      : ''
-    const recordDate = searchParams.value.date ? formatDateOnly(record.date || record.time) : ''
-
-    return (
-      (searchParams.value.username ? record.username.includes(searchParams.value.username) : true) &&
-      (searchParams.value.studentId ? record.studentId.includes(searchParams.value.studentId) : true) &&
-      (searchParams.value.date ? recordDate === searchParams.value.date : true) &&
-      (searchStatus ? recordStatus === searchStatus : true)
-    )
-  })
-
-  // 按时间倒序排列
-  return filtered.sort((a, b) => {
-    const dateA = new Date(a.date || a.time || 0)
-    const dateB = new Date(b.date || b.time || 0)
-    return dateB - dateA
-  })
-})
+const filteredRecords = computed(() => auditRecords.value)
 
 // 加载审核记录列表
-async function loadAuditRecords() {
+async function loadAuditRecords(targetPage) {
   loading.value = true
   errorMsg.value = ''
 
@@ -60,21 +50,24 @@ async function loadAuditRecords() {
       currentStaff.value = getCurrentStaff()
     }
 
+    // 确定请求的页码
+    const requestPage = targetPage !== undefined ? targetPage : pagination.value.page
+
     const params = {
       username: searchParams.value.username || undefined,
       studentId: searchParams.value.studentId || undefined,
       date: searchParams.value.date || undefined,
       status: searchParams.value.status || 'all',
       staffId: currentStaff.value?._id || undefined,
-      page: 1,
-      pageSize: 100
+      page: requestPage,
+      pageSize: pagination.value.pageSize
     }
 
     const result = await getAuditRecords(params)
+    const data = result
 
-    auditRecords.value = (result.records || result.list || []).map(record => ({
+    auditRecords.value = (data.records || []).map(record => ({
       id: record._id || record.id,
-      userId: record.userId,
       username: record.username || record.userName || '',
       studentId: record.studentId || '',
       distance: record.distance,
@@ -86,14 +79,90 @@ async function loadAuditRecords() {
       reasons: record.reasons || [],
       remark: record.remark || ''
     }))
+
+    pagination.value.total = data.total || 0
+    pagination.value.page = data.page || requestPage  // 更新页码为实际请求的页码
+    pagination.value.pageSize = data.pageSize || pagination.value.pageSize
+    pagination.value.totalPages = Math.ceil(pagination.value.total / pagination.value.pageSize)
+
   } catch (err) {
     console.error('加载审核记录失败:', err)
     errorMsg.value = err.message || '加载审核记录失败'
     auditRecords.value = []
+    pagination.value.total = 0
+    pagination.value.totalPages = 0
   } finally {
     loading.value = false
   }
 }
+
+// 分页方法
+const prevPage = () => {
+  const newPage = pagination.value.page - 1
+  if (newPage >= 1) {
+    loadAuditRecords(newPage)
+  }
+}
+
+const nextPage = () => {
+  const newPage = pagination.value.page + 1
+  if (newPage <= pagination.value.totalPages) {
+    loadAuditRecords(newPage)
+  }
+}
+
+const goToPage = (page) => {
+  if (page >= 1 && page <= pagination.value.totalPages) {
+    loadAuditRecords(page)
+  }
+}
+
+const goToFirstPage = () => {
+  if (pagination.value.page !== 1) {
+    loadAuditRecords(1)
+  }
+}
+
+const goToLastPage = () => {
+  const lastPage = pagination.value.totalPages
+  if (pagination.value.page !== lastPage) {
+    loadAuditRecords(lastPage)
+  }
+}
+
+const changePageSize = (size) => {
+  pagination.value.pageSize = size
+  loadAuditRecords(1)  // 重置到第一页
+}
+
+// 可见页码计算
+const visiblePages = computed(() => {
+  const pages = []
+  const total = pagination.value.totalPages
+  const current = pagination.value.page
+  const showPages = 5
+
+  if (total <= showPages) {
+    for (let i = 1; i <= total; i++) pages.push(i)
+  } else {
+    let start = Math.max(1, current - Math.floor(showPages / 2))
+    let end = start + showPages - 1
+    if (end > total) {
+      end = total
+      start = Math.max(1, end - showPages + 1)
+    }
+    if (start > 1) {
+      pages.push(1)
+      if (start > 2) pages.push('...')
+    }
+    for (let i = start; i <= end; i++) pages.push(i)
+    if (end < total) {
+      if (end < total - 1) pages.push('...')
+      pages.push(total)
+    }
+  }
+  return pages
+})
 
 // 重置筛选
 function resetFilters() {
@@ -103,10 +172,9 @@ function resetFilters() {
     date: '',
     status: '0'
   }
-  // 取消防抖计时器
   if (debounceTimer) clearTimeout(debounceTimer)
-  // 立即加载
-  loadAuditRecords()
+  pagination.value.page = 1
+  loadAuditRecords(1)
 }
 
 // 一键通过
@@ -234,8 +302,9 @@ function formatDateOnly(value) {
 watch(searchParams, () => {
   if (debounceTimer) clearTimeout(debounceTimer)
   debounceTimer = setTimeout(() => {
-    loadAuditRecords()
-  }, 300)
+    pagination.value.page = 1  // 重置为第一页
+    loadAuditRecords(1)
+  }, 100)
 }, { deep: true, immediate: false })
 
 onMounted(() => {
@@ -313,8 +382,8 @@ onMounted(() => {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(record, index) in filteredRecords" :key="record.id">
-            <td>{{ index + 1 }}</td>
+          <tr v-for="(record, index) in auditRecords" :key="record.id">
+            <td>{{ (pagination.page - 1) * pagination.pageSize + index + 1 }}</td>
             <td>{{ record.username }}</td>
             <td>{{ record.studentId }}</td>
             <td>{{ record.distance }}</td>
@@ -334,7 +403,40 @@ onMounted(() => {
         </tbody>
       </table>
 
-      <div v-if="!loading && filteredRecords.length === 0" class="empty-state">
+      <!-- 分页 -->
+      <div v-if="!loading && pagination.total > 0" class="pagination">
+        <div class="pagination-left">
+          <span>每页显示：</span>
+          <select v-model="pagination.pageSize" @change="changePageSize(pagination.pageSize)">
+            <option v-for="size in pageSizeOptions" :key="size" :value="size">{{ size }}条</option>
+          </select>
+        </div>
+        <div class="pagination-center">
+          <button @click="goToFirstPage" :disabled="pagination.page <= 1">首页</button>
+          <button @click="prevPage" :disabled="pagination.page <= 1">上一页</button>
+        
+          <span class="page-buttons">
+            <button
+              v-for="pageNum in visiblePages"
+              :key="pageNum"
+              @click="goToPage(pageNum)"
+              :class="{ 'current': pageNum === pagination.page }"
+              :disabled="pageNum === '...'"
+            >
+              {{ pageNum }}
+            </button>
+          </span>
+        
+          <button @click="nextPage" :disabled="pagination.page >= pagination.totalPages">下一页</button>
+          <button @click="goToLastPage" :disabled="pagination.page >= pagination.totalPages">末页</button>
+        
+          <span class="page-info">
+            第 {{ pagination.page }} 页 / 共 {{ pagination.totalPages }} 页 (共 {{ pagination.total }} 条)
+          </span>
+        </div>
+      </div>
+
+      <div v-if="!loading && auditRecords.length === 0" class="empty-state">
         {{ errorMsg ? '加载失败' : '暂无审核记录' }}
       </div>
     </div>
@@ -952,6 +1054,90 @@ onMounted(() => {
   max-width: 900px;
 }
 
+/* 分页样式 */
+.pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  margin-top: 0;
+}
+.pagination-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.pagination-left span {
+  color: #666;
+  font-size: 14px;
+}
+.pagination-left select {
+  padding: 6px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.pagination-center {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.pagination-center button {
+  padding: 8px 20px;
+  background: white;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s;
+}
+.pagination-center button:hover:not(:disabled) {
+  border-color: #1890ff;
+  color: #ffffff;
+}
+.pagination-center button:disabled {
+  color: #d9d9d9;
+  cursor: not-allowed;
+}
+.page-info {
+  color: #666;
+  font-size: 14px;
+}
+.page-buttons {
+  display: flex;
+  gap: 4px;
+}
+.page-buttons button {
+  min-width: 36px;
+  height: 36px;
+  padding: 0 8px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s;
+}
+.page-buttons button:hover:not(:disabled):not(.current) {
+  border-color: #1890ff;
+  color: #1890ff;
+}
+.page-buttons button.current {
+  background: #1890ff;
+  color: white;
+  border-color: #1890ff;
+  font-weight: 500;
+}
+.page-buttons button:disabled {
+  color: #999;
+  cursor: default;
+  background: #f5f5f5;
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
   .filter-row {
@@ -964,11 +1150,6 @@ onMounted(() => {
 
   .audit-table {
     font-size: 12px;
-  }
-
-  .audit-table th,
-  .audit-table td {
-    padding: 8px 12px;
   }
 
   .audit-options {

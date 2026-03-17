@@ -1,5 +1,5 @@
 <script setup>
-import {ref, onMounted, computed} from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getAppealDetail, processAppeal } from '@/api/staff'
 import { showSuccess, showError, showWarning } from '@/utils/toast'
@@ -17,6 +17,10 @@ const showPassConfirmDialog = ref(false)
 const showRejectDialog = ref(false)
 const rejectReason = ref('')
 const selectedReasons = ref([])
+
+// 图片尺寸控制
+const imageSizeAppeal = ref('medium') // 申诉材料图片尺寸：small, medium, large
+const imageSizeRunning = ref('medium') // 跑步记录截图尺寸
 
 // 图片预览
 const previewImage = ref('')
@@ -206,9 +210,6 @@ const submitAppealReject = async () => {
     return
   }
 
-  // 显示自定义确认（可以复用现有接受弹窗样式，也可以单独写一个确认方法）
-  // 为简化，此处直接使用 window.confirm，但建议使用自定义确认（可参考接受申诉弹窗添加一个通用的确认弹窗）
-  // 由于时间关系，这里保持原样，但你可以参照之前的方式创建一个通用确认弹窗组件。
   if (!confirm('确定驳回该申诉吗？驳回后对应的跑步记录将保持"不通过"状态。')) {
     return
   }
@@ -242,229 +243,218 @@ onMounted(() => {
 
 <template>
   <div class="appeal-detail">
-    <div class="header-actions">
-      <button @click="goBackToList" class="back-btn">← 返回列表</button>
-      <h2 class="page-title">申诉详情</h2>
-    </div>
-
     <div v-if="loading" class="loading">加载中...</div>
 
-    <div v-else-if="appealDetail" class="detail-content">
-      <!-- 申诉基本信息 -->
-      <div class="info-card">
-        <h3>申诉基本信息</h3>
-        <div class="info-grid">
-          <div class="info-item">
-            <label>学号：</label>
-            <span>{{ appealDetail.stu_id }}</span>
+    <div v-else-if="appealDetail" class="detail-layout">
+      <!-- 左列：申诉信息 -->
+      <div class="col-left">
+        <!-- 申诉基本信息卡片 -->
+        <div class="info-card">
+          <div class="card-header">
+            <button @click="goBackToList" class="back-btn">< 返回</button>
+            <h3>{{ appealDetail.name }} {{ appealDetail.stu_id }}</h3>
           </div>
-          <div class="info-item">
-            <label>姓名：</label>
-            <span>{{ appealDetail.name }}</span>
+          <div class="info-grid">
+            <div class="info-item">
+              <label>申诉时间：</label>
+              <span>{{ formatTime(appealDetail.createTime) }}</span>
+            </div>
+            <div class="info-item">
+              <label>状态：</label>
+              <span :class="'status-badge ' + getStatusClass(appealDetail.status)">
+                {{ getStatusText(appealDetail.status) }}
+              </span>
+            </div>
+            <div v-if="appealDetail.auditTime" class="info-item">
+              <label>审核时间：</label>
+              <span>{{ formatTime(appealDetail.auditTime) }}</span>
+            </div>
+            <div v-if="appealDetail.auditor" class="info-item">
+              <label>审核人：</label>
+              <span>{{ appealDetail.auditor }}</span>
+            </div>
           </div>
-          <div class="info-item">
-            <label>申诉时间：</label>
-            <span>{{ formatTime(appealDetail.createTime) }}</span>
+        </div>
+
+        <div class="content-card">
+          <h3>申诉理由</h3>
+          <div class="description-box">
+            {{ appealDetail.appealReason || '无' }}
           </div>
+        </div>
+
+        <!-- 申诉图片卡片 -->
+        <div v-if="appealDetail.appealImageUrls && appealDetail.appealImageUrls.length > 0" class="content-card">
+          <div class="card-header">
+            <h3>申诉材料 ({{ appealDetail.appealImageUrls.length }}张)</h3>
+            <div class="thumbnail-list">
+              <img
+                v-for="(imageUrl, index) in appealDetail.appealImageUrls"
+                :key="index"
+                :src="imageUrl"
+                :alt="'申诉图片' + (index + 1)"
+                class="thumbnail"
+                @click="openImagePreview(imageUrl)"
+              >
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 中列：跑步记录信息 -->
+      <div class="col-middle">
+        <div v-if="appealDetail.runningRecord" class="info-card">
+          <h3>对应的跑步记录</h3>
+          <div class="info-grid">
+            <div class="info-item">
+              <label>审核状态：</label>
+              <span :class="'status-badge ' + getRunningRecordStatusClass(appealDetail.runningRecord.status)">
+                {{ getRunningRecordStatusText(appealDetail.runningRecord.status) }}
+              </span>
+            </div>
+            <div v-if="appealDetail.runningRecord.audit_reason" class="info-item full-width">
+              <label>审核结果：</label>
+              <span>{{ appealDetail.runningRecord.audit_reason }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="appealDetail.runningRecordImageUrl" class="content-card">
+          <div class="card-header">
+            <h3>跑步记录截图</h3>
+            <div class="thumbnail-list">
+              <img
+                :src="appealDetail.runningRecordImageUrl"
+                alt="跑步记录截图"
+                class="thumbnail"
+                @click="openImagePreview(appealDetail.runningRecordImageUrl)"
+              >
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 右列：操作 -->
+      <div class="col-right">
+        <div v-if="appealDetail.status === 0" class="action-card">
+          <h3>处理申诉</h3>
+          <div class="action-buttons">
+            <button
+                @click="handleAppealPass"
+                class="btn-resolved"
+                :disabled="processing"
+            >
+              {{ processing ? '处理中...' : '接受申诉' }}
+            </button>
+            <button
+                @click="handleAppealReject"
+                class="btn-rejected"
+                :disabled="processing"
+            >
+              {{ processing ? '处理中...' : '驳回申诉' }}
+            </button>
+          </div>
+          <p class="action-hint" v-if="processing">正在处理，请稍候...</p>
+        </div>
+        <div v-else class="info-card">
+          <h3>处理结果</h3>
           <div class="info-item">
-            <label>状态：</label>
+            <label>最终状态：</label>
             <span :class="'status-badge ' + getStatusClass(appealDetail.status)">
               {{ getStatusText(appealDetail.status) }}
             </span>
           </div>
           <div v-if="appealDetail.auditResult" class="info-item">
-            <label>审核结果：</label>
+            <label>审核意见：</label>
             <span>{{ appealDetail.auditResult }}</span>
           </div>
-          <div v-if="appealDetail.auditTime" class="info-item">
-            <label>审核时间：</label>
-            <span>{{ formatTime(appealDetail.auditTime) }}</span>
-          </div>
-          <div v-if="appealDetail.auditor" class="info-item">
-            <label>审核人：</label>
-            <span>{{ appealDetail.auditor }}</span>
-          </div>
         </div>
       </div>
+    </div>
 
-      <!-- 申诉内容 -->
-      <div class="content-card">
-        <h3>申诉理由</h3>
-        <div class="description-box">
-          {{ appealDetail.appealReason || '无' }}
+    <!-- 驳回申诉弹窗（保持不变） -->
+    <div v-if="showRejectDialog" class="modal-overlay" @click.self="clearRejectDialog">
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <h3>驳回申诉</h3>
+          <button class="modal-close" @click="clearRejectDialog">×</button>
         </div>
-      </div>
-
-      <!-- 申诉图片 -->
-      <div v-if="appealDetail.appealImageUrls && appealDetail.appealImageUrls.length > 0" class="content-card">
-        <h3>申诉材料 ({{ appealDetail.appealImageUrls.length }}张)</h3>
-        <div class="image-gallery">
-          <div v-for="(imageUrl, index) in appealDetail.appealImageUrls" :key="index" class="image-item">
-            <img
-                :src="imageUrl"
-                :alt="'申诉图片' + (index + 1)"
-                @click="openImagePreview(imageUrl)"
-            >
-            <span class="image-label">图片 {{ index + 1 }}</span>
+        <div class="modal-content">
+          <div class="form-group">
+            <label>驳回理由：</label>
+            <textarea
+                v-model="rejectReason"
+                placeholder="请输入驳回申诉的理由..."
+                rows="4"
+                @input="rejectReason = $event.target.value"
+            ></textarea>
+            <p class="form-hint">请输入详细的驳回理由</p>
           </div>
-        </div>
-      </div>
-
-      <!-- 对应的跑步记录 -->
-      <div v-if="appealDetail.runningRecord" class="content-card">
-        <h3>对应的跑步记录</h3>
-        <div class="info-grid">
-          <div class="info-item">
-            <label>跑步日期：</label>
-            <span>{{ appealDetail.runningRecord.running_date || '-' }}</span>
-          </div>
-          <div class="info-item">
-            <label>跑步距离：</label>
-            <span>{{ appealDetail.runningRecord.running_distance || '0' }} 公里</span>
-          </div>
-          <div class="info-item">
-            <label>跑步时长：</label>
-            <span>{{ appealDetail.runningRecord.running_duration || '-' }}</span>
-          </div>
-          <div class="info-item">
-            <label>跑步配速：</label>
-            <span>{{ appealDetail.runningRecord.running_pace || '-' }}</span>
-          </div>
-          <div class="info-item">
-            <label>审核状态：</label>
-            <span :class="'status-badge ' + getRunningRecordStatusClass(appealDetail.runningRecord.status)">
-              {{ getRunningRecordStatusText(appealDetail.runningRecord.status) }}
-            </span>
-          </div>
-          <div v-if="appealDetail.runningRecord.audit_reason" class="info-item full-width">
-            <label>审核结果：</label>
-            <span>{{ appealDetail.runningRecord.audit_reason }}</span>
+          <div class="common-reasons">
+            <h4>常见驳回理由（可多选）</h4>
+            <div class="reason-options">
+              <button
+                  v-for="reason in commonRejectReasons"
+                  :key="reason.id"
+                  @click="selectCommonReason(reason)"
+                  :class="['reason-option', { 'selected': isReasonSelected(reason.id) }]"
+              >
+                {{ reason.text }}
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-
-      <div v-if="appealDetail.runningRecordImageUrl" class="content-card">
-        <h3>跑步记录截图</h3>
-        <div class="image-gallery">
-          <div class="image-item">
-            <img
-                :src="appealDetail.runningRecordImageUrl"
-                alt="跑步记录截图"
-                @click="openImagePreview(appealDetail.runningRecordImageUrl)"
-            >
-            <span class="image-label">跑步记录截图</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- 处理申诉 -->
-      <div v-if="appealDetail.status === 0" class="action-card">
-        <h3>处理申诉</h3>
-        <div class="action-buttons">
+        <div class="modal-footer">
+          <button class="btn-cancel" @click="clearRejectDialog">取消</button>
           <button
-              @click="handleAppealPass"
-              class="btn-resolved"
-              :disabled="processing"
+              class="btn-confirm"
+              @click="submitAppealReject"
+              :disabled="isRejectConfirmDisabled"
+              :class="{ 'disabled': isRejectConfirmDisabled }"
           >
-            {{ processing ? '处理中...' : '接受申诉' }}
-          </button>
-          <button
-              @click="handleAppealReject"
-              class="btn-rejected"
-              :disabled="processing"
-          >
-            {{ processing ? '处理中...' : '驳回申诉' }}
+            确定驳回
           </button>
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- 驳回申诉弹窗 -->
-  <div v-if="showRejectDialog" class="modal-overlay" @click.self="clearRejectDialog">
-    <div class="modal-dialog">
-      <div class="modal-header">
-        <h3>驳回申诉</h3>
-        <button class="modal-close" @click="clearRejectDialog">×</button>
-      </div>
-      <div class="modal-content">
-        <div class="form-group">
-          <label>驳回理由：</label>
-          <textarea
-              v-model="rejectReason"
-              placeholder="请输入驳回申诉的理由..."
-              rows="4"
-              @input="rejectReason = $event.target.value"
-          ></textarea>
-          <p class="form-hint">请输入详细的驳回理由</p>
+    <!-- 接受申诉确认弹窗（保持不变） -->
+    <div v-if="showPassConfirmDialog" class="modal-overlay" @click.self="cancelAppealPass">
+      <div class="modal-dialog pass-confirm-dialog">
+        <div class="modal-header">
+          <h3>确认接受申诉</h3>
+          <button class="modal-close" @click="cancelAppealPass">×</button>
         </div>
-        <div class="common-reasons">
-          <h4>常见驳回理由（可多选）</h4>
-          <div class="reason-options">
-            <button
-                v-for="reason in commonRejectReasons"
-                :key="reason.id"
-                @click="selectCommonReason(reason)"
-                :class="['reason-option', { 'selected': isReasonSelected(reason.id) }]"
-            >
-              {{ reason.text }}
-            </button>
-          </div>
+        <div class="modal-content">
+          <p class="confirm-message">
+            确定接受该申诉吗？接受后对应的跑步记录将变为"通过"状态。
+          </p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-cancel" @click="cancelAppealPass">取消</button>
+          <button class="btn-confirm" @click="confirmAppealPass">
+            确定接受
+          </button>
         </div>
       </div>
-      <div class="modal-footer">
-        <button class="btn-cancel" @click="clearRejectDialog">取消</button>
-        <button
-            class="btn-confirm"
-            @click="submitAppealReject"
-            :disabled="isRejectConfirmDisabled"
-            :class="{ 'disabled': isRejectConfirmDisabled }"
-        >
-          确定驳回
-        </button>
-      </div>
     </div>
-  </div>
 
-  <!-- 接受申诉确认弹窗 -->
-  <div v-if="showPassConfirmDialog" class="modal-overlay" @click.self="cancelAppealPass">
-    <div class="modal-dialog pass-confirm-dialog">
-      <div class="modal-header">
-        <h3>确认接受申诉</h3>
-        <button class="modal-close" @click="cancelAppealPass">×</button>
+    <!-- 图片预览弹窗（保持不变） -->
+    <div v-if="showImagePreview" class="image-preview-overlay" @click="closeImagePreview">
+      <div class="image-preview-container" @click.stop>
+        <button class="image-preview-close" @click="closeImagePreview">×</button>
+        <img :src="previewImage" alt="预览图片" class="preview-image">
       </div>
-      <div class="modal-content">
-        <p class="confirm-message">
-          确定接受该申诉吗？接受后对应的跑步记录将变为"通过"状态。
-        </p>
-      </div>
-      <div class="modal-footer">
-        <button class="btn-cancel" @click="cancelAppealPass">取消</button>
-        <button class="btn-confirm" @click="confirmAppealPass">
-          确定接受
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 图片预览弹窗 -->
-  <div v-if="showImagePreview" class="image-preview-overlay" @click="closeImagePreview">
-    <div class="image-preview-container" @click.stop>
-      <button class="image-preview-close" @click="closeImagePreview">×</button>
-      <img :src="previewImage" alt="预览图片" class="preview-image">
     </div>
   </div>
 </template>
 
 <style scoped>
-/* 此处复制原 `Appeal.vue` 中详情相关的样式，并适当调整 */
+/* 整体布局 */
 .appeal-detail {
-  max-width: 1200px;
+  max-width: 1600px;
   margin: 0 auto;
-}
-
-.page-title {
-  font-size: 20px;
+  padding: 0;
 }
 
 .header-actions {
@@ -474,18 +464,20 @@ onMounted(() => {
   margin-bottom: 24px;
 }
 
-.back-btn {
-  padding: 8px 20px;
-  background: white;
-  border: 1px solid #d9d9d9;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: all 0.3s;
+.page-title {
+  font-size: 20px;
+  margin: 0;
 }
+
+.back-btn {
+  padding: 6px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: white;
+}
+
 .back-btn:hover {
-  border-color: #1890ff;
-  color: #1890ff;
+  background: #f5f5f5;
 }
 
 .loading {
@@ -495,31 +487,54 @@ onMounted(() => {
   font-size: 16px;
 }
 
-.detail-content {
+/* 三列布局 */
+.detail-layout {
   display: flex;
-  flex-direction: column;
-  gap: 20px;
+  gap: 24px;
+  align-items: flex-start;
 }
 
-.info-card, .content-card, .action-card {
+.col-left {
+  flex: 1.2;
+  min-width: 0; /* 防止内容溢出 */
+}
+.col-middle {
+  flex: 1.2;
+  min-width: 0;
+}
+.col-right {
+  flex: 0.8;
+  min-width: 0;
+}
+
+/* 卡片通用样式 */
+.info-card,
+.content-card,
+.action-card {
   background: white;
-  padding: 24px;
+  padding: 20px;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  margin-bottom: 10px;
+}
+
+.info-card:last-child,
+.content-card:last-child,
+.action-card:last-child {
+  margin-bottom: 0;
 }
 
 h3 {
-  margin: 0 0 20px 0;
+  margin: 0 0 16px 0;
   font-size: 18px;
   color: #333;
-  border-bottom: 2px solid #f0f0f0;
   padding-bottom: 12px;
 }
 
 .info-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
+  gap: 12px;
 }
 
 .info-item {
@@ -527,6 +542,7 @@ h3 {
   align-items: flex-start;
   gap: 8px;
   min-height: 32px;
+  font-size: 14px;
 }
 
 .info-item.full-width {
@@ -535,15 +551,13 @@ h3 {
 
 .info-item label {
   color: #666;
-  font-size: 14px;
-  min-width: 80px;
+  min-width: 70px;
   flex-shrink: 0;
 }
 
 .info-item span {
   color: #333;
-  font-size: 14px;
-  word-break: break-all;
+  word-break: break-word;
 }
 
 .description-box {
@@ -555,28 +569,28 @@ h3 {
   border-left: 3px solid #1890ff;
 }
 
+/* 图片画廊 */
 .image-gallery {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 16px;
-  margin-top: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
 }
 
 .image-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
 }
 
 .image-item img {
   width: 100%;
-  height: 150px;
+  height: 120px;
   object-fit: cover;
   border-radius: 6px;
   cursor: pointer;
   transition: transform 0.3s;
-  border: 1px solid #f0f0f0;
 }
 
 .image-item img:hover {
@@ -584,64 +598,14 @@ h3 {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-.image-label {
-  font-size: 12px;
-  color: #666;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 20px;
-  margin-top: 20px;
-}
-
-.action-buttons button {
-  padding: 12px 32px;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 15px;
-  font-weight: 500;
-  transition: all 0.3s;
-  min-width: 140px;
-}
-
-.action-buttons button:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.action-buttons button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.btn-resolved {
-  background: #52c41a;
-  color: white;
-}
-
-.btn-resolved:hover:not(:disabled) {
-  background: #73d13d;
-}
-
-.btn-rejected {
-  background: #ff4d4f;
-  color: white;
-}
-
-.btn-rejected:hover:not(:disabled) {
-  background: #ff7875;
-}
-
+/* 状态徽章 */
 .status-badge {
   display: inline-block;
-  padding: 4px 12px;
+  padding: 4px 10px;
   border-radius: 12px;
   font-size: 12px;
   font-weight: 500;
 }
-
 .status-pending {
   background: #fff7e6;
   color: #fa8c16;
@@ -659,7 +623,57 @@ h3 {
   color: #ff4d4f;
 }
 
-/* 弹窗样式 */
+/* 操作按钮 */
+.action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.action-buttons button {
+  padding: 12px;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-resolved {
+  background: #52c41a;
+  color: white;
+}
+.btn-resolved:hover:not(:disabled) {
+  background: #73d13d;
+}
+.btn-resolved:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #a8d5ba;
+}
+
+.btn-rejected {
+  background: #ff4d4f;
+  color: white;
+}
+.btn-rejected:hover:not(:disabled) {
+  background: #ff7875;
+}
+.btn-rejected:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #f4b0b0;
+}
+
+.action-hint {
+  text-align: center;
+  color: #1890ff;
+  margin-top: 8px;
+  font-size: 14px;
+}
+
+/* 弹窗样式（从原文件复制，未改动） */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -691,19 +705,16 @@ h3 {
   justify-content: space-between;
   align-items: center;
   padding: 20px 24px;
-  border-bottom: 1px solid #f0f0f0;
 }
 
 .modal-header h3 {
   margin: 0;
   font-size: 18px;
-  border-bottom: none;
   padding-bottom: 0;
 }
 
 .modal-close {
   background: none;
-  border: none;
   font-size: 24px;
   color: #999;
   cursor: pointer;
@@ -856,14 +867,6 @@ h3 {
   max-width: 450px;
 }
 
-.confirm-message {
-  text-align: center;
-  color: #333;
-  font-size: 16px;
-  line-height: 1.6;
-  margin-bottom: 20px;
-}
-
 .pass-confirm-dialog .btn-confirm {
   background: #52c41a;
   border: 1px solid #52c41a;
@@ -872,6 +875,14 @@ h3 {
 .pass-confirm-dialog .btn-confirm:hover:not(.disabled) {
   background: #73d13d;
   border-color: #73d13d;
+}
+
+.confirm-message {
+  text-align: center;
+  color: #333;
+  font-size: 16px;
+  line-height: 1.6;
+  margin-bottom: 20px;
 }
 
 /* 图片预览样式 */
@@ -899,11 +910,10 @@ h3 {
   top: -5%;
   right: -8%;
   background: rgba(255, 255, 255, 0.2);
-  border: none;
   color: white;
   font-size: 24px;
   cursor: pointer;
-  width: 10px;
+  width: 30px;
   height: 30px;
   display: flex;
   align-items: center;
@@ -923,5 +933,78 @@ h3 {
   object-fit: contain;
   border-radius: 8px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+/* 卡片头部 */
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;          /* 按钮与标题之间的间距 */
+  margin: 0;
+}
+.card-header h3 {
+  margin: 0;
+  padding-bottom: 0;
+}
+
+.col-left .card-header{
+  display: flex;
+  align-items: center;
+  gap: 12px;          /* 按钮与标题之间的间距 */
+  margin: 0;
+  margin-bottom: 20px;
+}
+
+/* 图片尺寸控制按钮 */
+.image-size-controls {
+  display: flex;
+  gap: 8px;
+}
+
+/* 申诉理由突出样式 */
+.appeal-reason .reason-text {
+  font-size: 18px;
+  font-weight: bold;
+  color: #333;
+  line-height: 1.4;
+  background-color: #fafafa;
+  padding: 10px;
+  border-radius: 10px;
+  border-left: #1890ff;
+}
+
+/* 缩略图列表 */
+.thumbnail-list {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-left: auto; /* 靠右对齐 */
+}
+
+.thumbnail {
+  width: 50px;
+  height: 50px;
+  object-fit: cover;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid #f0f0f0;
+  transition: transform 0.2s;
+}
+
+.thumbnail:hover {
+  transform: scale(1.1);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* 响应式调整 */
+@media (max-width: 1200px) {
+  .detail-layout {
+    flex-direction: column;
+  }
+  .col-left,
+  .col-middle,
+  .col-right {
+    width: 100%;
+  }
 }
 </style>
