@@ -36,13 +36,14 @@
         </select>
       </div>
 
-      <!-- 性别筛选 -->
+      <!-- 账号状态筛选 -->
       <div class="filter-group">
-        <span class="filter-label">性别：</span>
-        <select v-model="selectedGender" class="filter-select" @change="handleFilterChange">
-          <option value="">全部性别</option>
-          <option value="男">男</option>
-          <option value="女">女</option>
+        <span class="filter-label">账号状态：</span>
+        <select v-model="selectedStatus" class="filter-select" @change="handleFilterChange">
+          <option value="">全部</option>
+          <option value="0">正常</option>
+          <option value="1">禁跑</option>
+          <option value="2">封号</option>
         </select>
       </div>
     </div>
@@ -83,7 +84,7 @@
           <th>性别</th>
           <th>校区</th>
           <th>书院</th>
-          <th>创建时间</th>
+          <th>注册时间</th>
           <th>打卡通过</th>
           <th>违规次数</th>
           <th>账号状态</th>
@@ -109,15 +110,15 @@
           </td>
           <td>
             <div class="action-buttons">
-              <!-- 正常状态（0）：显示停跑和封号 -->
+              <!-- 正常状态（0）：显示禁跑和封号 -->
               <template v-if="user.status === 0">
-                <button @click="handleSuspend(user._id)" class="btn btn-warning btn-sm">停跑</button>
+                <button @click="handleSuspend(user._id)" class="btn btn-warning btn-sm">禁跑</button>
                 <button @click="handleBan(user._id)" class="btn btn-danger btn-sm">封号</button>
               </template>
 
-              <!-- 停跑状态（1）：显示取消停跑和封号 -->
+              <!-- 禁跑状态（1）：显示取消禁跑和封号 -->
               <template v-else-if="user.status === 1">
-                <button @click="handleActivate(user._id)" class="btn btn-primary btn-sm">取消停跑</button>
+                <button @click="handleActivate(user._id)" class="btn btn-primary btn-sm">取消禁跑</button>
                 <button @click="handleBan(user._id)" class="btn btn-danger btn-sm">封号</button>
               </template>
 
@@ -234,7 +235,7 @@ const statusClassMap = {
 
 // 分页相关
 const currentPage = ref(1)
-const pageSize = ref(10)
+const pageSize = ref(20)
 const total = ref(0)
 const totalPages = computed(() => Math.ceil(total.value / pageSize.value))
 
@@ -243,7 +244,7 @@ const searchKeyword = ref('')
 const searchFields = ref(['name', 'stu_id', 'class_name']) // 固定搜索字段
 const selectedCampus = ref('')
 const selectedCollege = ref('')
-const selectedGender = ref('')
+const selectedStatus = ref('')
 
 // 确认对话框相关
 const showConfirmDialog = ref(false)
@@ -258,7 +259,7 @@ const collegeOptions = [
   '仲英书院', '文治书院', '彭康书院', '启德书院',
   '励志书院', '崇实书院', '南洋书院', '宗濂书院', '钱学森书院'
 ]
-const pageSizeOptions = [5, 10, 15, 20, 25, 30, 50, 100, 200]
+const pageSizeOptions = [20, 30, 50, 100, 200]
 
 // 计算可见的页码
 const visiblePages = computed(() => {
@@ -286,7 +287,7 @@ const loadUserList = async () => {
       searchFields: searchFields.value,
       campus: selectedCampus.value ? [selectedCampus.value] : [],
       college: selectedCollege.value ? [selectedCollege.value] : [],
-      gender: selectedGender.value ? [selectedGender.value] : []
+      status: selectedStatus.value ? [parseInt(selectedStatus.value)] : []
     }
 
     const data = await getUserList(params)
@@ -312,7 +313,7 @@ const resetSearch = () => {
   searchFields.value = ['name', 'stu_id', 'class_name']
   selectedCampus.value = ''
   selectedCollege.value = ''
-  selectedGender.value = ''
+  selectedStatus.value = ''
   currentPage.value = 1
   loadUserList()
 }
@@ -400,9 +401,9 @@ const confirmAction = async () => {
   try {
     await updateUserStatus(pendingUserId.value, status, extraData.banDays)
     showConfirmDialog.value = false
-    loadUserList()
+    await loadUserList()
     const actionText = {
-      suspend: '停跑',
+      suspend: '禁跑',
       ban: '封号',
       activate: '恢复正常'
     }[pendingAction.value]
