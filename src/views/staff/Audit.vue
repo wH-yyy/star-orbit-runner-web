@@ -70,8 +70,6 @@ async function loadAuditRecords(targetPage) {
       id: record._id || record.id,
       username: record.username || record.userName || '',
       studentId: record.studentId || '',
-      distance: record.distance,
-      duration: record.duration,
       date: record.date || record.checkInDate || '',
       time: record.time || record.checkInTime || '',
       status: record.status !== undefined ? record.status : 0,
@@ -227,8 +225,6 @@ async function openQuickAudit() {
       id: record._id || record.id,
       username: record.username || record.userName || '',
       studentId: record.studentId || '',
-      distance: record.distance,
-      duration: record.duration,
       date: record.date || record.checkInDate || '',
       time: record.time || record.checkInTime || '',
       status: record.status !== undefined ? record.status : 0,
@@ -374,8 +370,6 @@ onMounted(() => {
             <th>序号</th>
             <th>姓名</th>
             <th>学号</th>
-            <th>距离(km)</th>
-            <th>时长</th>
             <th>打卡时间</th>
             <th>状态</th>
             <th>操作</th>
@@ -386,8 +380,6 @@ onMounted(() => {
             <td>{{ (pagination.page - 1) * pagination.pageSize + index + 1 }}</td>
             <td>{{ record.username }}</td>
             <td>{{ record.studentId }}</td>
-            <td>{{ record.distance }}</td>
-            <td>{{ record.duration }}</td>
             <td>{{ formatDateTime(record.date || record.time) }}</td>
             <td>
               <span :class="['status-badge', getStatusClass(record.status)]">
@@ -517,22 +509,6 @@ onMounted(() => {
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
-}
-
-.page-header {
-  margin-bottom: 30px;
-}
-
-.page-header h1 {
-  font-size: 24px;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 8px;
-}
-
-.page-header p {
-  color: #666;
-  font-size: 14px;
 }
 
 .search-filters {

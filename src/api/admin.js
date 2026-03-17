@@ -88,68 +88,19 @@ export async function loginAdmin(username, password) {
 }
 
 /**
- * 获取当前登录的管理员信息
- * @returns {Object|null} 管理员信息，如果未登录则返回 null
- */
-export function getCurrentAdmin() {
-    try {
-        const adminInfo = localStorage.getItem('adminInfo')
-        if (!adminInfo) return null
-
-        return JSON.parse(adminInfo)
-    } catch (error) {
-        console.error('获取管理员信息失败:', error)
-        return null
-    }
-}
-
-/**
- * 检查管理员是否已登录
- * @returns {boolean} 是否已登录
- */
-export function isAdminLoggedIn() {
-    const adminInfo = getCurrentAdmin()
-    const adminToken = localStorage.getItem('adminToken')
-
-    return !!(adminInfo && adminToken)
-}
-
-/**
- * 管理员登出
- */
-export function logoutAdmin() {
-    localStorage.removeItem('adminInfo')
-    localStorage.removeItem('adminToken')
-    localStorage.removeItem('adminLoginTime')
-    console.log('管理员已登出')
-}
-
-/**
  * 获取用户列表（分页）
  * @param {Object} params - 分页和筛选参数
  * @returns {Promise<Object>} 用户列表数据
  */
 export async function getUserList(params = {}) {
-    console.log("getUserList called with:", params)
-
     try {
         // 确保云开发登录状态
         await ensureCloudLogin()
 
         const res = await callFunction({
             name: "getUserList",
-            data: {
-                page: params.page || 1,
-                pageSize: params.pageSize || 10,
-                searchKeyword: params.searchKeyword || '',
-                searchFields: params.searchFields || ['name', 'stu_id', 'class_name'],
-                campus: params.campus || [],
-                college: params.college || [],
-                gender: params.gender || []
-            }
+            data: params
         })
-
-        console.log("云函数返回结果:", res)
 
         const result = res?.result
         if (!result) {
@@ -157,13 +108,29 @@ export async function getUserList(params = {}) {
             throw new Error('服务器无响应，请稍后重试')
         }
 
-        console.log("云函数处理结果:", result)
-
         if (!result.success) {
             throw new Error(result.message || '获取用户列表失败')
         }
 
-        return result.data
+        // 格式化 createTime 字段
+        const data = result.data
+        if (data && Array.isArray(data.list)) {
+            data.list = data.list.map(item => {
+                if (item.createTime) {
+                    const date = new Date(item.createTime)
+                    const year = date.getFullYear()
+                    const month = (date.getMonth() + 1).toString().padStart(2, '0')
+                    const day = date.getDate().toString().padStart(2, '0')
+                    const hours = date.getHours().toString().padStart(2, '0')
+                    const minutes = date.getMinutes().toString().padStart(2, '0')
+                    const seconds = date.getSeconds().toString().padStart(2, '0')
+                    item.createTime = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+                }
+                return item
+            })
+        }
+
+        return data
 
     } catch (err) {
         console.error("getUserList 调用失败:", err)
@@ -186,7 +153,7 @@ export async function getUserList(params = {}) {
 /**
  * 更新用户状态
  * @param {string} userId - 用户ID
- * @param {number} status - 新状态（0正常，1停跑，2封号）
+ * @param {number} status - 新状态（0-正常，1-停跑，2-封号）
  * @param {number} [banDays] - 停跑天数（当 status=1 时可选）
  * @returns {Promise<Object>} 更新结果
  */

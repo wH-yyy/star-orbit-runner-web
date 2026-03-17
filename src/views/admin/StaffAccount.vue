@@ -1,12 +1,10 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
-import {addStaff, getStaffList, updateStaffStatus} from '@/api/admin.js';
+import { ref, onMounted } from 'vue';
+import { addStaff, getStaffList, updateStaffStatus } from '@/api/admin.js';
 import { showSuccess, showError } from '@/utils/toast.js';
 
 // 工作人员账号数据
 const staffAccounts = ref([]);
-
-// 列表加载状态
 const listLoading = ref(false);
 
 // 加载工作人员列表
@@ -14,7 +12,6 @@ const loadStaffList = async () => {
   listLoading.value = true;
   try {
     const result = await getStaffList();
-    // 转换状态显示，设置默认名称为"未命名账号"
     staffAccounts.value = result.map(staff => ({
       ...staff,
       status: staff.status === 0 ? '启用' : '禁用',
@@ -42,41 +39,13 @@ const campusOptions = [
   { value: '雁塔校区', label: '雁塔校区' },
 ];
 
-// 加载状态
 const loading = ref(false);
-
-// 错误信息
 const errorMsg = ref('');
-
-// 全局提示
-const notification = ref({
-  show: false,
-  text: '',
-  type: 'success' // 'success' | 'error'
-})
-let notificationTimer = null
-
-// 显示提示（3秒后自动关闭）
-const showNotification = (text, type = 'success') => {
-  // 清除之前的定时器
-  if (notificationTimer) clearTimeout(notificationTimer)
-
-  notification.value = {
-    show: true,
-    text,
-    type
-  }
-
-  notificationTimer = setTimeout(() => {
-    notification.value.show = false
-  }, 2000)
-}
 
 // 创建新账号
 const createAccount = async () => {
   errorMsg.value = '';
 
-  // 更详细的表单验证
   if (!newAccount.value.username) {
     errorMsg.value = '请输入用户名';
     return;
@@ -90,70 +59,38 @@ const createAccount = async () => {
     return;
   }
 
-  // 用户名格式验证
-  const usernameRegex = /^[a-zA-Z0-9]{3,20}$/
+  const usernameRegex = /^[a-zA-Z0-9]{3,20}$/;
   if (!usernameRegex.test(newAccount.value.username)) {
     errorMsg.value = '用户名应为3-20位字母数字组合';
     return;
   }
 
-  // 密码长度验证
   if (newAccount.value.password.length < 6) {
     errorMsg.value = '密码长度至少6位';
     return;
   }
 
   loading.value = true;
-
   try {
-    console.log('开始创建账号:', newAccount.value.username)
-
     const result = await addStaff(
         newAccount.value.username,
         newAccount.value.password,
         newAccount.value.campus
     );
 
-    console.log('创建新工作账号结果:', result);
-
-    // 添加到本地列表（使用真实数据）
-    const account = {
-      id: result._id,
-      username: result.username,
-      campus: result.campus,
-      status: result.status === 0 ? '启用' : '禁用',
-      created_at: result.created_at,
-      completed_count: result.completed_count || 0,
-      assigned_count: result.assigned_count || 0
-    };
-
-    staffAccounts.value.push(account);
-
     // 重置表单
-    newAccount.value = {
-      username: '',
-      password: '',
-      campus: ''
-    };
-
-    // 使用更友好的提示
+    newAccount.value = { username: '', password: '', campus: '' };
     showSuccess('✅ 工作账号创建成功！\n用户名：' + result.username);
-    // 重新加载工作人员列表
-    await loadStaffList();
-
+    await loadStaffList(); // 重新获取最新列表
   } catch (error) {
     console.error('创建工作账号失败:', error);
-
-    // 显示具体的错误信息（表单验证错误区域）
-    errorMsg.value = error.message || '创建工作账号失败，请检查网络后重试';
-
-    // 可以根据错误类型提供不同的提示
     if (error.message.includes('已存在')) {
       errorMsg.value = `用户名 "${newAccount.value.username}" 已被使用，请换一个用户名`;
     } else if (error.message.includes('网络')) {
       errorMsg.value = '网络连接失败，请检查网络设置后重试';
+    } else {
+      errorMsg.value = error.message || '创建工作账号失败，请检查网络后重试';
     }
-
   } finally {
     loading.value = false;
   }
@@ -168,29 +105,18 @@ const toggleStatus = async (staffId) => {
   const newStatus = account.status === '启用' ? '禁用' : '启用';
 
   try {
-    // 调用 API 更新状态
     await updateStaffStatus(staffId, newStatus === '启用' ? 0 : 1);
-
-    // 更新本地状态
     account.status = newStatus;
-    console.log(`账号 ${staffId} 状态已更改为 ${newStatus}`);
-
   } catch (error) {
     console.error('更新账号状态失败:', error);
     showError('更新状态失败：' + (error.message || '请稍后重试'));
-    // 恢复原来的状态
     account.status = oldStatus;
   }
 };
 
-// 组件挂载时加载列表
 onMounted(() => {
   loadStaffList();
 });
-
-onUnmounted(() => {
-  if (notificationTimer) clearTimeout(notificationTimer)
-})
 </script>
 
 <template>
@@ -227,7 +153,7 @@ onUnmounted(() => {
           </select>
         </div>
       </div>
-      
+
       <div v-if="errorMsg" class="error-msg">
         {{ errorMsg }}
       </div>
@@ -282,33 +208,17 @@ onUnmounted(() => {
         </table>
       </div>
 
-      <!-- 空状态 -->
       <div v-if="!listLoading && staffAccounts.length === 0" class="empty-state">
         <p>暂无工作账号，请创建新账号</p>
       </div>
     </div>
   </div>
-
-  <!-- 自定义全局提示 -->
-  <transition name="fade">
-    <div v-if="notification.show"
-         :class="['notification', `notification-${notification.type}`]">
-      {{ notification.text }}
-    </div>
-  </transition>
 </template>
 
 <style scoped>
 .staff-account-page {
   width: 100%;
   padding: 0;
-}
-
-.page-title {
-  font-size: 24px;
-  font-weight: 600;
-  margin-bottom: 24px;
-  color: #303133;
 }
 
 /* 创建新账号区域样式 */
@@ -370,7 +280,6 @@ onUnmounted(() => {
   color: #c0c4cc;
 }
 
-/* 错误信息样式 */
 .error-msg {
   background: #fee;
   color: #c33;
@@ -381,7 +290,6 @@ onUnmounted(() => {
   text-align: center;
 }
 
-/* 表单操作按钮样式 */
 .form-actions {
   margin-top: 20px;
 }
@@ -495,7 +403,6 @@ onUnmounted(() => {
   background-color: rgba(64, 158, 255, 0.05);
 }
 
-/* 状态标签样式 */
 .status-badge {
   display: inline-block;
   padding: 4px 12px;
@@ -514,7 +421,6 @@ onUnmounted(() => {
   color: #f56c6c;
 }
 
-/* 加载状态样式 */
 .loading-state {
   padding: 64px 24px;
   text-align: center;
@@ -522,49 +428,11 @@ onUnmounted(() => {
   font-size: 14px;
 }
 
-/* 空状态样式 */
 .empty-state {
   padding: 64px 24px;
   text-align: center;
   color: #909399;
   font-size: 14px;
-}
-
-/* 全局提示样式 */
-.notification {
-  position: fixed;
-  top: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 12px 24px;
-  border-radius: 4px;
-  font-size: 14px;
-  color: #fff;
-  z-index: 1000;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-  animation: slideDown 0.3s ease;
-}
-.notification-success {
-  background-color: #67c23a;
-}
-.notification-error {
-  background-color: #f56c6c;
-}
-.fade-enter-active, .fade-leave-active {
-  transition: opacity 0.3s;
-}
-.fade-enter, .fade-leave-to {
-  opacity: 0;
-}
-@keyframes slideDown {
-  from {
-    transform: translateX(-50%) translateY(-20px);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(-50%) translateY(0);
-    opacity: 1;
-  }
 }
 
 /* 响应式设计 */

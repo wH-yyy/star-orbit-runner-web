@@ -2,19 +2,21 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useStore } from 'vuex'
-import EditProfileDialog from '../EditProfileDialog.vue'
+
+// 导入SVG图标
+import UserIcon from '@/assets/个人.svg'
+import LogoutIcon from '@/assets/退出登录.svg'
 
 const router = useRouter()
 const route = useRoute()
 const store = useStore()
 const showDropdown = ref(false)
-const showEditDialog = ref(false)
 
 // 从 store 获取用户信息
 const userInfo = computed(() => ({
   name: store.state.user.info?.name || '用户',
   email: store.state.user.info?.email || '',
-  avatar: '👤'
+  avatar: UserIcon
 }))
 
 // 获取当前页标题
@@ -40,25 +42,6 @@ const toggleDropdown = () => {
 // 关闭下拉菜单
 const closeDropdown = () => {
   showDropdown.value = false
-}
-
-// 编辑个人信息
-const editProfile = () => {
-  closeDropdown()
-  showEditDialog.value = true
-}
-
-// 保存个人信息
-const saveProfile = (formData) => {
-  console.log('保存个人信息:', formData)
-  // 更新 store 中的用户信息
-  store.dispatch('updateUserInfo', formData)
-  
-  // 显示保存成功的消息
-  store.commit('SET_MESSAGE', {
-    message: '个人信息更新成功',
-    type: 'success'
-  })
 }
 
 // 退出登录
@@ -116,31 +99,20 @@ onMounted(() => {
     </div>
     <div class="top-bar-right">
       <div class="user-info" @click="toggleDropdown">
-        <span class="user-avatar">{{ userInfo.avatar }}</span>
+        <img :src="userInfo.avatar" class="user-avatar" />
         <span class="user-name">{{ userInfo.name }}</span>
         <span class="dropdown-arrow">{{ showDropdown ? '▼' : '▶' }}</span>
 
         <!-- 下拉菜单 -->
         <div v-if="showDropdown" class="user-dropdown">
-<!--          <div class="dropdown-item" @click="editProfile">-->
-<!--            <span class="dropdown-icon">✏️</span>-->
-<!--            <span>编辑个人信息</span>-->
-<!--          </div>-->
           <div class="dropdown-item" @click="logout">
-            <span class="dropdown-icon">🚪</span>
+            <img :src="LogoutIcon" class="dropdown-icon" />
             <span>退出登录</span>
           </div>
         </div>
       </div>
     </div>
   </header>
-
-  <!-- 编辑个人信息弹窗 -->
-  <EditProfileDialog 
-    v-model:visible="showEditDialog"
-    :userInfo="userInfo"
-    @save="saveProfile"
-  />
 </template>
 
 <style scoped>
@@ -195,15 +167,10 @@ onMounted(() => {
 }
 
 .user-avatar {
-  font-size: 24px;
   width: 40px;
   height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: rgb(255, 255, 255);
   border-radius: 50%;
-  color: #ffffff;
+  object-fit: cover;
 }
 
 .user-name {
@@ -248,7 +215,9 @@ onMounted(() => {
 }
 
 .dropdown-icon {
-  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
 }
 
 /* 响应式设计 */

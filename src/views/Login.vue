@@ -10,10 +10,10 @@
         <h2>请选择登录角色</h2>
         <div class="role-buttons">
           <button @click="selectRole('staff')" class="role-btn staff-btn">
-            👥 工作人员
+            工作人员
           </button>
           <button @click="selectRole('admin')" class="role-btn admin-btn">
-            🔧 管理员
+            管理员
           </button>
         </div>
       </div>
@@ -142,7 +142,6 @@ function handleStaffLoginSuccess(staffInfo) {
     name: staffInfo.real_name || staffInfo.username,
     role: 'staff',
     campus: staffInfo.campus,
-    avatar: '👤'
   }
 
   // 保存认证信息
@@ -174,7 +173,6 @@ function handleAdminLoginSuccess(adminInfo) {
     username: adminInfo.username,
     name: adminInfo.real_name || adminInfo.username,
     role: 'admin',
-    avatar: '👤',
     last_login_at: adminInfo.last_login_at
   }
 

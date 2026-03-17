@@ -165,14 +165,6 @@ onMounted(() => {
   font-size: 16px;
 }
 
-h2 {
-  margin-top: 0;
-  color: #333;
-  border-bottom: 2px solid #42b983;
-  padding-bottom: 12px;
-  font-size: 28px;
-}
-
 h3 {
   margin: 24px 0 12px;
   color: #555;
