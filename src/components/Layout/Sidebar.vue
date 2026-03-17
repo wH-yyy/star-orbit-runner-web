@@ -10,9 +10,6 @@ import StaffIcon from '@/assets/工作人员.svg'
 import ActivityConfigIcon from '@/assets/活动配置.svg'
 import AuditIcon from '@/assets/审核.svg'
 import AppealIcon from '@/assets/申诉.svg'
-import UserIcon from '@/assets/个人.svg'
-import AdminIcon from '@/assets/管理员.svg'
-import LogoutIcon from '@/assets/退出登录.svg'
 
 const route = useRoute()
 const store = useStore()

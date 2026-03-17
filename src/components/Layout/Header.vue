@@ -2,7 +2,6 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useStore } from 'vuex'
-import EditProfileDialog from '../EditProfileDialog.vue'
 
 // 导入SVG图标
 import UserIcon from '@/assets/个人.svg'
@@ -12,7 +11,6 @@ const router = useRouter()
 const route = useRoute()
 const store = useStore()
 const showDropdown = ref(false)
-const showEditDialog = ref(false)
 
 // 从 store 获取用户信息
 const userInfo = computed(() => ({
@@ -44,25 +42,6 @@ const toggleDropdown = () => {
 // 关闭下拉菜单
 const closeDropdown = () => {
   showDropdown.value = false
-}
-
-// 编辑个人信息
-const editProfile = () => {
-  closeDropdown()
-  showEditDialog.value = true
-}
-
-// 保存个人信息
-const saveProfile = (formData) => {
-  console.log('保存个人信息:', formData)
-  // 更新 store 中的用户信息
-  store.dispatch('updateUserInfo', formData)
-  
-  // 显示保存成功的消息
-  store.commit('SET_MESSAGE', {
-    message: '个人信息更新成功',
-    type: 'success'
-  })
 }
 
 // 退出登录
@@ -134,13 +113,6 @@ onMounted(() => {
       </div>
     </div>
   </header>
-
-  <!-- 编辑个人信息弹窗 -->
-  <EditProfileDialog 
-    v-model:visible="showEditDialog"
-    :userInfo="userInfo"
-    @save="saveProfile"
-  />
 </template>
 
 <style scoped>
