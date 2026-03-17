@@ -5,7 +5,7 @@
       <input
           type="text"
           v-model.lazy="searchKeyword"
-          placeholder="请输入搜索关键词"
+          placeholder="请输入搜索关键词（班级、姓名、学号）"
           class="search-input"
           @keyup.enter="handleSearch"
       />
@@ -44,6 +44,15 @@
           <option value="0">正常</option>
           <option value="1">禁跑</option>
           <option value="2">封号</option>
+        </select>
+      </div>
+
+      <!-- 排序选项 -->
+      <div class="filter-group">
+        <span class="filter-label">排序：</span>
+        <select v-model="sortBy" @change="handleSortChange" class="filter-select">
+          <option value="createTime">注册时间（新→旧）</option>
+          <option value="violationCount">违规次数（多→少）</option>
         </select>
       </div>
     </div>
@@ -261,6 +270,16 @@ const collegeOptions = [
 ]
 const pageSizeOptions = [20, 30, 50, 100, 200]
 
+// 排序相关
+const sortBy = ref('createTime')
+const sortOrder = ref('desc')  // 固定降序，也可根据需要支持升序
+
+// 排序变化处理
+const handleSortChange = () => {
+  currentPage.value = 1
+  loadUserList()
+}
+
 // 计算可见的页码
 const visiblePages = computed(() => {
   const pages = []
@@ -287,7 +306,9 @@ const loadUserList = async () => {
       searchFields: searchFields.value,
       campus: selectedCampus.value ? [selectedCampus.value] : [],
       college: selectedCollege.value ? [selectedCollege.value] : [],
-      status: selectedStatus.value ? [parseInt(selectedStatus.value)] : []
+      status: selectedStatus.value ? [parseInt(selectedStatus.value)] : [],
+      sortBy: sortBy.value,          // 新增
+      sortOrder: sortOrder.value      // 新增
     }
 
     const data = await getUserList(params)
@@ -471,7 +492,7 @@ onMounted(() => {
 
 .filter-section {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 15px;
 }
 

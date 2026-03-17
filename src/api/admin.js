@@ -93,34 +93,20 @@ export async function loginAdmin(username, password) {
  * @returns {Promise<Object>} 用户列表数据
  */
 export async function getUserList(params = {}) {
-    console.log("getUserList called with:", params)
-
     try {
         // 确保云开发登录状态
         await ensureCloudLogin()
 
         const res = await callFunction({
             name: "getUserList",
-            data: {
-                page: params.page || 1,
-                pageSize: params.pageSize || 10,
-                searchKeyword: params.searchKeyword || '',
-                searchFields: params.searchFields || ['name', 'stu_id', 'class_name'],
-                campus: params.campus || [],
-                college: params.college || [],
-                status: params.status || []
-            }
+            data: params
         })
-
-        console.log("云函数返回结果:", res)
 
         const result = res?.result
         if (!result) {
             console.error('云函数无返回结果')
             throw new Error('服务器无响应，请稍后重试')
         }
-
-        console.log("云函数处理结果:", result)
 
         if (!result.success) {
             throw new Error(result.message || '获取用户列表失败')
@@ -130,7 +116,6 @@ export async function getUserList(params = {}) {
         const data = result.data
         if (data && Array.isArray(data.list)) {
             data.list = data.list.map(item => {
-                // 如果 createTime 存在，格式化为 YYYY-MM-DD HH:mm:ss
                 if (item.createTime) {
                     const date = new Date(item.createTime)
                     const year = date.getFullYear()
