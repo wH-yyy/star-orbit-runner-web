@@ -77,8 +77,6 @@ async function loadAuditRecords() {
       userId: record.userId,
       username: record.username || record.userName || '',
       studentId: record.studentId || '',
-      distance: record.distance,
-      duration: record.duration,
       date: record.date || record.checkInDate || '',
       time: record.time || record.checkInTime || '',
       status: record.status !== undefined ? record.status : 0,
@@ -159,8 +157,6 @@ async function openQuickAudit() {
       id: record._id || record.id,
       username: record.username || record.userName || '',
       studentId: record.studentId || '',
-      distance: record.distance,
-      duration: record.duration,
       date: record.date || record.checkInDate || '',
       time: record.time || record.checkInTime || '',
       status: record.status !== undefined ? record.status : 0,
@@ -305,8 +301,6 @@ onMounted(() => {
             <th>序号</th>
             <th>姓名</th>
             <th>学号</th>
-            <th>距离(km)</th>
-            <th>时长</th>
             <th>打卡时间</th>
             <th>状态</th>
             <th>操作</th>
@@ -317,8 +311,6 @@ onMounted(() => {
             <td>{{ index + 1 }}</td>
             <td>{{ record.username }}</td>
             <td>{{ record.studentId }}</td>
-            <td>{{ record.distance }}</td>
-            <td>{{ record.duration }}</td>
             <td>{{ formatDateTime(record.date || record.time) }}</td>
             <td>
               <span :class="['status-badge', getStatusClass(record.status)]">
@@ -335,7 +327,7 @@ onMounted(() => {
       </table>
 
       <div v-if="!loading && filteredRecords.length === 0" class="empty-state">
-        {{ errorMsg ? '加载失败' : '暂无审核记录' }}
+        {{ errorMsg ? '加载失败' : '暂无待审记录' }}
       </div>
     </div>
   </div>

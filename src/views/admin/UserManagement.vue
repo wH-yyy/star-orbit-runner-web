@@ -79,16 +79,14 @@
           <th>序号</th>
           <th>学号</th>
           <th>姓名</th>
+          <th>班级</th>
           <th>性别</th>
           <th>校区</th>
           <th>书院</th>
-          <th>班级</th>
           <th>创建时间</th>
-          <th>状态</th>
-          <th>总里程(km)</th>
-          <th>总时长</th>
-          <th>总次数</th>
+          <th>打卡通过</th>
           <th>违规次数</th>
+          <th>账号状态</th>
           <th>操作</th>
         </tr>
         </thead>
@@ -97,20 +95,18 @@
           <td>{{ (currentPage - 1) * pageSize + index + 1 }}</td>
           <td>{{ user.stu_id }}</td>
           <td>{{ user.name }}</td>
+          <td>{{ user.class_name }}</td>
           <td>{{ user.gender }}</td>
           <td>{{ user.campus }}</td>
           <td>{{ user.college }}</td>
-          <td>{{ user.class_name }}</td>
           <td>{{ user.createTime }}</td>
+          <td>{{ user.totalCount || 0 }}</td>
+          <td>{{ user.violationCount || 0 }}</td>
           <td>
               <span :class="['status-badge', statusClassMap[user.status]]">
                 {{ statusMap[user.status] || '未知' }}
               </span>
           </td>
-          <td>{{ user.totalDistance?.toFixed(2) || '0.00' }}</td>
-          <td>{{ user.totalDuration || '00:00:00' }}</td>
-          <td>{{ user.totalCount || 0 }}</td>
-          <td>{{ user.violationCount || 0 }}</td>
           <td>
             <div class="action-buttons">
               <!-- 正常状态（0）：显示停跑和封号 -->
