@@ -231,7 +231,7 @@ onMounted(() => {
 }
 
 .create-account-section h3 {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 600;
   margin-bottom: 16px;
   color: #303133;
@@ -252,7 +252,7 @@ onMounted(() => {
 
 .form-label {
   display: block;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 500;
   color: #606266;
   margin-bottom: 8px;
@@ -264,7 +264,7 @@ onMounted(() => {
   padding: 10px 16px;
   border: 1px solid #dcdfe6;
   border-radius: 4px;
-  font-size: 14px;
+  font-size: 16px;
   transition: border-color 0.3s ease;
   color: #606266;
 }
@@ -286,7 +286,7 @@ onMounted(() => {
   padding: 10px;
   border-radius: 6px;
   margin-bottom: 15px;
-  font-size: 14px;
+  font-size: 16px;
   text-align: center;
 }
 
@@ -298,7 +298,7 @@ onMounted(() => {
   padding: 10px 20px;
   border: none;
   border-radius: 4px;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -362,7 +362,7 @@ onMounted(() => {
 }
 
 .account-list-section h3 {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 600;
   margin-bottom: 16px;
   color: #303133;
@@ -389,13 +389,13 @@ onMounted(() => {
 .account-table th {
   background-color: #f5f7fa;
   font-weight: 600;
-  font-size: 14px;
+  font-size: 16px;
   color: #303133;
   white-space: nowrap;
 }
 
 .account-table td {
-  font-size: 14px;
+  font-size: 16px;
   color: #606266;
 }
 
@@ -407,7 +407,7 @@ onMounted(() => {
   display: inline-block;
   padding: 4px 12px;
   border-radius: 12px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
 }
 
@@ -425,14 +425,14 @@ onMounted(() => {
   padding: 64px 24px;
   text-align: center;
   color: #409eff;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .empty-state {
   padding: 64px 24px;
   text-align: center;
   color: #909399;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 /* 响应式设计 */

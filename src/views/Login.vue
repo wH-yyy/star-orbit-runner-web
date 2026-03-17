@@ -226,13 +226,13 @@ function handleAdminLoginSuccess(adminInfo) {
 
 .login-header h1 {
   margin: 0 0 8px 0;
-  font-size: 28px;
+  font-size: 30px;
   font-weight: 600;
 }
 
 .login-header p {
   margin: 0;
-  font-size: 14px;
+  font-size: 16px;
   color: #ecf0f1;
 }
 
@@ -243,7 +243,7 @@ function handleAdminLoginSuccess(adminInfo) {
 
 .role-selection h2 {
   margin: 0 0 24px 0;
-  font-size: 20px;
+  font-size: 22px;
   color: #333;
   font-weight: 500;
 }
@@ -258,7 +258,7 @@ function handleAdminLoginSuccess(adminInfo) {
   padding: 16px 24px;
   border: 1px solid #e0e0e0;
   border-radius: 8px;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -292,7 +292,7 @@ function handleAdminLoginSuccess(adminInfo) {
 
 .login-form h2 {
   margin: 0 0 24px 0;
-  font-size: 20px;
+  font-size: 22px;
   color: #333;
   text-align: center;
   font-weight: 500;
@@ -306,7 +306,7 @@ function handleAdminLoginSuccess(adminInfo) {
   display: block;
   margin-bottom: 6px;
   color: #555;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 500;
 }
 
@@ -315,7 +315,7 @@ function handleAdminLoginSuccess(adminInfo) {
   padding: 10px 12px;
   border: 1px solid #ddd;
   border-radius: 6px;
-  font-size: 14px;
+  font-size: 16px;
   box-sizing: border-box;
   transition: border-color 0.2s;
   color: #333;
@@ -332,7 +332,7 @@ function handleAdminLoginSuccess(adminInfo) {
   padding: 10px;
   border-radius: 6px;
   margin-bottom: 16px;
-  font-size: 14px;
+  font-size: 16px;
   text-align: center;
   border: 1px solid #fadbd8;
 }
@@ -344,7 +344,7 @@ function handleAdminLoginSuccess(adminInfo) {
   color: white;
   border: none;
   border-radius: 6px;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 500;
   cursor: pointer;
   transition: background-color 0.2s;
@@ -369,7 +369,7 @@ function handleAdminLoginSuccess(adminInfo) {
   text-align: center;
   color: #3498db;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 16px;
   padding: 8px;
   border-radius: 6px;
   transition: background-color 0.2s;
@@ -387,7 +387,7 @@ function handleAdminLoginSuccess(adminInfo) {
 
 .tips p {
   margin: 0 0 8px 0;
-  font-size: 13px;
+  font-size: 15px;
   color: #7f8c8d;
   text-align: center;
   line-height: 1.5;
