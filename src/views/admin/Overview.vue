@@ -173,7 +173,6 @@ const initOrUpdateChart = () => {
 
     const option = {
       title: {
-        text: '每日打卡人数趋势',
         left: 'center',
         textStyle: {
           fontSize: titleFontSize,
@@ -466,7 +465,7 @@ const exportData = () => {
 }
 
 .page-header h1 {
-  font-size: clamp(1.25rem, 2vw, 1.5rem); /* 20-24px */
+  font-size: clamp(1.5rem, 2vw, 1.75rem); /* 24-28px */
   font-weight: 600;
   color: #303133;
   margin: 0;
@@ -485,7 +484,7 @@ const exportData = () => {
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  font-size: clamp(0.75rem, 1vw, 0.875rem); /* 12-14px */
+  font-size: clamp(0.875rem, 1vw, 1rem); /* 14-16px */
   transition: background-color 0.3s;
   white-space: nowrap;
   min-height: 36px;
@@ -507,7 +506,7 @@ const exportData = () => {
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  font-size: clamp(0.75rem, 1vw, 0.875rem);
+  font-size: clamp(0.875rem, 1vw, 1rem);
   transition: background-color 0.3s;
   white-space: nowrap;
   min-height: 36px;
@@ -549,7 +548,7 @@ const exportData = () => {
 
 .dialog-header h3 {
   margin: 0;
-  font-size: 18px;
+  font-size: 20px;
   color: #303133;
 }
 
@@ -584,7 +583,7 @@ const exportData = () => {
 
 .form-label {
   display: block;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 500;
   color: #606266;
   margin-bottom: 8px;
@@ -595,7 +594,7 @@ const exportData = () => {
   padding: 10px 16px;
   border: 1px solid #dcdfe6;
   border-radius: 4px;
-  font-size: 14px;
+  font-size: 16px;
   background-color: #ffffff;
   cursor: pointer;
   transition: border-color 0.3s;
@@ -617,13 +616,13 @@ const exportData = () => {
 
 .export-tips h4 {
   margin: 0 0 8px 0;
-  font-size: 13px;
+  font-size: 15px;
   color: #606266;
 }
 
 .export-tips p {
   margin: 0;
-  font-size: 12px;
+  font-size: 14px;
   color: #909399;
   line-height: 1.5;
 }
@@ -640,7 +639,7 @@ const exportData = () => {
   padding: 10px 20px;
   border: none;
   border-radius: 4px;
-  font-size: 14px;
+  font-size: 16px;
   cursor: pointer;
   transition: all 0.3s;
 }
@@ -684,7 +683,7 @@ const exportData = () => {
 
 .form-label {
   display: block;
-  font-size: clamp(0.875rem, 1vw, 0.875rem); /* 14px */
+  font-size: clamp(1rem, 1vw, 1rem); /* 16px */
   font-weight: 500;
   color: #606266;
   margin-bottom: clamp(8px, 1vw, 10px);
@@ -704,7 +703,7 @@ const exportData = () => {
   padding: clamp(8px, 1vw, 10px) clamp(12px, 1.5vw, 16px);
   border: 1px solid #dcdfe6;
   border-radius: 4px;
-  font-size: clamp(0.875rem, 1vw, 0.875rem);
+  font-size: clamp(1rem, 1vw, 1rem);
   transition: border-color 0.3s ease;
   color: #606266;
   height: clamp(36px, 5vw, 40px);
@@ -719,7 +718,7 @@ const exportData = () => {
 .date-separator {
   color: #909399;
   white-space: nowrap;
-  font-size: clamp(0.875rem, 1vw, 0.875rem);
+  font-size: clamp(1rem, 1vw, 1rem);
 }
 
 .reset-btn {
@@ -729,7 +728,7 @@ const exportData = () => {
   border: 1px solid #dcdfe6;
   border-radius: 4px;
   cursor: pointer;
-  font-size: clamp(0.875rem, 1vw, 0.875rem);
+  font-size: clamp(1rem, 1vw, 1rem);
   transition: all 0.3s ease;
   white-space: nowrap;
   min-height: clamp(36px, 5vw, 40px);
@@ -766,7 +765,7 @@ const exportData = () => {
 }
 
 .loading-container p {
-  font-size: clamp(0.875rem, 1.2vw, 1rem);
+  font-size: clamp(1rem, 1.2vw, 1.125rem);
   color: #606266;
 }
 
@@ -786,7 +785,7 @@ const exportData = () => {
 .error-message {
   color: #f56c6c;
   margin-bottom: clamp(12px, 2vw, 16px);
-  font-size: clamp(0.875rem, 1.2vw, 1rem);
+  font-size: clamp(1rem, 1.2vw, 1.125rem);
   text-align: center;
   padding: 0 clamp(16px, 3vw, 24px);
 }
@@ -798,7 +797,7 @@ const exportData = () => {
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  font-size: clamp(0.875rem, 1vw, 0.875rem);
+  font-size: clamp(1rem, 1vw, 1rem);
   min-height: 36px;
 }
 
@@ -846,7 +845,7 @@ const exportData = () => {
 }
 
 .stat-info h3 {
-  font-size: clamp(0.875rem, 1vw, 0.875rem);
+  font-size: clamp(1rem, 1vw, 1rem);
   font-weight: 500;
   color: #909399;
   margin: 0 0 clamp(4px, 0.5vw, 8px) 0;
@@ -856,7 +855,7 @@ const exportData = () => {
 }
 
 .stat-value {
-  font-size: clamp(1.25rem, 2vw, 1.5rem); /* 20-24px */
+  font-size: clamp(1.5rem, 2vw, 1.75rem); /* 24-28px */
   font-weight: 600;
   color: #303133;
   margin: 0;
@@ -885,14 +884,14 @@ const exportData = () => {
 }
 
 .chart-header h3 {
-  font-size: clamp(1rem, 1.2vw, 1.125rem); /* 16-18px */
+  font-size: clamp(1.125rem, 1.2vw, 1.25rem); /* 18-20px */
   font-weight: 600;
   color: #303133;
   margin: 0;
 }
 
 .chart-stats {
-  font-size: clamp(0.75rem, 1vw, 0.875rem);
+  font-size: clamp(0.875rem, 1vw, 1rem);
   color: #909399;
   white-space: nowrap;
 }
@@ -907,7 +906,7 @@ const exportData = () => {
   text-align: center;
   padding: clamp(30px, 8vw, 40px) 0;
   color: #909399;
-  font-size: clamp(0.875rem, 1vw, 0.875rem);
+  font-size: clamp(1rem, 1vw, 1rem);
 }
 
 .chart-summary {
@@ -930,14 +929,14 @@ const exportData = () => {
 }
 
 .summary-label {
-  font-size: clamp(0.75rem, 0.9vw, 0.75rem);
+  font-size: clamp(0.875rem, 0.9vw, 0.875rem);
   color: #909399;
   margin-bottom: 4px;
   text-align: center;
 }
 
 .summary-value {
-  font-size: clamp(0.875rem, 1vw, 0.875rem);
+  font-size: clamp(1rem, 1vw, 1rem);
   font-weight: 600;
   color: #303133;
   text-align: center;
@@ -952,7 +951,7 @@ const exportData = () => {
 }
 
 .update-time p {
-  font-size: clamp(0.75rem, 0.9vw, 0.75rem);
+  font-size: clamp(0.875rem, 0.9vw, 0.875rem);
   color: #909399;
   margin: 0;
 }

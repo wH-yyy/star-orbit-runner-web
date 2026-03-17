@@ -1,18 +1,6 @@
 <template>
   <!-- 搜索和筛选区域 -->
   <div class="search-filter-section">
-    <div class="search-box">
-      <input
-          type="text"
-          v-model.lazy="searchKeyword"
-          placeholder="请输入搜索关键词（班级、姓名、学号）"
-          class="search-input"
-          @keyup.enter="handleSearch"
-      />
-      <button @click="handleSearch" class="btn btn-search">搜索</button>
-      <button @click="resetSearch" class="btn btn-secondary">重置</button>
-    </div>
-
     <div class="filter-section">
       <!-- 校区筛选 -->
       <div class="filter-group">
@@ -55,6 +43,18 @@
           <option value="violationCount">违规次数（多→少）</option>
         </select>
       </div>
+    </div>
+
+    <div class="search-box">
+      <input
+          type="text"
+          v-model.lazy="searchKeyword"
+          placeholder="请输入搜索关键词（班级、姓名、学号）"
+          class="search-input"
+          @keyup.enter="handleSearch"
+      />
+      <button @click="handleSearch" class="btn btn-search">搜索</button>
+      <button @click="resetSearch" class="btn btn-secondary">重置</button>
     </div>
   </div>
 
@@ -470,7 +470,7 @@ onMounted(() => {
 .search-box {
   display: flex;
   gap: 10px;
-  margin-bottom: 20px;
+  margin: 20px;
   align-items: center;
 }
 
@@ -479,7 +479,7 @@ onMounted(() => {
   padding: 10px 16px;
   border: 1px solid #dcdfe6;
   border-radius: 4px;
-  font-size: 14px;
+  font-size: 16px;
   transition: border-color 0.3s ease;
   color: #606266;
 }
@@ -503,7 +503,7 @@ onMounted(() => {
 }
 
 .filter-label {
-  font-size: 14px;
+  font-size: 16px;
   color: #606266;
   font-weight: 500;
 }
@@ -512,7 +512,7 @@ onMounted(() => {
   padding: 5px 5px;
   border: 1px solid #dcdfe6;
   border-radius: 4px;
-  font-size: 14px;
+  font-size: 16px;
   background-color: #ffffff;
   cursor: pointer;
   transition: border-color 0.3s ease;
@@ -547,7 +547,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 14px;
+  font-size: 16px;
   color: #606266;
 }
 
@@ -555,7 +555,7 @@ onMounted(() => {
   padding: 6px 12px;
   border: 1px solid #dcdfe6;
   border-radius: 4px;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .user-table-container {
@@ -576,7 +576,7 @@ onMounted(() => {
   padding: 8px 12px;
   text-align: left;
   border-bottom: 1px solid #ebeef5;
-  font-size: 14px;
+  font-size: 16px;
   max-width: 150px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -603,7 +603,7 @@ onMounted(() => {
   display: inline-block;
   padding: 4px 12px;
   border-radius: 12px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   white-space: nowrap;
 }
@@ -619,7 +619,7 @@ onMounted(() => {
   padding: 8px 16px;
   border: none;
   border-radius: 4px;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -628,7 +628,7 @@ onMounted(() => {
 
 .btn-sm {
   padding: 6px 12px;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .btn-primary {
@@ -687,7 +687,7 @@ onMounted(() => {
   gap: 10px;
 }
 .ban-days-selector label {
-  font-size: 14px;
+  font-size: 16px;
   color: #606266;
   font-weight: 500;
 }
@@ -697,7 +697,7 @@ onMounted(() => {
   border: 1px solid #dcdfe6;
   border-radius: 4px;
   background-color: #fff;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 /* 分页器样式 */
@@ -710,7 +710,7 @@ onMounted(() => {
 }
 
 .pagination-info {
-  font-size: 14px;
+  font-size: 16px;
   color: #606266;
 }
 
@@ -741,7 +741,7 @@ onMounted(() => {
   padding: 60px 0;
   text-align: center;
   color: #409eff;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 /* 错误状态样式 */
@@ -749,7 +749,7 @@ onMounted(() => {
   padding: 60px 0;
   text-align: center;
   color: #f56c6c;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .error-state .btn {
@@ -761,7 +761,7 @@ onMounted(() => {
   padding: 60px 0;
   text-align: center;
   color: #909399;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 /* 确认对话框样式 */
@@ -791,13 +791,13 @@ onMounted(() => {
   margin-top: 0;
   margin-bottom: 16px;
   color: #303133;
-  font-size: 18px;
+  font-size: 20px;
 }
 
 .confirm-dialog p {
   margin-bottom: 24px;
   color: #606266;
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.5;
 }
 

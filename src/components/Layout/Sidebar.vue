@@ -95,14 +95,14 @@ const isActive = (path) => {
 }
 
 .sidebar-header h1 {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 600;
   color: #ffffff;
   margin-bottom: 4px;
 }
 
 .sidebar-header p {
-  font-size: 12px;
+  font-size: 18px;
   color: #a6a6a6;
 }
 
@@ -133,14 +133,14 @@ const isActive = (path) => {
 }
 
 .nav-icon {
-  font-size: 18px;
+  font-size: 20px;
   margin-right: 12px;
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
 }
 
 .nav-text {
-  font-size: 14px;
+  font-size: 16px;
 }
 
 /* 响应式设计 */
