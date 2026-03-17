@@ -30,14 +30,6 @@ const statusOptions = [
   { value: '2', label: '已驳回' }
 ]
 
-// 计算属性
-const filteredAppeals = computed(() => {
-  if (statusFilter.value === 'all') {
-    return appeals.value
-  }
-  return appeals.value.filter(a => a.status.toString() === statusFilter.value)
-})
-
 // 工具函数
 const getStatusText = (status) => {
   const map = {
@@ -219,7 +211,7 @@ onMounted(() => {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(appeal, index) in filteredAppeals" :key="appeal._id">
+          <tr v-for="(appeal, index) in appeals" :key="appeal._id">
             <td class="index-cell">{{ (pagination.page - 1) * pagination.pageSize + index + 1 }}</td>
             <td>{{ appeal.stu_id }}</td>
             <td>{{ appeal.name }}</td>
@@ -239,7 +231,7 @@ onMounted(() => {
         </tbody>
       </table>
 
-      <div v-if="!loading && filteredAppeals.length === 0" class="empty-state">
+      <div v-if="!loading && appeals.length === 0" class="empty-state">
         暂无申诉数据
       </div>
     </div>

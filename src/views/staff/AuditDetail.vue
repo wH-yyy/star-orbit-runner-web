@@ -1,13 +1,10 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getAuditRecordDetail, submitAudit as submitAuditApi, updateAuditResult, getCurrentStaff } from '../../api/staff.js'
+import { getAuditRecordDetail, submitAudit as submitAuditApi, updateAuditResult } from '../../api/staff.js'
 
 const route = useRoute()
 const router = useRouter()
-
-// 当前工作人员
-const currentStaff = ref(null)
 
 // 记录ID列表和当前索引
 const currentId = ref('')
@@ -17,8 +14,6 @@ const currentIndex = ref(0)
 // 当前记录详情
 const recordDetail = ref(null)
 const loading = ref(false)
-const errorMsg = ref('')
-const successMsg = ref('')
 
 const toastVisible = ref(false)
 const toastText = ref('')
@@ -185,7 +180,6 @@ async function loadCurrentRecord() {
 
   const recordId = recordIds.value[currentIndex.value]
   loading.value = true
-  errorMsg.value = ''
 
   try {
     const detail = await getAuditRecordDetail(recordId)
@@ -275,8 +269,6 @@ async function submitApprove() {
   }
 
   loading.value = true
-  errorMsg.value = ''
-  successMsg.value = ''
 
   try {
     const auditData = {
@@ -308,7 +300,6 @@ async function submitApprove() {
     if (hasNext.value) {
       setTimeout(() => {
         goNext()
-        successMsg.value = '' // 清除提示，避免累积
       }, 1000)
     } else {
       // 没有下一条，停留并显示完成提示
@@ -340,8 +331,6 @@ async function submitReject() {
   }
 
   loading.value = true
-  errorMsg.value = ''
-  successMsg.value = ''
 
   try {
     const auditData = {
@@ -373,7 +362,6 @@ async function submitReject() {
     if (hasNext.value) {
       setTimeout(() => {
         goNext()
-        successMsg.value = '' // 清除提示，避免累积
       }, 1000)
     } else {
       // 没有下一条，停留并显示完成提示
@@ -414,14 +402,6 @@ watch(
   },
   { immediate: true }
 )
-
-onMounted(() => {
-  currentStaff.value = getCurrentStaff()
-  if (!currentStaff.value) {
-    showToast('未获取到工作人员信息，请重新登录', 'error')
-    // 可跳转到登录页
-  }
-})
 </script>
 
 <template>
@@ -596,19 +576,6 @@ onMounted(() => {
   padding: 0;
 }
 
-.detail-header {
-  display: flex;
-  align-items: center;
-  padding-bottom: 10px;
-}
-
-.detail-header h2 {
-  margin: 0 0 0 20px;
-  font-size: 24px;
-  font-weight: 600;
-  color: #333;
-}
-
 .back-btn {
   padding: 6px 12px;
   border: 1px solid #ddd;
@@ -618,11 +585,6 @@ onMounted(() => {
 
 .back-btn:hover {
   background: #f5f5f5;
-}
-
-.header-actions {
-  display: flex;
-  gap: 10px;
 }
 
 .nav-btn {
@@ -814,51 +776,6 @@ onMounted(() => {
   border-bottom: 1px solid #f0f0f0;
 }
 
-.student-avatar {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  overflow: hidden;
-  background: #f0f0f0; /* 背景色，当图片加载失败时显示 */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.avatar-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.avatar-text {
-  color: white;
-  font-size: 24px;
-  font-weight: 500;
-  text-transform: uppercase;
-  background: #667eea; /* 主题色 */
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.avatar-text {
-  color: white;
-  font-size: 24px;
-  font-weight: 500;
-  text-transform: uppercase;
-}
-
-.student-details {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
 .student-name {
   font-size: 20px;
   font-weight: 600;
@@ -912,66 +829,6 @@ onMounted(() => {
   border-bottom: none;
   margin-bottom: 0;
   padding-bottom: 0;
-}
-
-.block-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.block-header h3 {
-  margin: 0;
-  padding: 0;
-}
-
-.ocr-badge {
-  font-size: 12px;
-  color: #116f7c;
-  background: #cbecff;
-  padding: 2px 8px;
-  border-radius: 12px;
-  margin-bottom: 12px;
-}
-
-/* 带状态的值 */
-.value-with-status {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-}
-
-.value-with-status .value {
-  font-weight: 500;
-  margin-bottom: 4px;
-}
-
-.value-with-status .status-badge {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: normal;
-  width: fit-content;
-}
-
-.value-with-status .status-badge.success {
-  background: #f6ffed;
-  color: #52c41a;
-  border: 1px solid #b7eb8f;
-}
-
-.value-with-status .status-badge.fail {
-  background: #fff1f0;
-  color: #f5222d;
-  border: 1px solid #ffa39e;
-}
-
-.value-with-status .status-badge.unknown {
-  background: #f5f5f5;
-  color: #999;
-  border: 1px solid #d9d9d9;
 }
 
 .info-item {
@@ -1166,37 +1023,6 @@ onMounted(() => {
   background: #a0b0cc;  /* 蓝灰色背景 */
   opacity: 0.6;
   cursor: not-allowed;
-}
-
-.message-banner {
-  padding: 12px 20px;
-  border-radius: 8px;
-  margin-bottom: 20px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 14px;
-}
-
-.message-banner.error {
-  background: #fff1f0;
-  border: 1px solid #ffccc7;
-  color: #ff4d4f;
-}
-
-.message-banner.success {
-  background: #f6ffed;
-  border: 1px solid #b7eb8f;
-  color: #52c41a;
-}
-
-.close-msg {
-  background: none;
-  border: none;
-  font-size: 20px;
-  cursor: pointer;
-  color: inherit;
-  opacity: 0.6;
 }
 
 .loading-state {
