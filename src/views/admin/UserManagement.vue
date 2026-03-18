@@ -49,7 +49,7 @@
       <input
           type="text"
           v-model.lazy="searchKeyword"
-          placeholder="请输入搜索关键词（班级、姓名、学号）"
+          placeholder="请输入搜索关键词（支持班级、姓名、学号）"
           class="search-input"
           @keyup.enter="handleSearch"
       />
@@ -574,7 +574,7 @@ onMounted(() => {
 .user-table th,
 .user-table td {
   padding: 8px 12px;
-  text-align: left;
+  text-align: center;
   border-bottom: 1px solid #ebeef5;
   font-size: 16px;
   max-width: 150px;
@@ -611,7 +611,8 @@ onMounted(() => {
 /* 操作按钮样式 */
 .action-buttons {
   display: flex;
-  gap: 6px;
+  justify-content: center;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
