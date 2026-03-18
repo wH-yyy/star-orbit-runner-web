@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getAppealDetail, processAppeal } from '@/api/staff'
 import { showSuccess, showError, showWarning } from '@/utils/toast'
@@ -14,7 +14,6 @@ const processing = ref(false)
 
 // 弹窗状态
 const showPassConfirmDialog = ref(false)
-const showRejectDialog = ref(false)
 const rejectReason = ref('')
 const selectedReasons = ref([])
 
@@ -28,8 +27,55 @@ const commonRejectReasons = [
   { id: 2, text: '截图不完整' },
   { id: 3, text: '截图有误' },
   { id: 4, text: '截图疑似经过处理或P图' },
-  { id: 5, text: '截图信息不清晰，无法识别' }
+  { id: 5, text: '截图信息不清晰，无法识别' },
+  { id: 6, text: '其他理由' }   // 新增
 ]
+
+// 新增状态
+const remark = ref('')
+const showRejectConfirmDialog = ref(false)
+
+// 记录ID列表和当前索引（用于上下条导航）
+const recordIds = ref([])
+const currentIndex = ref(0)
+
+// 解析路由参数，从 query 中获取 ids 和 index
+function parseRouteParams() {
+  const id = route.params.id
+  const idsQuery = route.query.ids
+  const indexQuery = route.query.index
+
+  if (!id) {
+    router.push('/staff/appeal')
+    return
+  }
+
+  // 解析 ID 列表
+  if (idsQuery && typeof idsQuery === 'string') {
+    recordIds.value = idsQuery.split(',').filter(id => id.trim() !== '')
+  } else {
+    recordIds.value = [id]
+  }
+
+  // 确定当前索引
+  if (indexQuery !== undefined) {
+    const idx = parseInt(indexQuery, 10)
+    if (!isNaN(idx) && idx >= 0 && idx < recordIds.value.length) {
+      currentIndex.value = idx
+    } else {
+      const foundIdx = recordIds.value.findIndex(i => i === id)
+      currentIndex.value = foundIdx !== -1 ? foundIdx : 0
+    }
+  } else {
+    const foundIdx = recordIds.value.findIndex(i => i === id)
+    currentIndex.value = foundIdx !== -1 ? foundIdx : 0
+  }
+}
+
+// 计算属性：是否有上一条/下一条
+const hasPrev = computed(() => currentIndex.value > 0)
+const hasNext = computed(() => currentIndex.value < recordIds.value.length - 1)
+
 
 // 工具函数
 const getStatusText = (status) => {
@@ -106,12 +152,6 @@ const isReasonSelected = (reasonId) => {
   return selectedReasons.value.includes(reasonId)
 }
 
-const clearRejectDialog = () => {
-  showRejectDialog.value = false
-  rejectReason.value = ''
-  selectedReasons.value = []
-}
-
 // 图片预览
 const openImagePreview = (imageUrl) => {
   previewImage.value = imageUrl
@@ -146,6 +186,99 @@ const loadDetail = async () => {
     goBackToList()
   } finally {
     loading.value = false
+  }
+}
+
+
+// 翻页函数
+function goPrev() {
+  if (hasPrev.value) {
+    currentIndex.value--
+    const newId = recordIds.value[currentIndex.value]
+    router.push({
+      path: `/staff/appeal/${newId}`,
+      query: {
+        ids: recordIds.value.join(','),
+        index: currentIndex.value
+      }
+    })
+  }
+}
+
+function goNext() {
+  if (hasNext.value) {
+    currentIndex.value++
+    const newId = recordIds.value[currentIndex.value]
+    router.push({
+      path: `/staff/appeal/${newId}`,
+      query: {
+        ids: recordIds.value.join(','),
+        index: currentIndex.value
+      }
+    })
+  }
+}
+
+// 监听路由参数变化
+watch(
+  () => [route.params.id, route.query.ids, route.query.index],
+  () => {
+    parseRouteParams()
+    loadDetail()
+  },
+  { immediate: true }
+)
+
+// 清空选择
+const clearRejectDialog = () => {
+  selectedReasons.value = []
+  remark.value = ''
+}
+
+// 打开驳回确认
+const openRejectConfirm = () => {
+  if (selectedReasons.value.length === 0) {
+    showWarning('请至少选择一个驳回理由')
+    return
+  }
+  const hasOther = selectedReasons.value.includes(6)
+  if (hasOther && !remark.value.trim()) {
+    showWarning('请填写其他理由的详细内容')
+    return
+  }
+  showRejectConfirmDialog.value = true
+}
+
+// 确认驳回
+const confirmReject = async () => {
+  showRejectConfirmDialog.value = false
+  // 合并理由：选中的理由文本 + 备注
+  const selectedReasonTexts = selectedReasons.value
+    .map(id => commonRejectReasons.find(r => r.id === id)?.text)
+    .filter(t => t)
+    .join('；')
+  const finalReason = selectedReasonTexts + (remark.value ? `；${remark.value}` : '')
+
+  processing.value = true
+  try {
+    await processAppeal(appealDetail.value._id, 2, finalReason)
+
+    // 更新本地数据
+    appealDetail.value.status = 2
+    appealDetail.value.auditResult = finalReason
+    appealDetail.value.auditTime = new Date()
+    if (appealDetail.value.runningRecord) {
+      appealDetail.value.runningRecord.status = 2
+      appealDetail.value.runningRecord.audit_reason = finalReason
+    }
+
+    showSuccess('申诉处理成功！')
+    clearRejectDialog()
+  } catch (error) {
+    console.error('处理申诉失败:', error)
+    showError('处理申诉失败: ' + error.message)
+  } finally {
+    processing.value = false
   }
 }
 
@@ -187,17 +320,17 @@ const cancelAppealPass = () => {
   showPassConfirmDialog.value = false
 }
 
-// 驳回申诉
-const handleAppealReject = () => {
-  if (!appealDetail.value || !appealDetail.value._id) {
-    showWarning('申诉信息不完整')
-    return
-  }
-  showRejectDialog.value = true
-}
-
 const isRejectConfirmDisabled = computed(() => {
   return !rejectReason.value.trim()
+})
+
+const isRejectDisabled = computed(() => {
+  if (processing.value) return true
+  const hasOther = selectedReasons.value.includes(6) // id 6 是“其他理由”
+  if (hasOther && !remark.value.trim()) {
+    return true
+  }
+  return false
 })
 
 const submitAppealReject = async () => {
@@ -233,7 +366,7 @@ const submitAppealReject = async () => {
 }
 
 onMounted(() => {
-  loadDetail()
+
 })
 </script>
 
@@ -247,8 +380,9 @@ onMounted(() => {
         <!-- 申诉信息卡片 -->
         <div class="info-card">
           <div class="card-header">
-            <button @click="goBackToList" class="back-btn">< 返回</button>
-            <h3>{{ appealDetail.name }} {{ appealDetail.stu_id }}</h3>
+            <button @click="goBackToList" class="back-btn">
+              < 返回</button>
+                <h3>{{ appealDetail.name }} {{ appealDetail.stu_id }}</h3>
           </div>
           <div class="info-grid">
             <div class="info-item">
@@ -322,15 +456,43 @@ onMounted(() => {
       <div class="col-right">
         <div v-if="appealDetail.status === 0" class="action-card">
           <h3>处理申诉</h3>
+          <!-- 驳回理由多选 -->
+          <div class="reasons-section">
+            <h4>驳回理由（可多选）</h4>
+            <div class="reasons-list">
+              <label v-for="reason in commonRejectReasons" :key="reason.id"
+                :class="['option-btn', { active: selectedReasons.includes(reason.id) }]">
+                <input type="checkbox" :value="reason.id" v-model="selectedReasons" hidden />
+                <span>{{ reason.text }}</span>
+              </label>
+            </div>
+          </div>
+          <!-- 备注输入框 -->
+          <div class="remark-section">
+            <h4>
+              备注
+              <span v-if="selectedReasons.includes(6) && !remark.trim()" class="required-tip">
+                请输入驳回理由
+              </span>
+            </h4>
+            <textarea v-model="remark" placeholder="请输入备注信息..." rows="3" class="remark-input"></textarea>
+          </div>
+          <!-- 操作按钮 -->
           <div class="action-buttons">
             <button @click="handleAppealPass" class="btn-resolved" :disabled="processing">
               {{ processing ? '处理中...' : '接受申诉' }}
             </button>
-            <button @click="handleAppealReject" class="btn-rejected" :disabled="processing">
+            <button @click="openRejectConfirm" class="btn-rejected" :disabled="isRejectDisabled">
               {{ processing ? '处理中...' : '驳回申诉' }}
             </button>
           </div>
-          <p class="action-hint" v-if="processing">正在处理，请稍候...</p>
+          <!-- 导航按钮 -->
+          <div class="nav-buttons">
+            <button @click="goPrev" :disabled="!hasPrev || loading" class="nav-btn prev-btn">
+              < 上一条</button>
+                <p>{{ currentIndex + 1 }} / {{ recordIds.length }}</p>
+                <button @click="goNext" :disabled="!hasNext || loading" class="nav-btn next-btn">下一条 ></button>
+          </div>
         </div>
         <div v-else class="info-card">
           <h3>处理结果</h3>
@@ -344,40 +506,6 @@ onMounted(() => {
             <label>审核意见：</label>
             <span>{{ appealDetail.auditResult }}</span>
           </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 驳回申诉弹窗（保持不变） -->
-    <div v-if="showRejectDialog" class="modal-overlay" @click.self="clearRejectDialog">
-      <div class="modal-dialog">
-        <div class="modal-header">
-          <h3>驳回申诉</h3>
-          <button class="modal-close" @click="clearRejectDialog">×</button>
-        </div>
-        <div class="modal-content">
-          <div class="form-group">
-            <label>驳回理由：</label>
-            <textarea v-model="rejectReason" placeholder="请输入驳回申诉的理由..." rows="4"
-              @input="rejectReason = $event.target.value"></textarea>
-            <p class="form-hint">请输入详细的驳回理由</p>
-          </div>
-          <div class="common-reasons">
-            <h4>常见驳回理由（可多选）</h4>
-            <div class="reason-options">
-              <button v-for="reason in commonRejectReasons" :key="reason.id" @click="selectCommonReason(reason)"
-                :class="['reason-option', { 'selected': isReasonSelected(reason.id) }]">
-                {{ reason.text }}
-              </button>
-            </div>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn-cancel" @click="clearRejectDialog">取消</button>
-          <button class="btn-confirm" @click="submitAppealReject" :disabled="isRejectConfirmDisabled"
-            :class="{ 'disabled': isRejectConfirmDisabled }">
-            确定驳回
-          </button>
         </div>
       </div>
     </div>
@@ -398,6 +526,27 @@ onMounted(() => {
           <button class="btn-cancel" @click="cancelAppealPass">取消</button>
           <button class="btn-confirm" @click="confirmAppealPass">
             确定接受
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 驳回申诉确认弹窗 -->
+    <div v-if="showRejectConfirmDialog" class="modal-overlay" @click.self="showRejectConfirmDialog = false">
+      <div class="modal-dialog pass-confirm-dialog">
+        <div class="modal-header">
+          <h3>确认驳回申诉</h3>
+          <button class="modal-close" @click="showRejectConfirmDialog = false">×</button>
+        </div>
+        <div class="modal-content">
+          <p class="confirm-message">
+            确定驳回该申诉吗？驳回后对应的跑步记录将保持"不通过"状态。
+          </p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-cancel" @click="showRejectConfirmDialog = false">取消</button>
+          <button class="btn-confirm" @click="confirmReject">
+            确定驳回
           </button>
         </div>
       </div>
@@ -459,7 +608,8 @@ onMounted(() => {
 }
 
 .col-left {
-  flex: 2.4; /* 1.2 + 1.2，合并后左列宽度 */
+  flex: 2.4;
+  /* 1.2 + 1.2，合并后左列宽度 */
   min-width: 0;
 }
 
@@ -470,13 +620,19 @@ onMounted(() => {
 
 /* 卡片通用样式 */
 .info-card,
-.content-card,
 .action-card {
   background: white;
   padding: 20px;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   margin-bottom: 10px;
+}
+
+.content-card {
+  background: white;
+  padding: 0;
+  border-radius: 0;
+  margin-top: 10px;
 }
 
 .info-card:last-child,
@@ -486,7 +642,7 @@ onMounted(() => {
 }
 
 h3 {
-  margin: 0 0 16px 0;
+  margin: 0;
   font-size: 18px;
   color: #333;
   padding-bottom: 12px;
@@ -930,6 +1086,105 @@ h3 {
 .thumbnail:hover {
   transform: scale(1.1);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.reasons-section h4,
+.remark-section h4 {
+  font-weight: 500;
+  margin: 10px auto;
+}
+
+.reasons-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.option-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  border: 1px solid #ddd;
+  border-radius: 20px;
+  background: white;
+  color: #666;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.option-btn.active {
+  background: #667eea;
+  border-color: #667eea;
+  color: white;
+}
+
+.option-btn input {
+  display: none;
+}
+
+.remark-input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 16px;
+  font-family: inherit;
+  resize: vertical;
+  box-sizing: border-box;
+  margin-bottom: 10px;
+}
+
+.nav-buttons {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  margin-top: 16px;
+}
+
+.nav-buttons p {
+  margin: 0;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  color: #666;
+  font-size: 16px;
+}
+
+.nav-buttons .nav-btn {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: center;
+}
+
+.nav-buttons .nav-btn:not(:disabled) {
+  background: #667eea;
+}
+
+.nav-buttons .nav-btn:not(:disabled):hover {
+  background: #5a6fe0;
+}
+
+.nav-buttons .nav-btn:disabled {
+  background: #a0b0cc;
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.required-tip {
+  color: red;
+  font-size: 14px;
+  margin-left: 8px;
+  font-weight: normal;
 }
 
 /* 响应式调整 */
