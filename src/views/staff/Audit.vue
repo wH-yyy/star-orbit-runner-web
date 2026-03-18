@@ -511,6 +511,22 @@ onMounted(() => {
   100% { transform: rotate(360deg); }
 }
 
+.page-header {
+  margin-bottom: 30px;
+}
+
+.page-header h1 {
+  font-size: 24px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.page-header p {
+  color: #666;
+  font-size: 14px;
+}
+
 .search-filters {
   background: white;
   border-radius: 12px;
