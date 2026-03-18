@@ -218,8 +218,9 @@ async function openQuickAudit() {
     // 获取分配给当前工作人员的所有记录（全部状态）
     const result = await getAuditRecords({
       staffId: currentStaff.value._id,
+      status: 0,
       page: 1,
-      pageSize: 1000 // 足够大
+      pageSize: 30,
     })
     const records = (result.records || result.list || []).map(record => ({
       id: record._id || record.id,
@@ -234,7 +235,7 @@ async function openQuickAudit() {
     }))
 
     if (records.length === 0) {
-      successMsg.value = '暂无任何记录'
+      successMsg.value = '暂无待审记录'
       return
     }
 
@@ -429,7 +430,7 @@ onMounted(() => {
       </div>
 
       <div v-if="!loading && auditRecords.length === 0" class="empty-state">
-        {{ errorMsg ? '加载失败' : '暂无审核记录' }}
+        {{ errorMsg ? '加载失败' : '暂无待审记录' }}
       </div>
     </div>
   </div>
