@@ -653,7 +653,7 @@ watch(
 }
 
 .mode-info {
-  font-size: 14px;
+  font-size: 16px;
   color: #999;
   margin-bottom: 0;
   text-align: center;
@@ -681,7 +681,7 @@ watch(
   border-radius: 4px;
   background: white;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 16px;
   transition: all 0.2s;
 }
 
@@ -696,7 +696,6 @@ watch(
 }
 
 .screenshot-container {
-  /* 移除 flex: 1 */
   display: flex;
   justify-content: center;
   align-items: center;
@@ -751,7 +750,7 @@ watch(
 .info-item {
   display: flex;
   margin-bottom: 12px;
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.5;
 }
 
@@ -792,9 +791,9 @@ watch(
 
 .status-badge {
   display: inline-block;
-  padding: 4px 8px;
+  padding: 2px 4px;
   border-radius: 12px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
 }
 
@@ -831,26 +830,6 @@ watch(
   padding-bottom: 0;
 }
 
-.info-item {
-  display: flex;
-  margin-bottom: 12px;
-  font-size: 14px;
-  line-height: 1.5;
-}
-
-.info-item .label {
-  width: 90px;
-  color: #666;
-  font-weight: 500;
-  flex-shrink: 0;
-}
-
-.info-item .value {
-  color: #333;
-  flex: 1;
-}
-
-
 .reasons-section h4,
 .remark-section h4 {
   font-weight: 500;
@@ -865,7 +844,7 @@ watch(
   padding: 12px 20px;
   border-radius: 8px;
   margin: 14px 0;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 /* 按钮样式 */
@@ -885,7 +864,7 @@ watch(
   border-radius: 20px;
   background: white;
   color: #666;
-  font-size: 14px;
+  font-size: 16px;
   cursor: pointer;
   transition: all 0.2s ease;
   user-select: none;
@@ -909,7 +888,7 @@ watch(
 
 .required-tip {
   color: red;
-  font-size: 12px;
+  font-size: 16px;
   margin-left: 8px;
   font-weight: normal;
 }
@@ -919,7 +898,7 @@ watch(
   padding: 10px;
   border: 1px solid #ddd;
   border-radius: 6px;
-  font-size: 14px;
+  font-size: 16px;
   font-family: inherit;
   resize: vertical;
   box-sizing: border-box;
@@ -994,7 +973,7 @@ watch(
   display: flex;
   align-items: center;      /* 文本垂直居中 */
   color: #666;              /* 保持与现有文字颜色一致（可选） */
-  font-size: 14px;          /* 可根据需要调整字号 */
+  font-size: 16px;          /* 可根据需要调整字号 */
 }
 
 .nav-buttons .nav-btn {
@@ -1103,7 +1082,7 @@ watch(
   transform: translateX(-50%);
   padding: 12px 24px;
   border-radius: 8px;
-  font-size: 14px;
+  font-size: 16px;
   z-index: 9999;
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
   color: white;
@@ -1156,7 +1135,7 @@ watch(
   border: none;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 16px;
   transition: all 0.3s;
 }
 
@@ -1193,7 +1172,7 @@ watch(
   }
   .size-btn {
     padding: 2px 4px;
-    font-size: 12px;
+    font-size: 16px;
   }
 }
 </style>

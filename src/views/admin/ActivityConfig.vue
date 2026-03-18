@@ -263,7 +263,7 @@ button:disabled {
 .delete-btn {
   background-color: #f56c6c;
   padding: 8px 16px;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .delete-btn:hover:not(:disabled) {

@@ -11,6 +11,17 @@ const loading = ref(false)
 const errorMsg = ref('')
 const successMsg = ref('')
 
+// 分页
+const pagination = ref({
+  page: 1,
+  pageSize: 10,
+  total: 0,
+  totalPages: 0
+})
+
+// 每页显示条数选项
+const pageSizeOptions = [5, 10, 15, 20, 30, 50, 100]
+
 // 当前登录的工作人员信息
 const currentStaff = ref(null)
 
@@ -25,33 +36,12 @@ const searchParams = ref({
   status: '0'
 })
 
+
 // 筛选后的记录（按时间倒序）
-const filteredRecords = computed(() => {
-  let filtered = auditRecords.value.filter(record => {
-    const recordStatus = String(record.status)
-    const searchStatus = (searchParams.value.status && searchParams.value.status !== 'all')
-      ? String(searchParams.value.status)
-      : ''
-    const recordDate = searchParams.value.date ? formatDateOnly(record.date || record.time) : ''
-
-    return (
-      (searchParams.value.username ? record.username.includes(searchParams.value.username) : true) &&
-      (searchParams.value.studentId ? record.studentId.includes(searchParams.value.studentId) : true) &&
-      (searchParams.value.date ? recordDate === searchParams.value.date : true) &&
-      (searchStatus ? recordStatus === searchStatus : true)
-    )
-  })
-
-  // 按时间倒序排列
-  return filtered.sort((a, b) => {
-    const dateA = new Date(a.date || a.time || 0)
-    const dateB = new Date(b.date || b.time || 0)
-    return dateB - dateA
-  })
-})
+const filteredRecords = computed(() => auditRecords.value)
 
 // 加载审核记录列表
-async function loadAuditRecords() {
+async function loadAuditRecords(targetPage) {
   loading.value = true
   errorMsg.value = ''
 
@@ -60,21 +50,24 @@ async function loadAuditRecords() {
       currentStaff.value = getCurrentStaff()
     }
 
+    // 确定请求的页码
+    const requestPage = targetPage !== undefined ? targetPage : pagination.value.page
+
     const params = {
       username: searchParams.value.username || undefined,
       studentId: searchParams.value.studentId || undefined,
       date: searchParams.value.date || undefined,
       status: searchParams.value.status || 'all',
       staffId: currentStaff.value?._id || undefined,
-      page: 1,
-      pageSize: 100
+      page: requestPage,
+      pageSize: pagination.value.pageSize
     }
 
     const result = await getAuditRecords(params)
+    const data = result
 
-    auditRecords.value = (result.records || result.list || []).map(record => ({
+    auditRecords.value = (data.records || []).map(record => ({
       id: record._id || record.id,
-      userId: record.userId,
       username: record.username || record.userName || '',
       studentId: record.studentId || '',
       date: record.date || record.checkInDate || '',
@@ -84,14 +77,90 @@ async function loadAuditRecords() {
       reasons: record.reasons || [],
       remark: record.remark || ''
     }))
+
+    pagination.value.total = data.total || 0
+    pagination.value.page = data.page || requestPage  // 更新页码为实际请求的页码
+    pagination.value.pageSize = data.pageSize || pagination.value.pageSize
+    pagination.value.totalPages = Math.ceil(pagination.value.total / pagination.value.pageSize)
+
   } catch (err) {
     console.error('加载审核记录失败:', err)
     errorMsg.value = err.message || '加载审核记录失败'
     auditRecords.value = []
+    pagination.value.total = 0
+    pagination.value.totalPages = 0
   } finally {
     loading.value = false
   }
 }
+
+// 分页方法
+const prevPage = () => {
+  const newPage = pagination.value.page - 1
+  if (newPage >= 1) {
+    loadAuditRecords(newPage)
+  }
+}
+
+const nextPage = () => {
+  const newPage = pagination.value.page + 1
+  if (newPage <= pagination.value.totalPages) {
+    loadAuditRecords(newPage)
+  }
+}
+
+const goToPage = (page) => {
+  if (page >= 1 && page <= pagination.value.totalPages) {
+    loadAuditRecords(page)
+  }
+}
+
+const goToFirstPage = () => {
+  if (pagination.value.page !== 1) {
+    loadAuditRecords(1)
+  }
+}
+
+const goToLastPage = () => {
+  const lastPage = pagination.value.totalPages
+  if (pagination.value.page !== lastPage) {
+    loadAuditRecords(lastPage)
+  }
+}
+
+const changePageSize = (size) => {
+  pagination.value.pageSize = size
+  loadAuditRecords(1)  // 重置到第一页
+}
+
+// 可见页码计算
+const visiblePages = computed(() => {
+  const pages = []
+  const total = pagination.value.totalPages
+  const current = pagination.value.page
+  const showPages = 5
+
+  if (total <= showPages) {
+    for (let i = 1; i <= total; i++) pages.push(i)
+  } else {
+    let start = Math.max(1, current - Math.floor(showPages / 2))
+    let end = start + showPages - 1
+    if (end > total) {
+      end = total
+      start = Math.max(1, end - showPages + 1)
+    }
+    if (start > 1) {
+      pages.push(1)
+      if (start > 2) pages.push('...')
+    }
+    for (let i = start; i <= end; i++) pages.push(i)
+    if (end < total) {
+      if (end < total - 1) pages.push('...')
+      pages.push(total)
+    }
+  }
+  return pages
+})
 
 // 重置筛选
 function resetFilters() {
@@ -101,10 +170,9 @@ function resetFilters() {
     date: '',
     status: '0'
   }
-  // 取消防抖计时器
   if (debounceTimer) clearTimeout(debounceTimer)
-  // 立即加载
-  loadAuditRecords()
+  pagination.value.page = 1
+  loadAuditRecords(1)
 }
 
 // 一键通过
@@ -230,8 +298,9 @@ function formatDateOnly(value) {
 watch(searchParams, () => {
   if (debounceTimer) clearTimeout(debounceTimer)
   debounceTimer = setTimeout(() => {
-    loadAuditRecords()
-  }, 300)
+    pagination.value.page = 1  // 重置为第一页
+    loadAuditRecords(1)
+  }, 100)
 }, { deep: true, immediate: false })
 
 onMounted(() => {
@@ -307,8 +376,8 @@ onMounted(() => {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(record, index) in filteredRecords" :key="record.id">
-            <td>{{ index + 1 }}</td>
+          <tr v-for="(record, index) in auditRecords" :key="record.id">
+            <td>{{ (pagination.page - 1) * pagination.pageSize + index + 1 }}</td>
             <td>{{ record.username }}</td>
             <td>{{ record.studentId }}</td>
             <td>{{ formatDateTime(record.date || record.time) }}</td>
@@ -326,8 +395,41 @@ onMounted(() => {
         </tbody>
       </table>
 
-      <div v-if="!loading && filteredRecords.length === 0" class="empty-state">
-        {{ errorMsg ? '加载失败' : '暂无待审记录' }}
+      <!-- 分页 -->
+      <div v-if="!loading && pagination.total > 0" class="pagination">
+        <div class="pagination-left">
+          <span>每页显示：</span>
+          <select v-model="pagination.pageSize" @change="changePageSize(pagination.pageSize)">
+            <option v-for="size in pageSizeOptions" :key="size" :value="size">{{ size }}条</option>
+          </select>
+        </div>
+        <div class="pagination-center">
+          <button @click="goToFirstPage" :disabled="pagination.page <= 1">首页</button>
+          <button @click="prevPage" :disabled="pagination.page <= 1">上一页</button>
+        
+          <span class="page-buttons">
+            <button
+              v-for="pageNum in visiblePages"
+              :key="pageNum"
+              @click="goToPage(pageNum)"
+              :class="{ 'current': pageNum === pagination.page }"
+              :disabled="pageNum === '...'"
+            >
+              {{ pageNum }}
+            </button>
+          </span>
+        
+          <button @click="nextPage" :disabled="pagination.page >= pagination.totalPages">下一页</button>
+          <button @click="goToLastPage" :disabled="pagination.page >= pagination.totalPages">末页</button>
+        
+          <span class="page-info">
+            第 {{ pagination.page }} 页 / 共 {{ pagination.totalPages }} 页 (共 {{ pagination.total }} 条)
+          </span>
+        </div>
+      </div>
+
+      <div v-if="!loading && auditRecords.length === 0" class="empty-state">
+        {{ errorMsg ? '加载失败' : '暂无审核记录' }}
       </div>
     </div>
   </div>
@@ -346,7 +448,7 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 14px;
+  font-size: 16px;
   animation: slideDown 0.3s ease;
 }
 
@@ -409,6 +511,22 @@ onMounted(() => {
   100% { transform: rotate(360deg); }
 }
 
+.page-header {
+  margin-bottom: 30px;
+}
+
+.page-header h1 {
+  font-size: 24px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.page-header p {
+  color: #666;
+  font-size: 16px;
+}
+
 .search-filters {
   background: white;
   border-radius: 12px;
@@ -434,7 +552,7 @@ onMounted(() => {
 .filter-item label {
   display: block;
   margin-bottom: 6px;
-  font-size: 13px;
+  font-size: 16px;
   color: #666;
   font-weight: 500;
 }
@@ -445,7 +563,7 @@ onMounted(() => {
   padding: 8px 12px;
   border: 1px solid #ddd;
   border-radius: 6px;
-  font-size: 13px;
+  font-size: 16px;
   box-sizing: border-box;
 }
 
@@ -464,7 +582,7 @@ onMounted(() => {
   background: #667eea;
   color: white;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 16px;
   transition: all 0.3s ease;
 }
 
@@ -482,7 +600,7 @@ onMounted(() => {
   padding: 8px 16px;
   border: none;
   border-radius: 6px;
-  font-size: 14px;
+  font-size: 16px;
   cursor: pointer;
   transition: all 0.3s ease;
 }
@@ -533,19 +651,19 @@ onMounted(() => {
 .audit-table th {
   background: #f9f9f9;
   font-weight: 600;
-  font-size: 14px;
+  font-size: 16px;
   color: #333;
 }
 
 .audit-table td {
-  font-size: 14px;
+  font-size: 16px;
   color: #666;
 }
 
 .status-badge {
   padding: 4px 8px;
   border-radius: 12px;
-  font-size: 12px;
+  font-size: 16px;
   font-weight: 500;
 }
 
@@ -576,7 +694,7 @@ onMounted(() => {
   background: white;
   color: #667eea;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 16px;
   transition: all 0.3s ease;
 }
 
@@ -594,7 +712,422 @@ onMounted(() => {
   text-align: center;
   padding: 60px 20px;
   color: #999;
-  font-size: 14px;
+  font-size: 16px;
+}
+
+/* 审核对话框 */
+.audit-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.audit-dialog {
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 800px;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.dialog-header h2 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+  margin: 0;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #999;
+  cursor: pointer;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+}
+
+.close-btn:hover {
+  background: #f0f0f0;
+  color: #333;
+}
+
+.dialog-content {
+  padding: 20px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.record-details {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.detail-row {
+  display: flex;
+  gap: 8px;
+}
+
+.detail-label {
+  font-weight: 500;
+  color: #333;
+  min-width: 80px;
+}
+
+.detail-value {
+  color: #666;
+}
+
+.screenshot-section {
+  margin-top: 24px;
+}
+
+.screenshot-section h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 12px;
+}
+
+.screenshot-preview {
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  padding: 12px;
+  text-align: center;
+}
+
+.screenshot-preview img {
+  max-width: 100%;
+  max-height: 300px;
+  border-radius: 4px;
+}
+
+.audit-section {
+  margin-top: 24px;
+}
+
+.audit-section h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 16px;
+}
+
+.audit-options {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 20px;
+}
+
+.radio-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.reasons-section {
+  margin-top: 20px;
+}
+
+.reasons-section h4 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 12px;
+}
+
+.reasons-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.checkbox-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  min-width: 120px;
+}
+
+.remark-section {
+  margin-top: 20px;
+}
+
+.remark-section h4 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 12px;
+}
+
+.remark-input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 16px;
+  font-family: inherit;
+  resize: vertical;
+  box-sizing: border-box;
+  transition: border-color 0.3s;
+}
+
+.remark-input:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.warning-tip {
+  margin-top: 20px;
+  padding: 12px;
+  background: #fff7e6;
+  border: 1px solid #ffd591;
+  border-radius: 6px;
+  color: #fa8c16;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.dialog-footer {
+  padding: 20px;
+  border-top: 1px solid #f0f0f0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.cancel-btn {
+  padding: 10px 20px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: white;
+  color: #666;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.3s ease;
+}
+
+.cancel-btn:hover:not(:disabled) {
+  background: #f5f5f5;
+}
+
+.cancel-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.submit-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  background: #667eea;
+  color: white;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.3s ease;
+}
+
+.submit-btn:hover:not(:disabled) {
+  background: #5a6fe0;
+}
+
+.submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: #ccc;
+}
+
+/* 图片预览样式 */
+.image-preview-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+}
+
+.image-preview-container {
+  position: relative;
+  max-width: 90vw;
+  max-height: 90vh;
+}
+
+.image-preview-close {
+  position: absolute;
+  top: -5%;
+  right: -10%;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  width: 10px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10%;
+  transition: all 0.3s;
+  z-index: 2001;
+}
+
+.image-preview-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.preview-image {
+  max-width: 100%;
+  max-height: 85vh;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+.option-btn input[type="radio"],
+.option-btn input[type="checkbox"] {
+  display: none;
+}
+
+/* 快速审核对话框的导航按钮 */
+.nav-btn {
+  padding: 8px 16px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: white;
+  color: #666;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.3s ease;
+}
+
+.nav-btn:hover:not(:disabled) {
+  background: #f5f5f5;
+}
+
+.nav-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 快速审核对话框宽度稍大 */
+.quick-audit-dialog {
+  max-width: 900px;
+}
+
+/* 分页样式 */
+.pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  margin-top: 0;
+}
+.pagination-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.pagination-left span {
+  color: #666;
+  font-size: 16px;
+}
+.pagination-left select {
+  padding: 6px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  font-size: 16px;
+  cursor: pointer;
+}
+.pagination-center {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.pagination-center button {
+  padding: 8px 20px;
+  background: white;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.3s;
+}
+.pagination-center button:hover:not(:disabled) {
+  border-color: #1890ff;
+  color: #ffffff;
+}
+.pagination-center button:disabled {
+  color: #d9d9d9;
+  cursor: not-allowed;
+}
+.page-info {
+  color: #666;
+  font-size: 16px;
+}
+.page-buttons {
+  display: flex;
+  gap: 4px;
+}
+.page-buttons button {
+  min-width: 36px;
+  height: 36px;
+  padding: 0 8px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.3s;
+}
+.page-buttons button:hover:not(:disabled):not(.current) {
+  border-color: #1890ff;
+  color: #1890ff;
+}
+.page-buttons button.current {
+  background: #1890ff;
+  color: white;
+  border-color: #1890ff;
+  font-weight: 500;
+}
+.page-buttons button:disabled {
+  color: #999;
+  cursor: default;
+  background: #f5f5f5;
 }
 
 /* 响应式设计 */
@@ -608,12 +1141,17 @@ onMounted(() => {
   }
 
   .audit-table {
-    font-size: 12px;
+    font-size: 16px;
   }
 
-  .audit-table th,
-  .audit-table td {
-    padding: 8px 12px;
+  .audit-options {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .reasons-list {
+    flex-direction: column;
+    gap: 8px;
   }
 }
 </style>
