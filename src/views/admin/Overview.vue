@@ -173,6 +173,7 @@ const initOrUpdateChart = () => {
 
     const option = {
       title: {
+        text: '每日打卡人数折线图',
         left: 'center',
         textStyle: {
           fontSize: titleFontSize,
@@ -300,19 +301,6 @@ const exportData = () => {
 
 <template>
   <div class="overview-page">
-    <!-- 标题和刷新按钮 -->
-    <div class="page-header">
-      <h1>数据概览</h1>
-      <div class="header-actions">
-        <button @click="refreshStats" class="refresh-btn" :disabled="stats.loading">
-          {{ stats.loading ? '刷新中...' : '刷新数据' }}
-        </button>
-        <button @click="openExportDialog" class="export-btn">
-          导出数据
-        </button>
-      </div>
-    </div>
-
     <!-- 加载状态 -->
     <div v-if="stats.loading" class="loading-container">
       <div class="loading-spinner"></div>
@@ -350,37 +338,36 @@ const exportData = () => {
       </div>
     </div>
 
-    <!-- 时间范围选择器 -->
-    <div class="time-range-selector">
-      <div class="form-item">
-        <label class="form-label">统计时间范围</label>
-        <div class="date-range">
-          <input
-              type="date"
-              v-model="timeRange.start"
-              class="date-input"
-              :max="timeRange.end"
-          />
-          <span class="date-separator">至</span>
-          <input
-              type="date"
-              v-model="timeRange.end"
-              class="date-input"
-              :min="timeRange.start"
-          />
-          <button @click="resetTimeRange" class="reset-btn">
-            最近7天
-          </button>
-        </div>
-      </div>
-    </div>
-
     <!-- 每日打卡次数折线图 -->
     <div class="chart-container" v-show="!stats.loading && !stats.error">
       <div class="chart-header">
-        <h3>每日打卡人数趋势</h3>
-        <div class="chart-stats">
-          统计时间: {{ formatDateForInput(new Date(timeRange.start)) }} 至 {{ formatDateForInput(new Date(timeRange.end)) }}
+        <h3>打卡统计</h3>
+        <button @click="openExportDialog" class="export-btn">
+          导出数据
+        </button>
+      </div>
+      <!-- 时间范围选择器 -->
+      <div class="time-range-selector">
+        <div class="form-item">
+          <label class="form-label">折线图时间范围</label>
+          <div class="date-range">
+            <input
+                type="date"
+                v-model="timeRange.start"
+                class="date-input"
+                :max="timeRange.end"
+            />
+            <span class="date-separator">至</span>
+            <input
+                type="date"
+                v-model="timeRange.end"
+                class="date-input"
+                :min="timeRange.start"
+            />
+            <button @click="resetTimeRange" class="reset-btn">
+              最近7天
+            </button>
+          </div>
         </div>
       </div>
       <div id="daily-chart" class="chart" ref="chartContainer"></div>
@@ -454,50 +441,6 @@ const exportData = () => {
   overflow-x: hidden;
 }
 
-/* 页面标题 */
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: clamp(8px, 1.5vw, 16px);
-  margin-bottom: clamp(16px, 2vw, 20px);
-}
-
-.page-header h1 {
-  font-size: clamp(1.5rem, 2vw, 1.75rem); /* 24-28px */
-  font-weight: 600;
-  color: #303133;
-  margin: 0;
-  line-height: 1.2;
-}
-
-.header-actions {
-  display: flex;
-  gap: clamp(8px, 1vw, 10px);
-}
-
-.refresh-btn {
-  padding: clamp(6px, 0.8vw, 8px) clamp(12px, 1.5vw, 16px);
-  background-color: #409eff;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: clamp(0.875rem, 1vw, 1rem); /* 14-16px */
-  transition: background-color 0.3s;
-  white-space: nowrap;
-  min-height: 36px;
-}
-
-.refresh-btn:hover:not(:disabled) {
-  background-color: #66b1ff;
-}
-
-.refresh-btn:disabled {
-  background-color: #a0cfff;
-  cursor: not-allowed;
-}
 
 .export-btn {
   padding: clamp(6px, 0.8vw, 8px) clamp(12px, 1.5vw, 16px);
@@ -670,11 +613,7 @@ const exportData = () => {
 /* 时间范围选择器 */
 .time-range-selector {
   background-color: #ffffff;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
-  padding: clamp(16px, 2vw, 20px);
-  margin-bottom: clamp(16px, 2vw, 20px);
-  width: 100%;
+  margin: 20px;
 }
 
 .form-item {
@@ -879,21 +818,14 @@ const exportData = () => {
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: clamp(8px, 1vw, 12px);
-  margin-bottom: clamp(12px, 2vw, 20px);
+  margin: 10px 20px;
 }
 
 .chart-header h3 {
-  font-size: clamp(1.125rem, 1.2vw, 1.25rem); /* 18-20px */
+  font-size: 22rpx;
   font-weight: 600;
   color: #303133;
   margin: 0;
-}
-
-.chart-stats {
-  font-size: clamp(0.875rem, 1vw, 1rem);
-  color: #909399;
-  white-space: nowrap;
 }
 
 .chart {
