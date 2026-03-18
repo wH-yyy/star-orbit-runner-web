@@ -14,8 +14,7 @@ const showDropdown = ref(false)
 
 // 从 store 获取用户信息
 const userInfo = computed(() => ({
-  name: store.state.user.info?.name || '用户',
-  email: store.state.user.info?.email || '',
+  name: store.state.user.info?.name || store.state.user.info?.username,
   avatar: UserIcon
 }))
 
