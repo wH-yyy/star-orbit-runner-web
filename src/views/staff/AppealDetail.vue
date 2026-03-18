@@ -542,7 +542,7 @@ h3 {
   align-items: flex-start;
   gap: 8px;
   min-height: 32px;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .info-item.full-width {
@@ -603,7 +603,7 @@ h3 {
   display: inline-block;
   padding: 4px 10px;
   border-radius: 12px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
 }
 .status-pending {
@@ -670,7 +670,7 @@ h3 {
   text-align: center;
   color: #1890ff;
   margin-top: 8px;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 /* 弹窗样式（从原文件复制，未改动） */
@@ -746,7 +746,7 @@ h3 {
   display: block;
   margin-bottom: 8px;
   color: #333;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 500;
 }
 
@@ -755,7 +755,7 @@ h3 {
   padding: 12px;
   border: 1px solid #d9d9d9;
   border-radius: 6px;
-  font-size: 14px;
+  font-size: 16px;
   font-family: inherit;
   resize: vertical;
   box-sizing: border-box;
@@ -770,7 +770,7 @@ h3 {
 .form-hint {
   margin: 8px 0 0 0;
   color: #999;
-  font-size: 12px;
+  font-size: 16px;
 }
 
 .common-reasons {
@@ -780,7 +780,7 @@ h3 {
 .common-reasons h4 {
   margin-bottom: 12px;
   color: #666;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 500;
 }
 
@@ -796,7 +796,7 @@ h3 {
   border: 1px solid #e8e8e8;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 16px;
   text-align: left;
   color: #666;
   transition: all 0.3s;
@@ -827,7 +827,7 @@ h3 {
 .modal-footer button {
   padding: 10px 24px;
   border-radius: 6px;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.3s;

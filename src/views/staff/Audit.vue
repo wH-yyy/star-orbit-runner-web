@@ -448,7 +448,7 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 14px;
+  font-size: 16px;
   animation: slideDown 0.3s ease;
 }
 
@@ -524,7 +524,7 @@ onMounted(() => {
 
 .page-header p {
   color: #666;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .search-filters {
@@ -552,7 +552,7 @@ onMounted(() => {
 .filter-item label {
   display: block;
   margin-bottom: 6px;
-  font-size: 13px;
+  font-size: 16px;
   color: #666;
   font-weight: 500;
 }
@@ -563,7 +563,7 @@ onMounted(() => {
   padding: 8px 12px;
   border: 1px solid #ddd;
   border-radius: 6px;
-  font-size: 13px;
+  font-size: 16px;
   box-sizing: border-box;
 }
 
@@ -582,7 +582,7 @@ onMounted(() => {
   background: #667eea;
   color: white;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 16px;
   transition: all 0.3s ease;
 }
 
@@ -600,7 +600,7 @@ onMounted(() => {
   padding: 8px 16px;
   border: none;
   border-radius: 6px;
-  font-size: 14px;
+  font-size: 16px;
   cursor: pointer;
   transition: all 0.3s ease;
 }
@@ -651,19 +651,19 @@ onMounted(() => {
 .audit-table th {
   background: #f9f9f9;
   font-weight: 600;
-  font-size: 14px;
+  font-size: 16px;
   color: #333;
 }
 
 .audit-table td {
-  font-size: 14px;
+  font-size: 16px;
   color: #666;
 }
 
 .status-badge {
   padding: 4px 8px;
   border-radius: 12px;
-  font-size: 12px;
+  font-size: 16px;
   font-weight: 500;
 }
 
@@ -694,7 +694,7 @@ onMounted(() => {
   background: white;
   color: #667eea;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 16px;
   transition: all 0.3s ease;
 }
 
@@ -712,7 +712,7 @@ onMounted(() => {
   text-align: center;
   padding: 60px 20px;
   color: #999;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 /* 审核对话框 */
@@ -856,7 +856,7 @@ onMounted(() => {
 }
 
 .reasons-section h4 {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
   color: #333;
   margin-bottom: 12px;
@@ -881,7 +881,7 @@ onMounted(() => {
 }
 
 .remark-section h4 {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
   color: #333;
   margin-bottom: 12px;
@@ -892,7 +892,7 @@ onMounted(() => {
   padding: 10px;
   border: 1px solid #ddd;
   border-radius: 6px;
-  font-size: 14px;
+  font-size: 16px;
   font-family: inherit;
   resize: vertical;
   box-sizing: border-box;
@@ -911,7 +911,7 @@ onMounted(() => {
   border: 1px solid #ffd591;
   border-radius: 6px;
   color: #fa8c16;
-  font-size: 13px;
+  font-size: 16px;
   line-height: 1.6;
 }
 
@@ -930,7 +930,7 @@ onMounted(() => {
   background: white;
   color: #666;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 16px;
   transition: all 0.3s ease;
 }
 
@@ -950,7 +950,7 @@ onMounted(() => {
   background: #667eea;
   color: white;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 16px;
   transition: all 0.3s ease;
 }
 
@@ -1028,7 +1028,7 @@ onMounted(() => {
   background: white;
   color: #666;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 16px;
   transition: all 0.3s ease;
 }
 
@@ -1064,13 +1064,13 @@ onMounted(() => {
 }
 .pagination-left span {
   color: #666;
-  font-size: 14px;
+  font-size: 16px;
 }
 .pagination-left select {
   padding: 6px 12px;
   border: 1px solid #d9d9d9;
   border-radius: 6px;
-  font-size: 14px;
+  font-size: 16px;
   cursor: pointer;
 }
 .pagination-center {
@@ -1084,7 +1084,7 @@ onMounted(() => {
   border: 1px solid #d9d9d9;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 16px;
   transition: all 0.3s;
 }
 .pagination-center button:hover:not(:disabled) {
@@ -1097,7 +1097,7 @@ onMounted(() => {
 }
 .page-info {
   color: #666;
-  font-size: 14px;
+  font-size: 16px;
 }
 .page-buttons {
   display: flex;
@@ -1111,7 +1111,7 @@ onMounted(() => {
   border-radius: 6px;
   background: white;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 16px;
   transition: all 0.3s;
 }
 .page-buttons button:hover:not(:disabled):not(.current) {
@@ -1141,7 +1141,7 @@ onMounted(() => {
   }
 
   .audit-table {
-    font-size: 12px;
+    font-size: 16px;
   }
 
   .audit-options {

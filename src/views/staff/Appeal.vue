@@ -329,14 +329,14 @@ onMounted(() => {
 }
 .filter-group label {
   color: #666;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 500;
 }
 .filter-group select {
   padding: 8px 16px;
   border: 1px solid #d9d9d9;
   border-radius: 6px;
-  font-size: 14px;
+  font-size: 16px;
   cursor: pointer;
   min-width: 120px;
 }
@@ -351,7 +351,7 @@ onMounted(() => {
   border: none;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 16px;
   transition: all 0.3s;
 }
 .refresh-btn:hover:not(:disabled) {
@@ -381,7 +381,7 @@ onMounted(() => {
 .appeal-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: 16px;
 }
 .appeal-table th {
   background: #fafafa;
@@ -418,7 +418,7 @@ onMounted(() => {
   display: inline-block;
   padding: 4px 12px;
   border-radius: 12px;
-  font-size: 12px;
+  font-size: 16px;
   font-weight: 500;
 }
 .status-pending {
@@ -440,7 +440,7 @@ onMounted(() => {
   color: #1890ff;
   border: 1px solid #91d5ff;
   border-radius: 4px;
-  font-size: 13px;
+  font-size: 16px;
   cursor: pointer;
   transition: all 0.3s;
 }
@@ -466,13 +466,13 @@ onMounted(() => {
 }
 .pagination-left span {
   color: #666;
-  font-size: 14px;
+  font-size: 16px;
 }
 .pagination-left select {
   padding: 6px 12px;
   border: 1px solid #d9d9d9;
   border-radius: 6px;
-  font-size: 14px;
+  font-size: 16px;
   cursor: pointer;
 }
 .pagination-center {
@@ -486,7 +486,7 @@ onMounted(() => {
   border: 1px solid #d9d9d9;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 16px;
   transition: all 0.3s;
 }
 .pagination-center button:hover:not(:disabled) {
@@ -499,7 +499,7 @@ onMounted(() => {
 }
 .page-info {
   color: #666;
-  font-size: 14px;
+  font-size: 16px;
 }
 .page-buttons {
   display: flex;
@@ -513,7 +513,7 @@ onMounted(() => {
   border-radius: 6px;
   background: white;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 16px;
   transition: all 0.3s;
 }
 .page-buttons button:hover:not(:disabled):not(.current) {

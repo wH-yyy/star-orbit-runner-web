@@ -628,7 +628,7 @@ onMounted(() => {
 
 .btn-sm {
   padding: 6px 12px;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .btn-primary {

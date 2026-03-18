@@ -616,13 +616,13 @@ const exportData = () => {
 
 .export-tips h4 {
   margin: 0 0 8px 0;
-  font-size: 15px;
+  font-size: 16px;
   color: #606266;
 }
 
 .export-tips p {
   margin: 0;
-  font-size: 14px;
+  font-size: 16px;
   color: #909399;
   line-height: 1.5;
 }
