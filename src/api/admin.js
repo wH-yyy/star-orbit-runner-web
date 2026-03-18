@@ -442,3 +442,204 @@ export async function deleteRestDay(id) {
         throw err
     }
 }
+
+/**
+ * 获取活动配置列表
+ * @returns {Promise<Array>} 活动配置列表
+ */
+export async function getActivityConfigList() {
+    try {
+        await ensureCloudLogin()
+
+        const res = await callFunction({
+            name: "manageActivityConfig",
+            data: {
+                action: 'list'
+            }
+        })
+
+        const result = res?.result
+        if (!result || !result.success) {
+            throw new Error(result?.message || '获取活动配置列表失败')
+        }
+
+        return result.data || []
+    } catch (err) {
+        console.error('获取活动配置列表失败:', err)
+        throw err
+    }
+}
+
+/**
+ * 创建活动配置
+ * @param {Object} data - 活动配置数据
+ * @param {string} data.semester - 学期名称
+ * @param {string} data.start_date - 开始日期
+ * @param {string} data.end_date - 结束日期
+ * @returns {Promise<Object>} 创建结果
+ */
+export async function createActivityConfig(data) {
+    try {
+        await ensureCloudLogin()
+
+        const res = await callFunction({
+            name: "manageActivityConfig",
+            data: {
+                action: 'create',
+                data
+            }
+        })
+
+        const result = res?.result
+        if (!result || !result.success) {
+            throw new Error(result?.message || '创建活动配置失败')
+        }
+
+        return result.data
+    } catch (err) {
+        console.error('创建活动配置失败:', err)
+        throw err
+    }
+}
+
+/**
+ * 更新活动配置
+ * @param {string} id - 活动ID
+ * @param {Object} data - 更新的数据
+ * @returns {Promise<Object>} 更新结果
+ */
+export async function updateActivityConfig(id, data) {
+    try {
+        await ensureCloudLogin()
+
+        const res = await callFunction({
+            name: "manageActivityConfig",
+            data: {
+                action: 'update',
+                id,
+                data
+            }
+        })
+
+        const result = res?.result
+        if (!result || !result.success) {
+            throw new Error(result?.message || '更新活动配置失败')
+        }
+
+        return result.data
+    } catch (err) {
+        console.error('更新活动配置失败:', err)
+        throw err
+    }
+}
+
+/**
+ * 删除活动配置
+ * @param {string} id - 活动ID
+ * @returns {Promise<Object>} 删除结果
+ */
+export async function deleteActivityConfig(id) {
+    try {
+        await ensureCloudLogin()
+
+        const res = await callFunction({
+            name: "manageActivityConfig",
+            data: {
+                action: 'delete',
+                id
+            }
+        })
+
+        const result = res?.result
+        if (!result || !result.success) {
+            throw new Error(result?.message || '删除活动配置失败')
+        }
+
+        return result.data
+    } catch (err) {
+        console.error('删除活动配置失败:', err)
+        throw err
+    }
+}
+
+/**
+ * 设置活动为激活状态
+ * @param {string} id - 活动ID
+ * @returns {Promise<Object>} 设置结果
+ */
+export async function setActivityActive(id) {
+    try {
+        await ensureCloudLogin()
+
+        const res = await callFunction({
+            name: "manageActivityConfig",
+            data: {
+                action: 'setActive',
+                id
+            }
+        })
+
+        const result = res?.result
+        if (!result || !result.success) {
+            throw new Error(result?.message || '设置活动激活失败')
+        }
+
+        return result.data
+    } catch (err) {
+        console.error('设置活动激活失败:', err)
+        throw err
+    }
+}
+
+/**
+ * 获取当前活动信息
+ * @returns {Promise<Object>} 当前活动信息
+ */
+export async function getCurrentActivity() {
+    try {
+        await ensureCloudLogin()
+
+        const res = await callFunction({
+            name: "getCurrentActivity"
+        })
+
+        const result = res?.result
+        if (!result || !result.success) {
+            throw new Error(result?.message || '获取当前活动信息失败')
+        }
+
+        return result.data
+    } catch (err) {
+        console.error('获取当前活动信息失败:', err)
+        throw err
+    }
+}
+
+/**
+ * 计算活动有效天数
+ * @param {Object} params - 计算参数
+ * @param {string} params.startDate - 开始日期
+ * @param {string} params.endDate - 结束日期
+ * @param {boolean} params.useCurrentDate - 是否使用当前日期
+ * @returns {Promise<Object>} 计算结果
+ */
+export async function calculateActivityDays(params = {}) {
+    try {
+        await ensureCloudLogin()
+
+        const res = await callFunction({
+            name: "calculateActivityDays",
+            data: params
+        })
+
+        const result = res?.result
+        if (!result || !result.success) {
+            throw new Error(result?.message || '计算活动天数失败')
+        }
+
+        return result.data
+    } catch (err) {
+        console.error('计算活动天数失败:', err)
+        throw err
+    }
+}
