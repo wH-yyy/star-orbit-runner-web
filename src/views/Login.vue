@@ -139,7 +139,6 @@ function handleStaffLoginSuccess(staffInfo) {
   const userData = {
     id: staffInfo._id,
     username: staffInfo.username,
-    name: staffInfo.real_name || staffInfo.username,
     role: 'staff',
     campus: staffInfo.campus,
   }

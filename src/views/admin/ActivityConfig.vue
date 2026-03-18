@@ -7,11 +7,11 @@
 
     <!-- 活动配置管理 -->
     <div class="activity-section">
-      <h2>活动配置管理</h2>
-      
+      <h2>活动周期管理</h2>
+
       <!-- 添加活动表单 -->
       <div class="add-form">
-        <h3>新增活动配置</h3>
+        <h3>新增活动周期</h3>
         <form @submit.prevent="handleAddActivity">
           <div class="form-row">
             <div class="form-item">
@@ -51,7 +51,7 @@
 
       <!-- 活动列表 -->
       <div class="activity-list">
-        <h3>活动配置列表</h3>
+        <h3>活动周期列表</h3>
         <div v-if="loadingActivities" class="loading">加载中...</div>
         <div v-else-if="activities.length === 0" class="empty">暂无活动配置</div>
         <table v-else>
@@ -150,7 +150,7 @@
     <!-- 停跑日管理（保留原有功能） -->
     <div class="rest-day-section">
       <h2>停跑日管理</h2>
-      
+
       <!-- 添加停跑日表单 -->
       <div class="add-form">
         <h3>新增停跑日</h3>
@@ -489,7 +489,7 @@ h3 {
 .add-form {
   background-color: #f8f8f8;
   border-radius: 10px;
-  padding: 24px 28px;
+  padding: 10px 28px;
   margin-bottom: 36px;
   box-shadow: 0 3px 8px rgba(0,0,0,0.08);
 }
@@ -659,15 +659,6 @@ th {
   font-size: 16px;
 }
 
-/* 分区样式 */
-.activity-section, .rest-day-section {
-  margin-bottom: 60px;
-}
-
-.activity-section {
-  border-bottom: 2px solid #e0e0e0;
-  padding-bottom: 40px;
-}
 
 /* 响应式设计 */
 @media (max-width: 768px) {

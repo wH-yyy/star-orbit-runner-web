@@ -177,8 +177,8 @@ onMounted(() => {
             <th>序号</th>
             <th>用户名</th>
             <th>校区</th>
-            <th>已完成数</th>
             <th>已分配数</th>
+            <th>已完成数</th>
             <th>状态</th>
             <th>操作</th>
           </tr>
@@ -188,8 +188,8 @@ onMounted(() => {
             <td>{{ index + 1 }}</td>
             <td>{{ account.username }}</td>
             <td>{{ account.campus || '-' }}</td>
-            <td>{{ account.completed_count || 0 }}</td>
             <td>{{ account.assigned_count || 0 }}</td>
+            <td>{{ account.completed_count || 0 }}</td>
             <td>
                 <span :class="['status-badge', `status-${account.status}`]">
                   {{ account.status }}
