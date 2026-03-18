@@ -18,10 +18,6 @@ const showRejectDialog = ref(false)
 const rejectReason = ref('')
 const selectedReasons = ref([])
 
-// 图片尺寸控制
-const imageSizeAppeal = ref('medium') // 申诉材料图片尺寸：small, medium, large
-const imageSizeRunning = ref('medium') // 跑步记录截图尺寸
-
 // 图片预览
 const previewImage = ref('')
 const showImagePreview = ref(false)
@@ -246,9 +242,9 @@ onMounted(() => {
     <div v-if="loading" class="loading">加载中...</div>
 
     <div v-else-if="appealDetail" class="detail-layout">
-      <!-- 左列：申诉信息 -->
+      <!-- 左列：申诉信息 + 跑步记录信息 -->
       <div class="col-left">
-        <!-- 申诉基本信息卡片 -->
+        <!-- 申诉信息卡片 -->
         <div class="info-card">
           <div class="card-header">
             <button @click="goBackToList" class="back-btn">< 返回</button>
@@ -274,35 +270,28 @@ onMounted(() => {
               <span>{{ appealDetail.auditor }}</span>
             </div>
           </div>
-        </div>
 
-        <div class="content-card">
-          <h3>申诉理由</h3>
-          <div class="description-box">
-            {{ appealDetail.appealReason || '无' }}
+          <!-- 申诉理由卡片 -->
+          <div class="content-card">
+            <h3>申诉理由</h3>
+            <div class="description-box">
+              {{ appealDetail.appealReason || '无' }}
+            </div>
           </div>
-        </div>
 
-        <!-- 申诉图片卡片 -->
-        <div v-if="appealDetail.appealImageUrls && appealDetail.appealImageUrls.length > 0" class="content-card">
-          <div class="card-header">
-            <h3>申诉材料 ({{ appealDetail.appealImageUrls.length }}张)</h3>
-            <div class="thumbnail-list">
-              <img
-                v-for="(imageUrl, index) in appealDetail.appealImageUrls"
-                :key="index"
-                :src="imageUrl"
-                :alt="'申诉图片' + (index + 1)"
-                class="thumbnail"
-                @click="openImagePreview(imageUrl)"
-              >
+          <!-- 申诉图片卡片 -->
+          <div v-if="appealDetail.appealImageUrls && appealDetail.appealImageUrls.length > 0" class="content-card">
+            <div class="card-header">
+              <h3>申诉材料 ({{ appealDetail.appealImageUrls.length }}张)</h3>
+              <div class="thumbnail-list">
+                <img v-for="(imageUrl, index) in appealDetail.appealImageUrls" :key="index" :src="imageUrl"
+                  :alt="'申诉图片' + (index + 1)" class="thumbnail" @click="openImagePreview(imageUrl)">
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- 中列：跑步记录信息 -->
-      <div class="col-middle">
+        <!-- 跑步记录卡片 -->
         <div v-if="appealDetail.runningRecord" class="info-card">
           <h3>对应的跑步记录</h3>
           <div class="info-grid">
@@ -317,18 +306,13 @@ onMounted(() => {
               <span>{{ appealDetail.runningRecord.audit_reason }}</span>
             </div>
           </div>
-        </div>
-
-        <div v-if="appealDetail.runningRecordImageUrl" class="content-card">
-          <div class="card-header">
-            <h3>跑步记录截图</h3>
-            <div class="thumbnail-list">
-              <img
-                :src="appealDetail.runningRecordImageUrl"
-                alt="跑步记录截图"
-                class="thumbnail"
-                @click="openImagePreview(appealDetail.runningRecordImageUrl)"
-              >
+          <div v-if="appealDetail.runningRecordImageUrl" class="content-card">
+            <div class="card-header">
+              <h3>跑步记录截图</h3>
+              <div class="thumbnail-list">
+                <img :src="appealDetail.runningRecordImageUrl" alt="跑步记录截图" class="thumbnail"
+                  @click="openImagePreview(appealDetail.runningRecordImageUrl)">
+              </div>
             </div>
           </div>
         </div>
@@ -339,18 +323,10 @@ onMounted(() => {
         <div v-if="appealDetail.status === 0" class="action-card">
           <h3>处理申诉</h3>
           <div class="action-buttons">
-            <button
-                @click="handleAppealPass"
-                class="btn-resolved"
-                :disabled="processing"
-            >
+            <button @click="handleAppealPass" class="btn-resolved" :disabled="processing">
               {{ processing ? '处理中...' : '接受申诉' }}
             </button>
-            <button
-                @click="handleAppealReject"
-                class="btn-rejected"
-                :disabled="processing"
-            >
+            <button @click="handleAppealReject" class="btn-rejected" :disabled="processing">
               {{ processing ? '处理中...' : '驳回申诉' }}
             </button>
           </div>
@@ -382,23 +358,15 @@ onMounted(() => {
         <div class="modal-content">
           <div class="form-group">
             <label>驳回理由：</label>
-            <textarea
-                v-model="rejectReason"
-                placeholder="请输入驳回申诉的理由..."
-                rows="4"
-                @input="rejectReason = $event.target.value"
-            ></textarea>
+            <textarea v-model="rejectReason" placeholder="请输入驳回申诉的理由..." rows="4"
+              @input="rejectReason = $event.target.value"></textarea>
             <p class="form-hint">请输入详细的驳回理由</p>
           </div>
           <div class="common-reasons">
             <h4>常见驳回理由（可多选）</h4>
             <div class="reason-options">
-              <button
-                  v-for="reason in commonRejectReasons"
-                  :key="reason.id"
-                  @click="selectCommonReason(reason)"
-                  :class="['reason-option', { 'selected': isReasonSelected(reason.id) }]"
-              >
+              <button v-for="reason in commonRejectReasons" :key="reason.id" @click="selectCommonReason(reason)"
+                :class="['reason-option', { 'selected': isReasonSelected(reason.id) }]">
                 {{ reason.text }}
               </button>
             </div>
@@ -406,12 +374,8 @@ onMounted(() => {
         </div>
         <div class="modal-footer">
           <button class="btn-cancel" @click="clearRejectDialog">取消</button>
-          <button
-              class="btn-confirm"
-              @click="submitAppealReject"
-              :disabled="isRejectConfirmDisabled"
-              :class="{ 'disabled': isRejectConfirmDisabled }"
-          >
+          <button class="btn-confirm" @click="submitAppealReject" :disabled="isRejectConfirmDisabled"
+            :class="{ 'disabled': isRejectConfirmDisabled }">
             确定驳回
           </button>
         </div>
@@ -487,7 +451,7 @@ onMounted(() => {
   font-size: 16px;
 }
 
-/* 三列布局 */
+/* 两列布局 */
 .detail-layout {
   display: flex;
   gap: 24px;
@@ -495,13 +459,10 @@ onMounted(() => {
 }
 
 .col-left {
-  flex: 1.2;
-  min-width: 0; /* 防止内容溢出 */
-}
-.col-middle {
-  flex: 1.2;
+  flex: 2.4; /* 1.2 + 1.2，合并后左列宽度 */
   min-width: 0;
 }
+
 .col-right {
   flex: 0.8;
   min-width: 0;
@@ -569,35 +530,6 @@ h3 {
   border-left: 3px solid #1890ff;
 }
 
-/* 图片画廊 */
-.image-gallery {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 12px;
-  margin-top: 12px;
-}
-
-.image-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-
-.image-item img {
-  width: 100%;
-  height: 120px;
-  object-fit: cover;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: transform 0.3s;
-}
-
-.image-item img:hover {
-  transform: scale(1.05);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
 /* 状态徽章 */
 .status-badge {
   display: inline-block;
@@ -606,18 +538,22 @@ h3 {
   font-size: 14px;
   font-weight: 500;
 }
+
 .status-pending {
   background: #fff7e6;
   color: #fa8c16;
 }
+
 .status-processing {
   background: #e6f7ff;
   color: #1890ff;
 }
+
 .status-resolved {
   background: #f6ffed;
   color: #52c41a;
 }
+
 .status-rejected {
   background: #fff1f0;
   color: #ff4d4f;
@@ -644,9 +580,11 @@ h3 {
   background: #52c41a;
   color: white;
 }
+
 .btn-resolved:hover:not(:disabled) {
   background: #73d13d;
 }
+
 .btn-resolved:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -657,9 +595,11 @@ h3 {
   background: #ff4d4f;
   color: white;
 }
+
 .btn-rejected:hover:not(:disabled) {
   background: #ff7875;
 }
+
 .btn-rejected:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -939,26 +879,21 @@ h3 {
 .card-header {
   display: flex;
   align-items: center;
-  gap: 12px;          /* 按钮与标题之间的间距 */
+  gap: 12px;
   margin: 0;
 }
+
 .card-header h3 {
   margin: 0;
   padding-bottom: 0;
 }
 
-.col-left .card-header{
+.col-left .card-header {
   display: flex;
   align-items: center;
-  gap: 12px;          /* 按钮与标题之间的间距 */
+  gap: 12px;
   margin: 0;
   margin-bottom: 20px;
-}
-
-/* 图片尺寸控制按钮 */
-.image-size-controls {
-  display: flex;
-  gap: 8px;
 }
 
 /* 申诉理由突出样式 */
@@ -978,7 +913,8 @@ h3 {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  margin-left: auto; /* 靠右对齐 */
+  margin-left: auto;
+  /* 靠右对齐 */
 }
 
 .thumbnail {
@@ -993,7 +929,7 @@ h3 {
 
 .thumbnail:hover {
   transform: scale(1.1);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 /* 响应式调整 */
@@ -1001,8 +937,8 @@ h3 {
   .detail-layout {
     flex-direction: column;
   }
+
   .col-left,
-  .col-middle,
   .col-right {
     width: 100%;
   }
