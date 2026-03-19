@@ -417,10 +417,10 @@ onMounted(() => {
           <div v-if="appealDetail.appealImageUrls && appealDetail.appealImageUrls.length > 0" class="content-card">
             <div class="card-header">
               <h3>申诉材料 ({{ appealDetail.appealImageUrls.length }}张)</h3>
-              <div class="thumbnail-list">
-                <img v-for="(imageUrl, index) in appealDetail.appealImageUrls" :key="index" :src="imageUrl"
-                  :alt="'申诉图片' + (index + 1)" class="thumbnail" @click="openImagePreview(imageUrl)">
-              </div>
+            </div>
+            <div class="thumbnail-list">
+              <img v-for="(imageUrl, index) in appealDetail.appealImageUrls" :key="index" :src="imageUrl"
+                :alt="'申诉图片' + (index + 1)" class="thumbnail" @click="openImagePreview(imageUrl)">
             </div>
           </div>
         </div>
@@ -440,13 +440,14 @@ onMounted(() => {
               <span>{{ appealDetail.runningRecord.audit_reason }}</span>
             </div>
           </div>
+
           <div v-if="appealDetail.runningRecordImageUrl" class="content-card">
             <div class="card-header">
               <h3>跑步记录截图</h3>
-              <div class="thumbnail-list">
-                <img :src="appealDetail.runningRecordImageUrl" alt="跑步记录截图" class="thumbnail"
-                  @click="openImagePreview(appealDetail.runningRecordImageUrl)">
-              </div>
+            </div>
+            <div class="thumbnail-list">
+              <img :src="appealDetail.runningRecordImageUrl" alt="跑步记录截图" class="thumbnail"
+                @click="openImagePreview(appealDetail.runningRecordImageUrl)">
             </div>
           </div>
         </div>
@@ -1069,8 +1070,7 @@ h3 {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  margin-left: auto;
-  /* 靠右对齐 */
+  margin-top: 8px;  /* 与标题的间距 */
 }
 
 .thumbnail {
