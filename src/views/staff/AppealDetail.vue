@@ -487,13 +487,7 @@ onMounted(() => {
               {{ processing ? '处理中...' : '驳回申诉' }}
             </button>
           </div>
-          <!-- 导航按钮 -->
-          <div class="nav-buttons">
-            <button @click="goPrev" :disabled="!hasPrev || loading" class="nav-btn prev-btn">
-              < 上一条</button>
-                <p>{{ currentIndex + 1 }} / {{ recordIds.length }}</p>
-                <button @click="goNext" :disabled="!hasNext || loading" class="nav-btn next-btn">下一条 ></button>
-          </div>
+
         </div>
         <div v-else class="info-card">
           <h3>处理结果</h3>
@@ -508,6 +502,15 @@ onMounted(() => {
             <span>{{ appealDetail.auditResult }}</span>
           </div>
         </div>
+
+        <!-- 导航按钮 -->
+        <div class="nav-buttons">
+          <button @click="goPrev" :disabled="!hasPrev || loading" class="nav-btn prev-btn">
+            < 上一条</button>
+              <p>{{ currentIndex + 1 }} / {{ recordIds.length }}</p>
+              <button @click="goNext" :disabled="!hasNext || loading" class="nav-btn next-btn">下一条 ></button>
+        </div>
+
       </div>
     </div>
 
@@ -1070,7 +1073,8 @@ h3 {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  margin-top: 8px;  /* 与标题的间距 */
+  margin-top: 8px;
+  /* 与标题的间距 */
 }
 
 .thumbnail {
