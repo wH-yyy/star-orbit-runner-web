@@ -109,9 +109,3 @@ export async function login(username, password, role) {
     throw new Error("无效的角色");
   }
 }
-
-export default {
-  adminLogin,
-  staffLogin,
-  login
-};

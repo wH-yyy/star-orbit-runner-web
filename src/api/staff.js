@@ -100,27 +100,6 @@ export function getCurrentStaff() {
     }
 }
 
-/**
- * 检查工作人员是否已登录
- * @returns {boolean} 是否已登录
- */
-export function isStaffLoggedIn() {
-    const staffInfo = getCurrentStaff()
-    const staffToken = localStorage.getItem('staffToken')
-
-    // 简单检查，实际项目中应该验证 token 的有效性
-    return !!(staffInfo && staffToken)
-}
-
-/**
- * 工作人员登出
- */
-export function logoutStaff() {
-    localStorage.removeItem('staffInfo')
-    localStorage.removeItem('staffToken')
-    localStorage.removeItem('staffLoginTime')
-    console.log('工作人员已登出')
-}
 
 /**
  * 获取工作人员权限
@@ -131,23 +110,6 @@ export function getStaffRole() {
     return staffInfo?.role || 'staff'
 }
 
-/**
- * 检查工作人员是否有特定权限
- * @param {string} requiredRole - 需要的权限
- * @returns {boolean} 是否有权限
- */
-export function hasStaffPermission(requiredRole) {
-    const currentRole = getStaffRole()
-
-    // 简单的权限检查逻辑
-    const roleHierarchy = {
-        'admin': ['admin', 'staff'], // 管理员有所有权限
-        'staff': ['staff'], // 普通工作人员只有自身权限
-        'viewer': ['viewer'] // 只读权限（如果需要）
-    }
-
-    return roleHierarchy[currentRole]?.includes(requiredRole) || false
-}
 
 // ==================== 打卡审核相关 API ====================
 
@@ -340,49 +302,6 @@ export async function updateAuditResult(updateData) {
         throw new Error(err.message || '修改审核结果失败')
     }
 }
-
-/**
- * 批量审核
- * @param {Array<Object>} auditList - 审核列表
- * @returns {Promise<Object>} 批量审核结果
- */
-export async function batchAudit(auditList) {
-    console.log('batchAudit called with:', auditList)
-    
-    try {
-        if (!auditList || auditList.length === 0) {
-            throw new Error('审核列表不能为空')
-        }
-        
-        await ensureCloudLogin()
-        
-        const res = await callFunction({
-            name: 'staff-api',
-            data: {
-                action: 'audit/batch',
-                auditList
-            }
-        })
-        
-        console.log('batchAudit 返回结果:', res)
-        
-        const result = res?.result
-        if (!result) {
-            throw new Error('服务器无响应')
-        }
-        
-        if (result.code !== 200) {
-            throw new Error(result.message || '批量审核失败')
-        }
-        
-        return result.data
-        
-    } catch (err) {
-        console.error('batchAudit 调用失败:', err)
-        throw new Error(err.message || '批量审核失败')
-    }
-}
-
 
 /**
  * 获取申诉列表
