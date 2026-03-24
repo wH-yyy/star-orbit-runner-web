@@ -110,7 +110,16 @@ const changePageSize = (size) => {
 
 // 查看详情（跳转到详情页）
 const viewDetail = (appeal) => {
-  router.push(`/staff/appeal/${appeal._id}`)
+  // 获取当前列表的 ID 数组（根据筛选和分页后的列表）
+  const ids = filteredAppeals.value.map(a => a._id).join(',')
+  const index = filteredAppeals.value.findIndex(a => a._id === appeal._id)
+  router.push({
+    path: `/staff/appeal/${appeal._id}`,
+    query: {
+      ids,
+      index
+    }
+  })
 }
 
 // 分页方法
