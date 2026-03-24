@@ -60,15 +60,6 @@
 
   <!-- 用户列表 -->
   <div class="user-list-section">
-    <div class="table-header">
-      <div class="page-size-selector">
-        <span>每页显示：</span>
-        <select v-model="pageSize" @change="handlePageSizeChange" class="page-size-select">
-          <option v-for="size in pageSizeOptions" :key="size" :value="size">{{ size }}</option>
-        </select>
-        <span>条</span>
-      </div>
-    </div>
 
     <!-- 加载状态 -->
     <div v-if="loading" class="loading-state">
@@ -149,8 +140,17 @@
 
     <!-- 分页器 -->
     <div v-if="total > 0" class="pagination-section">
-      <div class="pagination-info">
-        共 {{ total }} 条记录，第 {{ currentPage }} / {{ totalPages }} 页
+      <div class="pagination-left">
+        <div class="page-size-selector">
+          <span>每页显示：</span>
+          <select v-model="pageSize" @change="handlePageSizeChange" class="page-size-select">
+            <option v-for="size in pageSizeOptions" :key="size" :value="size">{{ size }}</option>
+          </select>
+          <span>条</span>
+        </div>
+        <div class="pagination-info">
+          共 {{ total }} 条记录，第 {{ currentPage }} / {{ totalPages }} 页
+        </div>
       </div>
       <div class="pagination-controls">
         <button
@@ -708,6 +708,27 @@ onMounted(() => {
   align-items: center;
   padding-top: 20px;
   border-top: 1px solid #ebeef5;
+}
+
+.pagination-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.page-size-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  color: #606266;
+}
+
+.page-size-select {
+  padding: 6px 12px;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  font-size: 16px;
 }
 
 .pagination-info {

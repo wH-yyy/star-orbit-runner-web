@@ -5,6 +5,67 @@
       {{ message }}
     </div>
 
+    <!-- 停跑日管理（保留原有功能） -->
+    <div class="rest-day-section">
+      <h2>停跑日管理</h2>
+
+      <!-- 添加停跑日表单 -->
+      <div class="add-form">
+        <h3>新增停跑日</h3>
+        <form @submit.prevent="handleAddRestDay">
+          <div class="form-row">
+            <div class="form-item">
+              <label for="restDate">日期：</label>
+              <input type="date" id="restDate" v-model="newRestDay.date" required />
+            </div>
+            <div class="form-item">
+              <label for="reason">原因（可选）：</label>
+              <input
+                type="text"
+                id="reason"
+                v-model="newRestDay.reason"
+                placeholder="例如：天气不好、场地被占用等"
+              />
+            </div>
+          </div>
+          <button type="submit" :disabled="addingRestDay">
+            {{ addingRestDay ? '提交中...' : '添加' }}
+          </button>
+        </form>
+      </div>
+
+      <!-- 停跑日列表 -->
+      <div class="rest-list">
+        <h3>当前停跑日</h3>
+        <div v-if="loadingRestDays" class="loading">加载中...</div>
+        <div v-else-if="restDays.length === 0" class="empty">暂无停跑日</div>
+        <table v-else>
+          <thead>
+            <tr>
+              <th>日期</th>
+              <th>原因</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="day in sortedRestDays" :key="day._id">
+              <td>{{ day.date }}</td>
+              <td>{{ day.reason || '—' }}</td>
+              <td>
+                <button
+                  @click="handleDeleteRestDay(day._id)"
+                  :disabled="deletingRestDayId === day._id"
+                  class="delete-btn"
+                >
+                  {{ deletingRestDayId === day._id ? '删除中...' : '删除' }}
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <!-- 活动配置管理 -->
     <div class="activity-section">
       <h2>活动周期管理</h2>
@@ -43,6 +104,40 @@
               />
             </div>
           </div>
+          <div class="form-row">
+            <div class="form-item">
+              <label for="startTime">跑步开始时间：</label>
+              <div class="time-picker">
+                <select v-model="newActivity.start_hour" @change="updateStartTime" required>
+                  <option value="">时</option>
+                  <option v-for="h in hours" :key="'start-hour-' + h" :value="h">{{ h }}</option>
+                </select>
+                <select v-model="newActivity.start_minute" @change="updateStartTime" required>
+                  <option value="">分</option>
+                  <option v-for="m in minutes" :key="'start-minute-' + m" :value="m">{{ m }}</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-item">
+              <label for="endTime">跑步结束时间：</label>
+              <div class="time-picker">
+                <select v-model="newActivity.end_hour" @change="updateEndTime" required>
+                  <option value="">时</option>
+                  <option v-for="h in hours" :key="'end-hour-' + h" :value="h">{{ h }}</option>
+                </select>
+                <select v-model="newActivity.end_minute" @change="updateEndTime" required>
+                  <option value="">分</option>
+                  <option v-for="m in minutes" :key="'end-minute-' + m" :value="m">{{ m }}</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-item">
+              <label>时间范围：</label>
+              <div class="time-range-display">
+                {{ formatTimeForDisplay(newActivity.start_time) }} - {{ formatTimeForDisplay(newActivity.end_time) }}
+              </div>
+            </div>
+          </div>
           <button type="submit" :disabled="addingActivity">
             {{ addingActivity ? '提交中...' : '添加活动' }}
           </button>
@@ -60,6 +155,7 @@
               <th>学期名称</th>
               <th>开始日期</th>
               <th>结束日期</th>
+              <th>跑步时间</th>
               <th>状态</th>
               <th>创建时间</th>
               <th>操作</th>
@@ -70,6 +166,7 @@
               <td>{{ activity.semester }}</td>
               <td>{{ activity.start_date }}</td>
               <td>{{ activity.end_date }}</td>
+              <td>{{ formatTimeForDisplay(activity.start_time) }} - {{ formatTimeForDisplay(activity.end_time) }}</td>
               <td>
                 <span :class="['status', activity.status === 1 ? 'active' : 'inactive']">
                   {{ activity.status === 1 ? '激活' : '非激活' }}
@@ -137,6 +234,38 @@
               required 
             />
           </div>
+          <div class="form-item">
+            <label for="editStartTime">跑步开始时间：</label>
+            <div class="time-picker">
+              <select v-model="editingActivity.start_hour" @change="updateEditStartTime" required>
+                <option value="">时</option>
+                <option v-for="h in hours" :key="'edit-start-hour-' + h" :value="h">{{ h }}</option>
+              </select>
+              <select v-model="editingActivity.start_minute" @change="updateEditStartTime" required>
+                <option value="">分</option>
+                <option v-for="m in minutes" :key="'edit-start-minute-' + m" :value="m">{{ m }}</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-item">
+            <label for="editEndTime">跑步结束时间：</label>
+            <div class="time-picker">
+              <select v-model="editingActivity.end_hour" @change="updateEditEndTime" required>
+                <option value="">时</option>
+                <option v-for="h in hours" :key="'edit-end-hour-' + h" :value="h">{{ h }}</option>
+              </select>
+              <select v-model="editingActivity.end_minute" @change="updateEditEndTime" required>
+                <option value="">分</option>
+                <option v-for="m in minutes" :key="'edit-end-minute-' + m" :value="m">{{ m }}</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-item">
+            <label>时间范围：</label>
+            <div class="time-range-display">
+              {{ formatTimeForDisplay(editingActivity.start_time) }} - {{ formatTimeForDisplay(editingActivity.end_time) }}
+            </div>
+          </div>
           <div class="modal-actions">
             <button type="submit" :disabled="updatingActivity">
               {{ updatingActivity ? '更新中...' : '更新' }}
@@ -144,67 +273,6 @@
             <button type="button" @click="editingActivity = null">取消</button>
           </div>
         </form>
-      </div>
-    </div>
-
-    <!-- 停跑日管理（保留原有功能） -->
-    <div class="rest-day-section">
-      <h2>停跑日管理</h2>
-
-      <!-- 添加停跑日表单 -->
-      <div class="add-form">
-        <h3>新增停跑日</h3>
-        <form @submit.prevent="handleAddRestDay">
-          <div class="form-row">
-            <div class="form-item">
-              <label for="restDate">日期：</label>
-              <input type="date" id="restDate" v-model="newRestDay.date" required />
-            </div>
-            <div class="form-item">
-              <label for="reason">原因（可选）：</label>
-              <input
-                type="text"
-                id="reason"
-                v-model="newRestDay.reason"
-                placeholder="例如：天气不好、场地被占用等"
-              />
-            </div>
-          </div>
-          <button type="submit" :disabled="addingRestDay">
-            {{ addingRestDay ? '提交中...' : '添加' }}
-          </button>
-        </form>
-      </div>
-
-      <!-- 停跑日列表 -->
-      <div class="rest-list">
-        <h3>当前停跑日</h3>
-        <div v-if="loadingRestDays" class="loading">加载中...</div>
-        <div v-else-if="restDays.length === 0" class="empty">暂无停跑日</div>
-        <table v-else>
-          <thead>
-            <tr>
-              <th>日期</th>
-              <th>原因</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="day in sortedRestDays" :key="day._id">
-              <td>{{ day.date }}</td>
-              <td>{{ day.reason || '—' }}</td>
-              <td>
-                <button
-                  @click="handleDeleteRestDay(day._id)"
-                  :disabled="deletingRestDayId === day._id"
-                  class="delete-btn"
-                >
-                  {{ deletingRestDayId === day._id ? '删除中...' : '删除' }}
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
       </div>
     </div>
   </div>
@@ -223,12 +291,24 @@ import {
   deleteRestDay 
 } from '@/api/admin'
 
+// 小时选项（0-23时）
+const hours = ref([18, 19, 20, 21, 22, 23])
+
+// 分钟选项（0-59分）
+const minutes = ref([0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55])
+
 // 活动配置相关数据
 const activities = ref([])
 const newActivity = ref({
   semester: '',
   start_date: '',
-  end_date: ''
+  end_date: '',
+  start_time: '',
+  end_time: '',
+  start_hour: '',
+  start_minute: '',
+  end_hour: '',
+  end_minute: ''
 })
 const editingActivity = ref(null)
 const loadingActivities = ref(false)
@@ -279,6 +359,56 @@ const formatDate = (dateString) => {
   return date.toLocaleDateString('zh-CN')
 }
 
+// 格式化时间显示（将小数时间转换为HH:MM格式）
+const formatTimeForDisplay = (timeValue) => {
+  if (!timeValue && timeValue !== 0) return '--:--'
+  
+  const hours = Math.floor(timeValue)
+  const minutes = Math.round((timeValue - hours) * 60)
+  
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
+}
+
+// 验证时间范围（结束时间必须晚于开始时间）
+const validateTimeRange = (startTime, endTime) => {
+  if (!startTime || !endTime) return true // 允许空值
+  return endTime > startTime
+}
+
+// 时间转换函数：小时+分钟 → 小数时间
+const convertToDecimalTime = (hour, minute) => {
+  if (hour === '' || minute === '') return ''
+  return parseFloat(hour) + parseFloat(minute) / 60
+}
+
+// 时间转换函数：小数时间 → 小时和分钟
+const convertFromDecimalTime = (decimalTime) => {
+  if (!decimalTime && decimalTime !== 0) return { hour: '', minute: '' }
+  const hour = Math.floor(decimalTime)
+  const minute = Math.round((decimalTime - hour) * 60)
+  return { hour, minute }
+}
+
+// 更新开始时间（新增活动）
+const updateStartTime = () => {
+  newActivity.value.start_time = convertToDecimalTime(newActivity.value.start_hour, newActivity.value.start_minute)
+}
+
+// 更新结束时间（新增活动）
+const updateEndTime = () => {
+  newActivity.value.end_time = convertToDecimalTime(newActivity.value.end_hour, newActivity.value.end_minute)
+}
+
+// 更新开始时间（编辑活动）
+const updateEditStartTime = () => {
+  editingActivity.value.start_time = convertToDecimalTime(editingActivity.value.start_hour, editingActivity.value.start_minute)
+}
+
+// 更新结束时间（编辑活动）
+const updateEditEndTime = () => {
+  editingActivity.value.end_time = convertToDecimalTime(editingActivity.value.end_hour, editingActivity.value.end_minute)
+}
+
 // 计算属性：按创建时间倒序排列活动
 const sortedActivities = computed(() => {
   return [...activities.value].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
@@ -304,7 +434,7 @@ const fetchActivities = async () => {
 
 // 添加活动配置
 const handleAddActivity = async () => {
-  if (!newActivity.value.semester || !newActivity.value.start_date || !newActivity.value.end_date) {
+  if (!newActivity.value.semester || !newActivity.value.start_date || !newActivity.value.end_date || !newActivity.value.start_time || !newActivity.value.end_time) {
     showMessage('请填写完整的活动信息', 'error')
     return
   }
@@ -314,12 +444,27 @@ const handleAddActivity = async () => {
     return
   }
 
+  if (!validateTimeRange(newActivity.value.start_time, newActivity.value.end_time)) {
+    showMessage('跑步结束时间必须晚于开始时间', 'error')
+    return
+  }
+
   addingActivity.value = true
   try {
     await createActivityConfig(newActivity.value)
     showMessage('活动配置创建成功', 'success')
     await fetchActivities()
-    newActivity.value = { semester: '', start_date: '', end_date: '' }
+    newActivity.value = { 
+      semester: '', 
+      start_date: '', 
+      end_date: '', 
+      start_time: '', 
+      end_time: '',
+      start_hour: '',
+      start_minute: '',
+      end_hour: '',
+      end_minute: ''
+    }
   } catch (err) {
     showMessage(err.message || '创建活动配置失败', 'error')
   } finally {
@@ -329,7 +474,16 @@ const handleAddActivity = async () => {
 
 // 编辑活动配置
 const handleEditActivity = (activity) => {
-  editingActivity.value = { ...activity }
+  const startTimeParts = convertFromDecimalTime(activity.start_time)
+  const endTimeParts = convertFromDecimalTime(activity.end_time)
+  
+  editingActivity.value = { 
+    ...activity,
+    start_hour: startTimeParts.hour,
+    start_minute: startTimeParts.minute,
+    end_hour: endTimeParts.hour,
+    end_minute: endTimeParts.minute
+  }
 }
 
 // 更新活动配置
@@ -341,12 +495,19 @@ const handleUpdateActivity = async () => {
     return
   }
 
+  if (!validateTimeRange(editingActivity.value.start_time, editingActivity.value.end_time)) {
+    showMessage('跑步结束时间必须晚于开始时间', 'error')
+    return
+  }
+
   updatingActivity.value = true
   try {
     await updateActivityConfig(editingActivity.value._id, {
       semester: editingActivity.value.semester,
       start_date: editingActivity.value.start_date,
-      end_date: editingActivity.value.end_date
+      end_date: editingActivity.value.end_date,
+      start_time: editingActivity.value.start_time,
+      end_time: editingActivity.value.end_time
     })
     showMessage('活动配置更新成功', 'success')
     await fetchActivities()
@@ -524,6 +685,44 @@ h3 {
   outline: none;
   border-color: #4a90e2;
   box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.1);
+}
+
+.form-item select {
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 16px;
+  background-color: white;
+  transition: border-color 0.2s;
+}
+
+.form-item select:focus {
+  outline: none;
+  border-color: #4a90e2;
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.1);
+}
+
+.time-picker {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.time-picker select {
+  flex: 1;
+  min-width: 80px;
+}
+
+.time-range-display {
+  padding: 10px 12px;
+  background-color: #f8f8f8;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 16px;
+  color: #555;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
 }
 
 button {
