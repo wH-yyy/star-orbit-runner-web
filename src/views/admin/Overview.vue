@@ -1,14 +1,14 @@
 <script setup>
-import { ref, onMounted, watch, nextTick, onBeforeUnmount } from 'vue';
+import { ref, onMounted, watch, onBeforeUnmount, nextTick } from 'vue';
 import * as echarts from 'echarts';
 import { getStatsForAdmin, exportDataApi } from "@/api/admin.js";
 
-// 导入SVG图标
+// 导入 SVG 图标（保持不变）
 import UserManagementIcon from '@/assets/总用户数.svg'
 import SubmissionIcon from '@/assets/提交数.svg'
 import PendingReviewIcon from '@/assets/待审核.svg'
 
-// 定义统计数据
+// 统计数据
 const stats = ref({
   totalUsers: 0,
   totalSubmissions: 0,
@@ -19,284 +19,197 @@ const stats = ref({
   error: null
 });
 
-// 时间范围选择
-const timeRange = ref({
-  start: null,
-  end: null
-});
+// 时间范围
+const timeRange = ref({ start: null, end: null });
 
-// 图表实例
-const chartInstance = ref(null);
-// 图表容器引用
+// 图表实例与容器
 const chartContainer = ref(null);
+let chartInstance = null;
+let resizeDebounceTimer = null;
 
-// 模拟数据（备用）
-const mockStats = {
-  totalUsers: 2580,
-  totalSubmissions: 12560,
-  pendingReviews: 128,
-  dailyStats: [
-    { date: '2026-01-30', count: 120 },
-    { date: '2026-01-31', count: 135 },
-    { date: '2026-02-01', count: 142 },
-    { date: '2026-02-02', count: 128 },
-    { date: '2026-02-03', count: 156 },
-    { date: '2026-02-04', count: 140 },
-    { date: '2026-02-05', count: 132 }
-  ],
-  lastUpdated: new Date()
-};
-
-// 初始化时间范围（默认近7日）
-const initTimeRange = () => {
-  const endDate = new Date();
-  const startDate = new Date();
-  startDate.setDate(endDate.getDate() - 6); // 包括今天，共7天
-
-  // 格式化为YYYY-MM-DD格式
-  timeRange.value.end = formatDateForInput(endDate);
-  timeRange.value.start = formatDateForInput(startDate);
-};
-
-// 格式化日期为YYYY-MM-DD格式（用于input type="date"）
+// 辅助函数：格式化日期为 YYYY-MM-DD
 const formatDateForInput = (date) => {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 };
 
-// 格式化时间显示
+// 初始化时间范围（最近7天）
+const initTimeRange = () => {
+  const end = new Date();
+  const start = new Date();
+  start.setDate(end.getDate() - 6);
+  timeRange.value.start = formatDateForInput(start);
+  timeRange.value.end = formatDateForInput(end);
+};
+
+// 格式化显示时间
 const formatTime = (date) => {
   if (!date) return '';
   const d = new Date(date);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 };
 
-// 格式化图表显示的日期
+// 格式化图表 X 轴显示 (MM-DD)
 const formatChartDate = (dateStr) => {
   const date = new Date(dateStr);
   return `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 };
 
-// 获取统计数据
+// 获取统计数据（不再使用模拟数据，直接报错提示）
 const fetchStats = async () => {
+  stats.value.loading = true;
+  stats.value.error = null;
   try {
-    stats.value.loading = true;
-    stats.value.error = null;
-
-    // 调用云函数获取真实数据
     const res = await getStatsForAdmin({
       startDate: timeRange.value.start,
       endDate: timeRange.value.end
     });
-
     if (res) {
-      // 使用真实数据
       stats.value.totalUsers = res.totalUsers;
       stats.value.totalSubmissions = res.totalSubmissions;
       stats.value.pendingReviews = res.pendingReviews;
-      stats.value.dailyStats = (res.dailyStats || []).slice().sort((a, b) => {
-        const dateA = new Date(a.date || a.time || 0);
-        const dateB = new Date(b.date || b.time || 0);
-        return dateA - dateB;
-      });
+      // 确保 dailyStats 是数组并按日期排序
+      stats.value.dailyStats = (res.dailyStats || []).slice().sort((a, b) => new Date(a.date) - new Date(b.date));
       stats.value.lastUpdated = new Date(res.lastUpdated);
     } else {
-      // 如果云函数调用失败，使用模拟数据
-      console.warn('使用模拟数据');
-      stats.value.totalUsers = mockStats.totalUsers;
-      stats.value.totalSubmissions = mockStats.totalSubmissions;
-      stats.value.pendingReviews = mockStats.pendingReviews;
-      stats.value.dailyStats = mockStats.dailyStats.slice();
-      stats.value.lastUpdated = new Date();
+      throw new Error('云函数返回数据异常');
     }
   } catch (error) {
     console.error('获取统计数据失败:', error);
-    stats.value.error = error.message;
-
-    // 如果出错，使用模拟数据
-    stats.value.totalUsers = mockStats.totalUsers;
-    stats.value.totalSubmissions = mockStats.totalSubmissions;
-    stats.value.pendingReviews = mockStats.pendingReviews;
-    stats.value.dailyStats = mockStats.dailyStats.slice();
-    stats.value.lastUpdated = new Date();
+    stats.value.error = error.message || '数据加载失败';
   } finally {
     stats.value.loading = false;
-    // 等待DOM更新完成后渲染图表
-    nextTick(() => {
-      initOrUpdateChart();
-    });
+    // 数据更新后，图表会自动通过 watch 更新，无需额外调用
   }
 };
 
-// 窗口大小变化时的图表重绘函数
-const handleResize = () => {
-  if (chartInstance.value) {
-    setTimeout(() => {
-      chartInstance.value.resize();
-    }, 100);
-  }
-};
-
-// 初始化或更新图表
-const initOrUpdateChart = () => {
-  // 销毁之前的图表实例
-  if (chartInstance.value) {
-    chartInstance.value.dispose();
-    chartInstance.value = null;
+// 更新图表（仅更新数据，不销毁实例）
+const updateChart = () => {
+  if (!chartContainer.value) return;
+  // 如果还没有实例，则创建
+  if (!chartInstance) {
+    chartInstance = echarts.init(chartContainer.value);
   }
 
-  // 等待图表容器渲染完成
-  setTimeout(() => {
-    const chartDom = document.getElementById('daily-chart');
-    if (!chartDom) {
-      console.error('图表容器未找到，重试中...');
-      // 重试机制
-      setTimeout(initOrUpdateChart, 100);
-      return;
-    }
+  const chartData = stats.value.dailyStats || [];
+  if (chartData.length === 0) {
+    chartInstance.clear();
+    return;
+  }
 
-    // 初始化图表
-    chartInstance.value = echarts.init(chartDom);
+  const isMobile = window.innerWidth <= 768;
+  const baseFontSize = isMobile ? 12 : 14;
+  const titleFontSize = isMobile ? 14 : 16;
 
-    // 准备图表数据
-    const chartData = stats.value.dailyStats || [];
-
-    // 确保有数据才渲染
-    if (chartData.length === 0) {
-      console.warn('没有图表数据可渲染');
-      return;
-    }
-
-    // 根据屏幕宽度调整字体大小
-    const isMobile = window.innerWidth <= 768;
-    const baseFontSize = isMobile ? 12 : 14;
-    const titleFontSize = isMobile ? 14 : 16;
-
-    const option = {
-      title: {
-        text: '每日打卡人数折线图',
-        left: 'center',
-        textStyle: {
-          fontSize: titleFontSize,
-          fontWeight: 'bold'
+  const option = {
+    title: {
+      text: '每日打卡人数折线图',
+      left: 'center',
+      textStyle: { fontSize: titleFontSize, fontWeight: 'bold' }
+    },
+    tooltip: {
+      trigger: 'item',
+      formatter: params => `${params.name}<br/>打卡人数: ${params.value}`,
+      textStyle: { fontSize: baseFontSize }
+    },
+    grid: {
+      left: '8%',
+      right: '5%',
+      bottom: '15%',
+      top: '20%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      data: chartData.map(item => formatChartDate(item.date)),
+      axisLabel: {
+        rotate: isMobile ? 45 : 0,
+        fontSize: baseFontSize,
+        interval: isMobile ? 'auto' : 0
+      }
+    },
+    yAxis: {
+      type: 'value',
+      name: '人数',
+      min: 0,
+      axisLabel: { fontSize: baseFontSize },
+      nameTextStyle: { fontSize: baseFontSize }
+    },
+    series: [
+      {
+        name: '打卡人数',
+        type: 'line',
+        data: chartData.map(item => item.count),
+        smooth: 0.3,
+        lineStyle: { color: '#409eff', width: isMobile ? 2 : 3 },
+        itemStyle: { color: '#409eff' },
+        areaStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: 'rgba(64, 158, 255, 0.4)' },
+            { offset: 1, color: 'rgba(64, 158, 255, 0.1)' }
+          ])
         }
-      },
-      tooltip: {
-        trigger: 'item',
-        formatter: function(params) {
-          return `${params.name}<br/>打卡人数: ${params.value}`;
-        },
-        textStyle: {
-          fontSize: baseFontSize
-        }
-      },
-      grid: {
-        left: '8%',
-        right: '5%',
-        bottom: '15%',
-        top: '20%',
-        containLabel: true
-      },
-      xAxis: {
-        type: 'category',
-        data: chartData.map(item => formatChartDate(item.date)),
-        axisLabel: {
-          rotate: isMobile ? 45 : 0,
-          fontSize: baseFontSize,
-          interval: isMobile ? 'auto' : 0
-        }
-      },
-      yAxis: {
-        type: 'value',
-        name: '人数',
-        min: 0,
-        axisLabel: {
-          fontSize: baseFontSize
-        },
-        nameTextStyle: {
-          fontSize: baseFontSize
-        }
-      },
-      series: [
-        {
-          name: '打卡人数',
-          type: 'line',
-          data: chartData.map(item => item.count),
-          smooth: 0.3,
-          lineStyle: {
-            color: '#409eff',
-            width: isMobile ? 2 : 3
-          },
-          itemStyle: {
-            color: '#409eff'
-          },
-          areaStyle: {
-            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-              { offset: 0, color: 'rgba(64, 158, 255, 0.4)' },
-              { offset: 1, color: 'rgba(64, 158, 255, 0.1)' }
-            ])
-          }
-        }
-      ]
-    };
-
-    chartInstance.value.setOption(option);
-    console.log('图表已渲染，数据:', chartData);
-  }, 100); // 延迟100ms确保DOM已更新
+      }
+    ]
+  };
+  chartInstance.setOption(option, true); // true 表示完全替换配置
 };
 
-// 重置时间范围为最近7天
+// 重置时间范围并刷新
 const resetTimeRange = () => {
   initTimeRange();
   fetchStats();
 };
 
-// 页面加载时初始化
-onMounted(() => {
-  initTimeRange();
+// 手动刷新
+const refreshStats = () => {
   fetchStats();
-  // 添加窗口大小变化监听
-  window.addEventListener('resize', handleResize);
-});
+};
 
-// 组件卸载前清理
-onBeforeUnmount(() => {
-  if (chartInstance.value) {
-    chartInstance.value.dispose();
-  }
-  window.removeEventListener('resize', handleResize);
-});
+// 窗口 resize 防抖处理
+const handleResize = () => {
+  if (resizeDebounceTimer) clearTimeout(resizeDebounceTimer);
+  resizeDebounceTimer = setTimeout(() => {
+    if (chartInstance) chartInstance.resize();
+  }, 150);
+};
 
-// 监听时间范围变化，自动刷新数据
+// 导出数据相关
+const showExportDialog = ref(false);
+const exportOption = ref('award');
+const openExportDialog = () => { showExportDialog.value = true; };
+const closeExportDialog = () => { showExportDialog.value = false; };
+const exportData = () => {
+  exportDataApi(exportOption.value);
+  closeExportDialog();
+};
+
+// 监听 dailyStats 变化，自动更新图表
+watch(() => stats.value.dailyStats, () => {
+  // 确保 DOM 已更新
+  nextTick(() => updateChart());
+}, { deep: true });
+
+// 监听时间范围变化，重新获取数据
 watch(timeRange, () => {
   if (timeRange.value.start && timeRange.value.end) {
     fetchStats();
   }
 }, { deep: true });
 
-// 手动刷新数据
-const refreshStats = () => {
+onMounted(() => {
+  initTimeRange();
   fetchStats();
-};
+  window.addEventListener('resize', handleResize);
+});
 
-// 导出数据相关
-const showExportDialog = ref(false);
-const exportOption = ref('award');
-
-// 打开导出对话框
-const openExportDialog = () => {
-  showExportDialog.value = true;
-};
-
-// 关闭导出对话框
-const closeExportDialog = () => {
-  showExportDialog.value = false;
-};
-
-// 导出数据
-const exportData = () => {
-  exportDataApi(exportOption.value);
-  closeExportDialog();
-};
+onBeforeUnmount(() => {
+  if (chartInstance) {
+    chartInstance.dispose();
+    chartInstance = null;
+  }
+  window.removeEventListener('resize', handleResize);
+  if (resizeDebounceTimer) clearTimeout(resizeDebounceTimer);
+});
 </script>
 
 <template>
@@ -338,39 +251,24 @@ const exportData = () => {
       </div>
     </div>
 
-    <!-- 每日打卡次数折线图 -->
+    <!-- 图表区域 -->
     <div class="chart-container" v-show="!stats.loading && !stats.error">
       <div class="chart-header">
         <h3>打卡统计</h3>
-        <button @click="openExportDialog" class="export-btn">
-          导出数据
-        </button>
+        <button @click="openExportDialog" class="export-btn">导出数据</button>
       </div>
-      <!-- 时间范围选择器 -->
       <div class="time-range-selector">
         <div class="form-item">
           <label class="form-label">折线图时间范围</label>
           <div class="date-range">
-            <input
-                type="date"
-                v-model="timeRange.start"
-                class="date-input"
-                :max="timeRange.end"
-            />
+            <input type="date" v-model="timeRange.start" class="date-input" :max="timeRange.end" />
             <span class="date-separator">至</span>
-            <input
-                type="date"
-                v-model="timeRange.end"
-                class="date-input"
-                :min="timeRange.start"
-            />
-            <button @click="resetTimeRange" class="reset-btn">
-              最近7天
-            </button>
+            <input type="date" v-model="timeRange.end" class="date-input" :min="timeRange.start" />
+            <button @click="resetTimeRange" class="reset-btn">最近7天</button>
           </div>
         </div>
       </div>
-      <div id="daily-chart" class="chart" ref="chartContainer"></div>
+      <div ref="chartContainer" class="chart"></div>
       <div class="chart-summary" v-if="stats.dailyStats.length > 0">
         <div class="summary-item">
           <span class="summary-label">统计天数:</span>
@@ -385,17 +283,15 @@ const exportData = () => {
           <span class="summary-value">{{ Math.max(...stats.dailyStats.map(day => day.count)) }} 人</span>
         </div>
       </div>
-      <div v-else class="no-data">
-        当前时间段内暂无打卡数据
-      </div>
+      <div v-else class="no-data">当前时间段内暂无打卡数据</div>
     </div>
 
-    <!-- 数据更新时间 -->
+    <!-- 更新时间 -->
     <div v-if="!stats.loading && !stats.error" class="update-time">
       <p>数据更新时间: {{ formatTime(stats.lastUpdated) }}</p>
     </div>
 
-    <!-- 导出数据对话框 -->
+    <!-- 导出对话框 -->
     <div v-if="showExportDialog" class="export-dialog-overlay" @click="closeExportDialog">
       <div class="export-dialog" @click.stop>
         <div class="dialog-header">
@@ -422,7 +318,6 @@ const exportData = () => {
         </div>
       </div>
     </div>
-
   </div>
 </template>
 
