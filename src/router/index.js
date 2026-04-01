@@ -1,4 +1,4 @@
-import {createRouter, createWebHistory} from 'vue-router'
+import {createRouter, createWebHistory, createWebHashHistory} from 'vue-router'
 import store from "../store/store.js"
 
 // 页面导入
@@ -97,9 +97,14 @@ const routes = [
     {path: '/:pathMatch(.*)*', component: NotFound}
 ]
 
+// const router = createRouter({
+//     history: createWebHistory(),
+//     routes
+// })
+
 const router = createRouter({
-    history: createWebHistory(),
-    routes
+  history: createWebHashHistory(), // 改为这个
+  routes,
 })
 
 // 路由守卫
