@@ -244,7 +244,7 @@ async function openQuickAudit() {
     // 跳转到详情页，索引为0
     await router.push({
       path: `/staff/audit/${records[0].id}`,
-      query: {ids, index: 0}
+      query: { ids, index: 0 }
     })
   } catch (err) {
     console.error('加载快速审核记录失败:', err)
@@ -261,9 +261,9 @@ function goToAuditDetail(record) {
   const currentIndex = filteredRecords.value.findIndex(r => r.id === record.id)
   router.push({
     path: `/staff/audit/${record.id}`,
-    query: { 
-      ids: allIds.join(','), 
-      index: currentIndex 
+    query: {
+      ids: allIds.join(','),
+      index: currentIndex
     }
   })
 }
@@ -293,6 +293,10 @@ function formatDateOnly(value) {
   if (Number.isNaN(date.getTime())) return String(value)
   const pad = (num) => String(num).padStart(2, '0')
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
+
+const refreshList = () => {
+  loadAuditRecords() // 重新加载当前页（页码不变）
 }
 
 // 监听筛选条件变化，自动加载数据（防抖 300ms）
@@ -354,6 +358,9 @@ onMounted(() => {
           <button @click="handleBatchApprove" class="batch-approve-btn" :disabled="loading">
             一键通过所有待审核
           </button>
+          <button @click="refreshList" class="refresh-btn" :disabled="loading">
+            刷新
+          </button>
         </div>
       </div>
     </div>
@@ -407,22 +414,17 @@ onMounted(() => {
         <div class="pagination-center">
           <button @click="goToFirstPage" :disabled="pagination.page <= 1">首页</button>
           <button @click="prevPage" :disabled="pagination.page <= 1">上一页</button>
-        
+
           <span class="page-buttons">
-            <button
-              v-for="pageNum in visiblePages"
-              :key="pageNum"
-              @click="goToPage(pageNum)"
-              :class="{ 'current': pageNum === pagination.page }"
-              :disabled="pageNum === '...'"
-            >
+            <button v-for="pageNum in visiblePages" :key="pageNum" @click="goToPage(pageNum)"
+              :class="{ 'current': pageNum === pagination.page }" :disabled="pageNum === '...'">
               {{ pageNum }}
             </button>
           </span>
-        
+
           <button @click="nextPage" :disabled="pagination.page >= pagination.totalPages">下一页</button>
           <button @click="goToLastPage" :disabled="pagination.page >= pagination.totalPages">末页</button>
-        
+
           <span class="page-info">
             第 {{ pagination.page }} 页 / 共 {{ pagination.totalPages }} 页 (共 {{ pagination.total }} 条)
           </span>
@@ -484,6 +486,7 @@ onMounted(() => {
     transform: translateY(-10px);
     opacity: 0;
   }
+
   to {
     transform: translateY(0);
     opacity: 1;
@@ -508,8 +511,13 @@ onMounted(() => {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .page-header {
@@ -1058,15 +1066,18 @@ onMounted(() => {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   margin-top: 0;
 }
+
 .pagination-left {
   display: flex;
   align-items: center;
   gap: 12px;
 }
+
 .pagination-left span {
   color: #666;
   font-size: 16px;
 }
+
 .pagination-left select {
   padding: 6px 12px;
   border: 1px solid #d9d9d9;
@@ -1074,11 +1085,13 @@ onMounted(() => {
   font-size: 16px;
   cursor: pointer;
 }
+
 .pagination-center {
   display: flex;
   align-items: center;
   gap: 20px;
 }
+
 .pagination-center button {
   padding: 8px 20px;
   background: white;
@@ -1088,22 +1101,27 @@ onMounted(() => {
   font-size: 16px;
   transition: all 0.3s;
 }
+
 .pagination-center button:hover:not(:disabled) {
   border-color: #1890ff;
   color: #ffffff;
 }
+
 .pagination-center button:disabled {
   color: #d9d9d9;
   cursor: not-allowed;
 }
+
 .page-info {
   color: #666;
   font-size: 16px;
 }
+
 .page-buttons {
   display: flex;
   gap: 4px;
 }
+
 .page-buttons button {
   min-width: 36px;
   height: 36px;
@@ -1115,20 +1133,41 @@ onMounted(() => {
   font-size: 16px;
   transition: all 0.3s;
 }
+
 .page-buttons button:hover:not(:disabled):not(.current) {
   border-color: #1890ff;
   color: #1890ff;
 }
+
 .page-buttons button.current {
   background: #1890ff;
   color: white;
   border-color: #1890ff;
   font-weight: 500;
 }
+
 .page-buttons button:disabled {
   color: #999;
   cursor: default;
   background: #f5f5f5;
+}
+
+.refresh-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  background: #17a2b8;
+  color: white;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.3s ease;
+}
+.refresh-btn:hover:not(:disabled) {
+  background: #138496;
+}
+.refresh-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* 响应式设计 */
