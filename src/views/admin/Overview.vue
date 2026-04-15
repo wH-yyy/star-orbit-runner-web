@@ -176,10 +176,20 @@ const handleResize = () => {
 // 导出数据相关
 const showExportDialog = ref(false);
 const exportOption = ref('award');
-const openExportDialog = () => { showExportDialog.value = true; };
+const exportDate = ref(formatDateForInput(new Date()));
+const todayDate = formatDateForInput(new Date());
+const openExportDialog = () => {
+  if (!exportDate.value) {
+    exportDate.value = todayDate;
+  }
+  showExportDialog.value = true;
+};
 const closeExportDialog = () => { showExportDialog.value = false; };
 const exportData = () => {
-  exportDataApi(exportOption.value);
+  exportDataApi({
+    option: exportOption.value,
+    date: exportDate.value
+  });
   closeExportDialog();
 };
 
@@ -303,13 +313,19 @@ onBeforeUnmount(() => {
             <label class="form-label">数据类型</label>
             <select v-model="exportOption" class="form-select">
               <option value="award">获奖名单</option>
-              <option value="record">打卡统计</option>
+              <option value="record">累计打卡统计</option>
+              <option value="dailyUsers">当天打卡用户</option>
             </select>
+          </div>
+          <div class="form-item" v-if="exportOption === 'dailyUsers'">
+            <label class="form-label">导出日期</label>
+            <input type="date" v-model="exportDate" class="date-input" :max="todayDate" />
           </div>
           <div class="export-tips">
             <h4>导出说明</h4>
             <p v-if="exportOption === 'award'">导出完成率≥60%的用户获奖名单</p>
-            <p v-else>导出所有用户的打卡统计信息</p>
+            <p v-else-if="exportOption === 'record'">导出所有用户的累计打卡次数统计</p>
+            <p v-else>导出所选日期内完成打卡的用户名单</p>
           </div>
         </div>
         <div class="dialog-footer">

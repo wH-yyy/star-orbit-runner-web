@@ -321,9 +321,13 @@ export async function exportDataApi(option) {
     try {
         await ensureCloudLogin()
 
+        const payload = typeof option === 'string'
+            ? { option }
+            : (option || {})
+
         const res = await callFunction({
             name: 'exportData',
-            data: { option }
+            data: payload
         })
 
         if (res && res.result && res.result.code === 0) {
