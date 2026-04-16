@@ -314,7 +314,7 @@ onBeforeUnmount(() => {
             <select v-model="exportOption" class="form-select">
               <option value="award">获奖名单</option>
               <option value="record">累计打卡统计</option>
-              <option value="dailyUsers">当天打卡用户</option>
+              <option value="dailyUsers">单日打卡用户</option>
             </select>
           </div>
           <div class="form-item" v-if="exportOption === 'dailyUsers'">
@@ -323,9 +323,9 @@ onBeforeUnmount(() => {
           </div>
           <div class="export-tips">
             <h4>导出说明</h4>
-            <p v-if="exportOption === 'award'">导出完成率≥60%的用户获奖名单</p>
-            <p v-else-if="exportOption === 'record'">导出所有用户的累计打卡次数统计</p>
-            <p v-else>导出所选日期内完成打卡的用户名单</p>
+            <p v-if="exportOption === 'award'">导出参与率≥60%的用户名单</p>
+            <p v-else-if="exportOption === 'record'">导出所有用户的累计打卡次数</p>
+            <p v-else>导出所选日期内打卡通过的用户名单</p>
           </div>
         </div>
         <div class="dialog-footer">
