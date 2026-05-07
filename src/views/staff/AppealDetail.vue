@@ -430,6 +430,10 @@ onMounted(() => {
           <h3>对应的跑步记录</h3>
           <div class="info-grid">
             <div class="info-item">
+              <label>打卡时间：</label>
+              <span>{{ formatTime(appealDetail.runningRecord.assignTime) }}</span>
+            </div>
+            <div class="info-item">
               <label>审核状态：</label>
               <span :class="'status-badge ' + getRunningRecordStatusClass(appealDetail.runningRecord.status)">
                 {{ getRunningRecordStatusText(appealDetail.runningRecord.status) }}
