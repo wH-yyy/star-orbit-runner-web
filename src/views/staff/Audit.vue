@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { getAuditRecords, getCurrentStaff, batchApproveByStaff } from '../../api/staff.js'
+import { getAuditRecords, getCurrentStaff, batchApproveByStaff, batchApproveByStaffWithDate } from '../../api/staff.js'
 
 const router = useRouter()
 
@@ -36,9 +36,31 @@ const searchParams = ref({
   status: '0'
 })
 
-
 // 筛选后的记录（按时间倒序）
 const filteredRecords = computed(() => auditRecords.value)
+
+// 日期选择弹窗相关
+const showDatePicker = ref(false)
+const dateType = ref('all') // 'all', 'single', 'range'
+const singleDate = ref('')
+const rangeStart = ref('')
+const rangeEnd = ref('')
+const batchLoading = ref(false)
+
+// 打开弹窗
+function openDatePicker() {
+  showDatePicker.value = true
+  // 重置状态
+  dateType.value = 'all'
+  singleDate.value = ''
+  rangeStart.value = ''
+  rangeEnd.value = ''
+}
+
+// 关闭弹窗
+function closeDatePicker() {
+  showDatePicker.value = false
+}
 
 // 加载审核记录列表
 async function loadAuditRecords(targetPage) {
@@ -202,6 +224,71 @@ async function handleBatchApprove() {
     loading.value = false
   }
 }
+async function confirmBatchApprove() {
+  // 校验日期逻辑
+  let startDate = null
+  let endDate = null
+  if (dateType.value === 'single') {
+    if (!singleDate.value) {
+      errorMsg.value = '请选择日期'
+      return
+    }
+    startDate = singleDate.value
+    endDate = singleDate.value
+  } else if (dateType.value === 'range') {
+    if (!rangeStart.value || !rangeEnd.value) {
+      errorMsg.value = '请填写完整的日期范围'
+      return
+    }
+    if (rangeStart.value > rangeEnd.value) {
+      errorMsg.value = '开始日期不能晚于结束日期'
+      return
+    }
+    startDate = rangeStart.value
+    endDate = rangeEnd.value
+  } // 全部日期时 startDate/endDate 为 null
+
+  // 二次确认
+  let confirmMsg = '确认将所有符合条件的待审核记录设为“通过”吗？'
+  if (startDate && endDate) {
+    confirmMsg = `确认将 ${startDate} 至 ${endDate} 之间的待审核记录设为“通过”吗？`
+  } else if (startDate) {
+    confirmMsg = `确认将 ${startDate} 当天的待审核记录设为“通过”吗？`
+  }
+  if (!confirm(confirmMsg)) return
+
+  if (!currentStaff.value) {
+    currentStaff.value = getCurrentStaff()
+    if (!currentStaff.value) {
+      errorMsg.value = '未获取到工作人员信息，请重新登录'
+      return
+    }
+  }
+
+  batchLoading.value = true
+  errorMsg.value = ''
+  successMsg.value = ''
+
+  try {
+    const result = await batchApproveByStaffWithDate(
+      currentStaff.value._id,
+      startDate,
+      endDate
+    )
+    successMsg.value = `一键通过完成，成功 ${result.successCount} 条，失败 ${result.failedCount || 0} 条`
+    if (result.totalProcessed && result.totalProcessed > result.successCount) {
+      successMsg.value += `（共处理 ${result.totalProcessed} 条记录）`
+    }
+    // 刷新列表
+    await loadAuditRecords()
+  } catch (err) {
+    console.error('一键通过失败:', err)
+    errorMsg.value = err.message || '一键通过失败'
+  } finally {
+    batchLoading.value = false
+    closeDatePicker()
+  }
+}
 
 // 快速审核：跳转到第一条记录的详情页，并传递所有记录的ID列表
 async function openQuickAudit() {
@@ -325,6 +412,35 @@ onMounted(() => {
       <button @click="successMsg = ''" class="close-msg">×</button>
     </div>
 
+    <!-- 日期选择弹窗 -->
+    <div v-if="showDatePicker" class="modal-overlay" @click.self="closeDatePicker">
+      <div class="modal-container">
+        <h3>一键通过</h3>
+        <div class="date-options">
+          <label><input type="radio" v-model="dateType" value="all"> 全部日期</label>
+          <label><input type="radio" v-model="dateType" value="single"> 指定日期</label>
+          <label><input type="radio" v-model="dateType" value="range"> 日期范围</label>
+        </div>
+      
+        <div v-if="dateType === 'single'" class="date-input">
+          <label>选择日期：</label>
+          <input type="date" v-model="singleDate">
+        </div>
+      
+        <div v-if="dateType === 'range'" class="date-range">
+          <label>开始日期：</label>
+          <input type="date" v-model="rangeStart">
+          <label>结束日期：</label>
+          <input type="date" v-model="rangeEnd">
+        </div>
+      
+        <div class="modal-buttons">
+          <button @click="closeDatePicker" class="cancel-btn">取消</button>
+          <button @click="confirmBatchApprove" class="confirm-btn" :disabled="batchLoading">确认</button>
+        </div>
+      </div>
+    </div>
+
     <!-- 搜索筛选 -->
     <div class="search-filters">
       <div class="filter-row">
@@ -355,8 +471,8 @@ onMounted(() => {
           <button @click="openQuickAudit" class="quick-audit-btn" :disabled="loading">
             快速审核
           </button>
-          <button @click="handleBatchApprove" class="batch-approve-btn" :disabled="loading">
-            一键通过所有待审核
+          <button @click="openDatePicker" class="batch-approve-btn" :disabled="loading">
+            一键通过
           </button>
           <button @click="refreshList" class="refresh-btn" :disabled="loading">
             刷新
@@ -1167,6 +1283,78 @@ onMounted(() => {
 }
 .refresh-btn:disabled {
   opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 弹窗样式 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+}
+.modal-container {
+  background: white;
+  padding: 24px;
+  border-radius: 12px;
+  width: 500px;
+  max-width: 90%;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+}
+.modal-container h3 {
+  margin-top: 0;
+  font-size: 18px;
+}
+.date-options {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+.date-options label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.date-input, .date-range {
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.date-input input, .date-range input {
+  padding: 6px 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 16px;
+}
+.modal-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 20px;
+}
+.cancel-btn, .confirm-btn {
+  padding: 6px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.cancel-btn {
+  background: #f0f0f0;
+}
+.confirm-btn {
+  background: #28a745;
+  color: white;
+}
+.confirm-btn:disabled {
+  opacity: 0.6;
   cursor: not-allowed;
 }
 

@@ -508,3 +508,34 @@ export async function batchApproveByStaff(staffId) {
     throw new Error(err.message || '一键通过失败')
   }
 }
+
+/**
+ * 一键通过指定日期范围的待审核记录
+ * @param {string} staffId - 工作人员ID
+ * @param {string|null} startDate - 开始日期 YYYY-MM-DD，可选
+ * @param {string|null} endDate - 结束日期 YYYY-MM-DD，可选
+ * @returns {Promise<Object>}
+ */
+export async function batchApproveByStaffWithDate(staffId, startDate, endDate) {
+  console.log('batchApproveByStaffWithDate called:', { staffId, startDate, endDate })
+  try {
+    if (!staffId) throw new Error('工作人员ID不能为空')
+    await ensureCloudLogin()
+    const res = await callFunction({
+      name: 'staff-api',
+      data: {
+        action: 'audit/batchApproveByStaff',
+        staffId,
+        startDate,
+        endDate
+      }
+    })
+    const result = res?.result
+    if (!result) throw new Error('服务器无响应')
+    if (result.code !== 200) throw new Error(result.message || '一键通过失败')
+    return result.data
+  } catch (err) {
+    console.error('batchApproveByStaffWithDate 调用失败:', err)
+    throw new Error(err.message || '一键通过失败')
+  }
+}
