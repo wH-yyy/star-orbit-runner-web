@@ -1,69 +1,121 @@
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, nextTick, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { getAuditRecords, getCurrentStaff, batchApproveByStaff, batchApproveByStaffWithDate } from '../../api/staff.js'
 
+const route = useRoute()
 const router = useRouter()
 
-// 审核记录数据
 const auditRecords = ref([])
 const loading = ref(false)
 const errorMsg = ref('')
 const successMsg = ref('')
+const batchLoading = ref(false)
 
-// 分页
 const pagination = ref({
   page: 1,
-  pageSize: 10,
+  pageSize: 50,
   total: 0,
   totalPages: 0
 })
 
-// 每页显示条数选项
-const pageSizeOptions = [5, 10, 15, 20, 30, 50, 100]
-
-// 当前登录的工作人员信息
+const pageSizeOptions = [50, 100, 200]
 const currentStaff = ref(null)
-
-// 防抖计时器
 let debounceTimer = null
+let initializedFromRoute = false
+let suppressSearchWatch = false
 
-// 筛选条件
-const searchParams = ref({
-  username: '',
-  studentId: '',
-  date: '',
-  status: '0'
-})
-
-// 筛选后的记录（按时间倒序）
-const filteredRecords = computed(() => auditRecords.value)
-
-// 日期选择弹窗相关
 const showDatePicker = ref(false)
-const dateType = ref('all') // 'all', 'single', 'range'
+const dateType = ref('all')
 const singleDate = ref('')
 const rangeStart = ref('')
 const rangeEnd = ref('')
-const batchLoading = ref(false)
 
-// 打开弹窗
+const defaultSearchParams = () => ({
+  username: '',
+  studentId: '',
+  date: '',
+  status: '0',
+  sortOrder: 'desc'
+})
+
+const searchParams = ref(defaultSearchParams())
+const filteredRecords = computed(() => auditRecords.value)
+const currentListQuery = computed(() => ({
+  username: searchParams.value.username || '',
+  studentId: searchParams.value.studentId || '',
+  date: searchParams.value.date || '',
+  status: searchParams.value.status || '0',
+  page: String(pagination.value.page || 1),
+  pageSize: String(pagination.value.pageSize || 50),
+  sortOrder: searchParams.value.sortOrder === 'asc' ? 'asc' : 'desc'
+}))
+
+function sanitizePage(value) {
+  const page = Number.parseInt(value, 10)
+  return Number.isInteger(page) && page > 0 ? page : 1
+}
+
+function sanitizePageSize(value) {
+  const pageSize = Number.parseInt(value, 10)
+  return pageSizeOptions.includes(pageSize) ? pageSize : 50
+}
+
+function sanitizeSortOrder(value) {
+  return value === 'asc' ? 'asc' : 'desc'
+}
+
+function normalizeRouteQuery(query = {}) {
+  return {
+    username: typeof query.username === 'string' ? query.username : '',
+    studentId: typeof query.studentId === 'string' ? query.studentId : '',
+    date: typeof query.date === 'string' ? query.date : '',
+    status: typeof query.status === 'string' && query.status !== '' ? query.status : '0',
+    page: String(sanitizePage(query.page)),
+    pageSize: String(sanitizePageSize(query.pageSize)),
+    sortOrder: sanitizeSortOrder(query.sortOrder)
+  }
+}
+
+function applyListQuery(query) {
+  searchParams.value = {
+    username: query.username,
+    studentId: query.studentId,
+    date: query.date,
+    status: query.status,
+    sortOrder: query.sortOrder
+  }
+  pagination.value.page = sanitizePage(query.page)
+  pagination.value.pageSize = sanitizePageSize(query.pageSize)
+}
+
+async function syncRouteQuery() {
+  const nextQuery = currentListQuery.value
+  const normalizedCurrent = normalizeRouteQuery(route.query)
+  if (JSON.stringify(nextQuery) === JSON.stringify(normalizedCurrent)) {
+    return
+  }
+
+  await router.replace({
+    path: '/staff/audit',
+    query: nextQuery
+  })
+}
+
 function openDatePicker() {
   showDatePicker.value = true
-  // 重置状态
   dateType.value = 'all'
   singleDate.value = ''
   rangeStart.value = ''
   rangeEnd.value = ''
 }
 
-// 关闭弹窗
 function closeDatePicker() {
   showDatePicker.value = false
 }
 
-// 加载审核记录列表
-async function loadAuditRecords(targetPage) {
+async function loadAuditRecords(targetPage, options = {}) {
+  const { syncRoute = true } = options
   loading.value = true
   errorMsg.value = ''
 
@@ -72,23 +124,27 @@ async function loadAuditRecords(targetPage) {
       currentStaff.value = getCurrentStaff()
     }
 
-    // 确定请求的页码
     const requestPage = targetPage !== undefined ? targetPage : pagination.value.page
+    pagination.value.page = requestPage
+
+    if (syncRoute) {
+      await syncRouteQuery()
+    }
 
     const params = {
       username: searchParams.value.username || undefined,
       studentId: searchParams.value.studentId || undefined,
       date: searchParams.value.date || undefined,
       status: searchParams.value.status || 'all',
+      sortOrder: searchParams.value.sortOrder,
       staffId: currentStaff.value?._id || undefined,
       page: requestPage,
       pageSize: pagination.value.pageSize
     }
 
-    const result = await getAuditRecords(params)
-    const data = result
+    const data = await getAuditRecords(params)
 
-    auditRecords.value = (data.records || []).map(record => ({
+    auditRecords.value = (data.records || []).map((record) => ({
       id: record._id || record.id,
       username: record.username || record.userName || '',
       studentId: record.studentId || '',
@@ -101,10 +157,13 @@ async function loadAuditRecords(targetPage) {
     }))
 
     pagination.value.total = data.total || 0
-    pagination.value.page = data.page || requestPage  // 更新页码为实际请求的页码
+    pagination.value.page = data.page || requestPage
     pagination.value.pageSize = data.pageSize || pagination.value.pageSize
     pagination.value.totalPages = Math.ceil(pagination.value.total / pagination.value.pageSize)
 
+    if (syncRoute) {
+      await syncRouteQuery()
+    }
   } catch (err) {
     console.error('加载审核记录失败:', err)
     errorMsg.value = err.message || '加载审核记录失败'
@@ -116,7 +175,6 @@ async function loadAuditRecords(targetPage) {
   }
 }
 
-// 分页方法
 const prevPage = () => {
   const newPage = pagination.value.page - 1
   if (newPage >= 1) {
@@ -151,11 +209,10 @@ const goToLastPage = () => {
 }
 
 const changePageSize = (size) => {
-  pagination.value.pageSize = size
-  loadAuditRecords(1)  // 重置到第一页
+  pagination.value.pageSize = Number(size)
+  loadAuditRecords(1)
 }
 
-// 可见页码计算
 const visiblePages = computed(() => {
   const pages = []
   const total = pagination.value.totalPages
@@ -181,23 +238,20 @@ const visiblePages = computed(() => {
       pages.push(total)
     }
   }
+
   return pages
 })
 
-// 重置筛选
-function resetFilters() {
-  searchParams.value = {
-    username: '',
-    studentId: '',
-    date: '',
-    status: '0'
-  }
+async function resetFilters() {
+  suppressSearchWatch = true
+  searchParams.value = defaultSearchParams()
   if (debounceTimer) clearTimeout(debounceTimer)
   pagination.value.page = 1
+  await nextTick()
+  suppressSearchWatch = false
   loadAuditRecords(1)
 }
 
-// 一键通过
 async function handleBatchApprove() {
   if (!currentStaff.value) {
     currentStaff.value = getCurrentStaff()
@@ -224,10 +278,11 @@ async function handleBatchApprove() {
     loading.value = false
   }
 }
+
 async function confirmBatchApprove() {
-  // 校验日期逻辑
   let startDate = null
   let endDate = null
+
   if (dateType.value === 'single') {
     if (!singleDate.value) {
       errorMsg.value = '请选择日期'
@@ -246,11 +301,10 @@ async function confirmBatchApprove() {
     }
     startDate = rangeStart.value
     endDate = rangeEnd.value
-  } // 全部日期时 startDate/endDate 为 null
+  }
 
-  // 二次确认
   let confirmMsg = '确认将所有符合条件的待审核记录设为“通过”吗？'
-  if (startDate && endDate) {
+  if (startDate && endDate && startDate !== endDate) {
     confirmMsg = `确认将 ${startDate} 至 ${endDate} 之间的待审核记录设为“通过”吗？`
   } else if (startDate) {
     confirmMsg = `确认将 ${startDate} 当天的待审核记录设为“通过”吗？`
@@ -270,16 +324,11 @@ async function confirmBatchApprove() {
   successMsg.value = ''
 
   try {
-    const result = await batchApproveByStaffWithDate(
-      currentStaff.value._id,
-      startDate,
-      endDate
-    )
+    const result = await batchApproveByStaffWithDate(currentStaff.value._id, startDate, endDate)
     successMsg.value = `一键通过完成，成功 ${result.successCount} 条，失败 ${result.failedCount || 0} 条`
     if (result.totalProcessed && result.totalProcessed > result.successCount) {
       successMsg.value += `（共处理 ${result.totalProcessed} 条记录）`
     }
-    // 刷新列表
     await loadAuditRecords()
   } catch (err) {
     console.error('一键通过失败:', err)
@@ -290,7 +339,6 @@ async function confirmBatchApprove() {
   }
 }
 
-// 快速审核：跳转到第一条记录的详情页，并传递所有记录的ID列表
 async function openQuickAudit() {
   if (!currentStaff.value) {
     currentStaff.value = getCurrentStaff()
@@ -302,14 +350,15 @@ async function openQuickAudit() {
 
   loading.value = true
   try {
-    // 获取分配给当前工作人员的所有记录（全部状态）
     const result = await getAuditRecords({
       staffId: currentStaff.value._id,
       status: 0,
+      sortOrder: searchParams.value.sortOrder,
       page: 1,
-      pageSize: 30,
+      pageSize: 30
     })
-    const records = (result.records || result.list || []).map(record => ({
+
+    const records = (result.records || result.list || []).map((record) => ({
       id: record._id || record.id,
       username: record.username || record.userName || '',
       studentId: record.studentId || '',
@@ -326,12 +375,14 @@ async function openQuickAudit() {
       return
     }
 
-    // 将记录ID列表转为逗号分隔字符串
-    const ids = records.map(r => r.id).join(',')
-    // 跳转到详情页，索引为0
+    const ids = records.map((record) => record.id).join(',')
     await router.push({
       path: `/staff/audit/${records[0].id}`,
-      query: { ids, index: 0 }
+      query: {
+        ids,
+        index: 0,
+        ...currentListQuery.value
+      }
     })
   } catch (err) {
     console.error('加载快速审核记录失败:', err)
@@ -341,21 +392,19 @@ async function openQuickAudit() {
   }
 }
 
-// 普通审核：点击某一行，跳转到详情页（只包含该记录）
 function goToAuditDetail(record) {
-  // 获取当前筛选后的所有记录ID列表
-  const allIds = filteredRecords.value.map(r => r.id)
-  const currentIndex = filteredRecords.value.findIndex(r => r.id === record.id)
+  const allIds = filteredRecords.value.map((item) => item.id)
+  const currentIndex = filteredRecords.value.findIndex((item) => item.id === record.id)
   router.push({
     path: `/staff/audit/${record.id}`,
     query: {
       ids: allIds.join(','),
-      index: currentIndex
+      index: currentIndex,
+      ...currentListQuery.value
     }
   })
 }
 
-// 工具函数
 function getStatusText(status) {
   const map = { 0: '待审核', 1: '已通过', 2: '不通过', 3: '申诉中' }
   return map[status] || status
@@ -374,66 +423,70 @@ function formatDateTime(value) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
 }
 
-function formatDateOnly(value) {
-  if (!value) return ''
-  const date = value.$date ? new Date(value.$date) : new Date(value)
-  if (Number.isNaN(date.getTime())) return String(value)
-  const pad = (num) => String(num).padStart(2, '0')
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
-}
+watch(
+  searchParams,
+  () => {
+    if (!initializedFromRoute || suppressSearchWatch) return
+    if (debounceTimer) clearTimeout(debounceTimer)
+    debounceTimer = setTimeout(() => {
+      pagination.value.page = 1
+      loadAuditRecords(1)
+    }, 100)
+  },
+  { deep: true, immediate: false }
+)
 
-const refreshList = () => {
-  loadAuditRecords() // 重新加载当前页（页码不变）
-}
+watch(
+  () => route.query,
+  async (query) => {
+    const normalizedQuery = normalizeRouteQuery(query)
+    const listQueryChanged = JSON.stringify(normalizedQuery) !== JSON.stringify(currentListQuery.value)
 
-// 监听筛选条件变化，自动加载数据（防抖 300ms）
-watch(searchParams, () => {
-  if (debounceTimer) clearTimeout(debounceTimer)
-  debounceTimer = setTimeout(() => {
-    pagination.value.page = 1  // 重置为第一页
-    loadAuditRecords(1)
-  }, 100)
-}, { deep: true, immediate: false })
-
-onMounted(() => {
-  loadAuditRecords()
-})
+    if (!initializedFromRoute || listQueryChanged) {
+      initializedFromRoute = true
+      suppressSearchWatch = true
+      applyListQuery(normalizedQuery)
+      await nextTick()
+      suppressSearchWatch = false
+      await loadAuditRecords(pagination.value.page, { syncRoute: false })
+    }
+  },
+  { immediate: true, deep: true }
+)
 </script>
 
 <template>
   <div class="audit-page">
-    <!-- 消息提示 -->
     <div v-if="errorMsg" class="message-banner error">
-      ❌ {{ errorMsg }}
+      {{ errorMsg }}
       <button @click="errorMsg = ''" class="close-msg">×</button>
     </div>
     <div v-if="successMsg" class="message-banner success">
-      ✅ {{ successMsg }}
+      {{ successMsg }}
       <button @click="successMsg = ''" class="close-msg">×</button>
     </div>
 
-    <!-- 日期选择弹窗 -->
     <div v-if="showDatePicker" class="modal-overlay" @click.self="closeDatePicker">
       <div class="modal-container">
         <h3>一键通过</h3>
         <div class="date-options">
-          <label><input type="radio" v-model="dateType" value="all"> 全部日期</label>
-          <label><input type="radio" v-model="dateType" value="single"> 指定日期</label>
-          <label><input type="radio" v-model="dateType" value="range"> 日期范围</label>
+          <label><input v-model="dateType" type="radio" value="all" /> 全部日期</label>
+          <label><input v-model="dateType" type="radio" value="single" /> 指定日期</label>
+          <label><input v-model="dateType" type="radio" value="range" /> 日期范围</label>
         </div>
-      
+
         <div v-if="dateType === 'single'" class="date-input">
           <label>选择日期：</label>
-          <input type="date" v-model="singleDate">
+          <input v-model="singleDate" type="date" />
         </div>
-      
+
         <div v-if="dateType === 'range'" class="date-range">
           <label>开始日期：</label>
-          <input type="date" v-model="rangeStart">
+          <input v-model="rangeStart" type="date" />
           <label>结束日期：</label>
-          <input type="date" v-model="rangeEnd">
+          <input v-model="rangeEnd" type="date" />
         </div>
-      
+
         <div class="modal-buttons">
           <button @click="closeDatePicker" class="cancel-btn">取消</button>
           <button @click="confirmBatchApprove" class="confirm-btn" :disabled="batchLoading">确认</button>
@@ -441,7 +494,6 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- 搜索筛选 -->
     <div class="search-filters">
       <div class="filter-row">
         <div class="filter-item">
@@ -466,22 +518,21 @@ onMounted(() => {
             <option value="all">全部</option>
           </select>
         </div>
+        <div class="filter-item">
+          <label>打卡时间</label>
+          <select v-model="searchParams.sortOrder">
+            <option value="desc">倒序</option>
+            <option value="asc">正序</option>
+          </select>
+        </div>
         <div class="filter-actions">
           <button @click="resetFilters" class="reset-btn" :disabled="loading">重置</button>
-          <button @click="openQuickAudit" class="quick-audit-btn" :disabled="loading">
-            快速审核
-          </button>
-          <button @click="openDatePicker" class="batch-approve-btn" :disabled="loading">
-            一键通过
-          </button>
-          <button @click="refreshList" class="refresh-btn" :disabled="loading">
-            刷新
-          </button>
+          <button @click="openQuickAudit" class="quick-audit-btn" :disabled="loading">快速审核</button>
+          <button @click="openDatePicker" class="batch-approve-btn" :disabled="loading">一键通过</button>
         </div>
       </div>
     </div>
 
-    <!-- 审核记录列表 -->
     <div class="audit-list">
       <div v-if="loading && auditRecords.length === 0" class="loading-state">
         <div class="spinner"></div>
@@ -519,7 +570,6 @@ onMounted(() => {
         </tbody>
       </table>
 
-      <!-- 分页 -->
       <div v-if="!loading && pagination.total > 0" class="pagination">
         <div class="pagination-left">
           <span>每页显示：</span>
@@ -530,20 +580,20 @@ onMounted(() => {
         <div class="pagination-center">
           <button @click="goToFirstPage" :disabled="pagination.page <= 1">首页</button>
           <button @click="prevPage" :disabled="pagination.page <= 1">上一页</button>
-
           <span class="page-buttons">
-            <button v-for="pageNum in visiblePages" :key="pageNum" @click="goToPage(pageNum)"
-              :class="{ 'current': pageNum === pagination.page }" :disabled="pageNum === '...'">
+            <button
+              v-for="pageNum in visiblePages"
+              :key="pageNum"
+              @click="goToPage(pageNum)"
+              :class="{ current: pageNum === pagination.page }"
+              :disabled="pageNum === '...'"
+            >
               {{ pageNum }}
             </button>
           </span>
-
           <button @click="nextPage" :disabled="pagination.page >= pagination.totalPages">下一页</button>
           <button @click="goToLastPage" :disabled="pagination.page >= pagination.totalPages">末页</button>
-
-          <span class="page-info">
-            第 {{ pagination.page }} 页 / 共 {{ pagination.totalPages }} 页 (共 {{ pagination.total }} 条)
-          </span>
+          <span class="page-info">第{{ pagination.page }}页 / 共{{ pagination.totalPages }}页(共{{ pagination.total }}条)</span>
         </div>
       </div>
 
@@ -559,7 +609,6 @@ onMounted(() => {
   padding: 0;
 }
 
-/* 消息提示 */
 .message-banner {
   padding: 12px 20px;
   border-radius: 8px;
@@ -609,7 +658,6 @@ onMounted(() => {
   }
 }
 
-/* 加载状态 */
 .loading-state {
   text-align: center;
   padding: 60px 20px;
@@ -634,22 +682,6 @@ onMounted(() => {
   100% {
     transform: rotate(360deg);
   }
-}
-
-.page-header {
-  margin-bottom: 30px;
-}
-
-.page-header h1 {
-  font-size: 24px;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 8px;
-}
-
-.page-header p {
-  color: #666;
-  font-size: 16px;
 }
 
 .search-filters {
@@ -794,17 +826,17 @@ onMounted(() => {
 
 .status-pending {
   background: rgba(255, 193, 7, 0.1);
-  color: #FFC107;
+  color: #ffc107;
 }
 
 .status-approved {
   background: rgba(40, 167, 69, 0.1);
-  color: #28A745;
+  color: #28a745;
 }
 
 .status-rejected {
   background: rgba(220, 53, 69, 0.1);
-  color: #DC3545;
+  color: #dc3545;
 }
 
 .status-appeal {
@@ -840,338 +872,6 @@ onMounted(() => {
   font-size: 16px;
 }
 
-/* 审核对话框 */
-.audit-dialog-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.audit-dialog {
-  background: white;
-  border-radius: 12px;
-  width: 90%;
-  max-width: 800px;
-  max-height: 90vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-.dialog-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.dialog-header h2 {
-  font-size: 18px;
-  font-weight: 600;
-  color: #333;
-  margin: 0;
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 24px;
-  color: #999;
-  cursor: pointer;
-  padding: 0;
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  transition: all 0.3s ease;
-}
-
-.close-btn:hover {
-  background: #f0f0f0;
-  color: #333;
-}
-
-.dialog-content {
-  padding: 20px;
-  flex: 1;
-  overflow-y: auto;
-}
-
-.record-details {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.detail-row {
-  display: flex;
-  gap: 8px;
-}
-
-.detail-label {
-  font-weight: 500;
-  color: #333;
-  min-width: 80px;
-}
-
-.detail-value {
-  color: #666;
-}
-
-.screenshot-section {
-  margin-top: 24px;
-}
-
-.screenshot-section h3 {
-  font-size: 16px;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 12px;
-}
-
-.screenshot-preview {
-  border: 1px solid #f0f0f0;
-  border-radius: 8px;
-  padding: 12px;
-  text-align: center;
-}
-
-.screenshot-preview img {
-  max-width: 100%;
-  max-height: 300px;
-  border-radius: 4px;
-}
-
-.audit-section {
-  margin-top: 24px;
-}
-
-.audit-section h3 {
-  font-size: 16px;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 16px;
-}
-
-.audit-options {
-  display: flex;
-  gap: 24px;
-  margin-bottom: 20px;
-}
-
-.radio-option {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-}
-
-.reasons-section {
-  margin-top: 20px;
-}
-
-.reasons-section h4 {
-  font-size: 16px;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 12px;
-}
-
-.reasons-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-}
-
-.checkbox-option {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  min-width: 120px;
-}
-
-.remark-section {
-  margin-top: 20px;
-}
-
-.remark-section h4 {
-  font-size: 16px;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 12px;
-}
-
-.remark-input {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  font-size: 16px;
-  font-family: inherit;
-  resize: vertical;
-  box-sizing: border-box;
-  transition: border-color 0.3s;
-}
-
-.remark-input:focus {
-  outline: none;
-  border-color: #667eea;
-}
-
-.warning-tip {
-  margin-top: 20px;
-  padding: 12px;
-  background: #fff7e6;
-  border: 1px solid #ffd591;
-  border-radius: 6px;
-  color: #fa8c16;
-  font-size: 16px;
-  line-height: 1.6;
-}
-
-.dialog-footer {
-  padding: 20px;
-  border-top: 1px solid #f0f0f0;
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-}
-
-.cancel-btn {
-  padding: 10px 20px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  background: white;
-  color: #666;
-  cursor: pointer;
-  font-size: 16px;
-  transition: all 0.3s ease;
-}
-
-.cancel-btn:hover:not(:disabled) {
-  background: #f5f5f5;
-}
-
-.cancel-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.submit-btn {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 6px;
-  background: #667eea;
-  color: white;
-  cursor: pointer;
-  font-size: 16px;
-  transition: all 0.3s ease;
-}
-
-.submit-btn:hover:not(:disabled) {
-  background: #5a6fe0;
-}
-
-.submit-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  background: #ccc;
-}
-
-/* 图片预览样式 */
-.image-preview-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.9);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 2000;
-}
-
-.image-preview-container {
-  position: relative;
-  max-width: 90vw;
-  max-height: 90vh;
-}
-
-.image-preview-close {
-  position: absolute;
-  top: -5%;
-  right: -10%;
-  background: rgba(255, 255, 255, 0.2);
-  border: none;
-  color: white;
-  font-size: 24px;
-  cursor: pointer;
-  width: 10px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 10%;
-  transition: all 0.3s;
-  z-index: 2001;
-}
-
-.image-preview-close:hover {
-  background: rgba(255, 255, 255, 0.3);
-}
-
-.preview-image {
-  max-width: 100%;
-  max-height: 85vh;
-  object-fit: contain;
-  border-radius: 8px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-}
-
-.option-btn input[type="radio"],
-.option-btn input[type="checkbox"] {
-  display: none;
-}
-
-/* 快速审核对话框的导航按钮 */
-.nav-btn {
-  padding: 8px 16px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  background: white;
-  color: #666;
-  cursor: pointer;
-  font-size: 16px;
-  transition: all 0.3s ease;
-}
-
-.nav-btn:hover:not(:disabled) {
-  background: #f5f5f5;
-}
-
-.nav-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* 快速审核对话框宽度稍大 */
-.quick-audit-dialog {
-  max-width: 900px;
-}
-
-/* 分页样式 */
 .pagination {
   display: flex;
   justify-content: space-between;
@@ -1268,97 +968,88 @@ onMounted(() => {
   background: #f5f5f5;
 }
 
-.refresh-btn {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 6px;
-  background: #17a2b8;
-  color: white;
-  cursor: pointer;
-  font-size: 16px;
-  transition: all 0.3s ease;
-}
-.refresh-btn:hover:not(:disabled) {
-  background: #138496;
-}
-.refresh-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* 弹窗样式 */
 .modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  inset: 0;
   background: rgba(0, 0, 0, 0.5);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 2000;
 }
+
 .modal-container {
   background: white;
   padding: 24px;
   border-radius: 12px;
   width: 500px;
   max-width: 90%;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
 }
+
 .modal-container h3 {
   margin-top: 0;
   font-size: 18px;
 }
+
 .date-options {
   display: flex;
   gap: 20px;
   margin-bottom: 20px;
 }
+
 .date-options label {
   display: flex;
   align-items: center;
   gap: 6px;
 }
-.date-input, .date-range {
+
+.date-input,
+.date-range {
   margin-bottom: 20px;
   display: flex;
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
 }
-.date-input input, .date-range input {
+
+.date-input input,
+.date-range input {
   padding: 6px 10px;
   border: 1px solid #ddd;
   border-radius: 4px;
   font-size: 16px;
 }
+
 .modal-buttons {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
   margin-top: 20px;
 }
-.cancel-btn, .confirm-btn {
+
+.cancel-btn,
+.confirm-btn {
   padding: 6px 16px;
   border: none;
   border-radius: 4px;
   cursor: pointer;
 }
+
 .cancel-btn {
   background: #f0f0f0;
 }
+
 .confirm-btn {
   background: #28a745;
   color: white;
 }
+
 .confirm-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
-/* 响应式设计 */
 @media (max-width: 768px) {
   .filter-row {
     flex-direction: column;
@@ -1372,14 +1063,14 @@ onMounted(() => {
     font-size: 16px;
   }
 
-  .audit-options {
+  .pagination {
     flex-direction: column;
-    gap: 12px;
+    gap: 15px;
   }
 
-  .reasons-list {
-    flex-direction: column;
-    gap: 8px;
+  .pagination-center {
+    flex-wrap: wrap;
+    justify-content: center;
   }
 }
 </style>

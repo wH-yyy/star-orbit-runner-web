@@ -1,74 +1,69 @@
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getAuditRecordDetail, submitAudit as submitAuditApi, updateAuditResult } from '../../api/staff.js'
 
 const route = useRoute()
 const router = useRouter()
+const listQueryKeys = ['username', 'studentId', 'date', 'status', 'page', 'pageSize', 'sortOrder']
 
-// 记录ID列表和当前索引
 const currentId = ref('')
 const recordIds = ref([])
 const currentIndex = ref(0)
-
-// 当前记录详情
 const recordDetail = ref(null)
 const loading = ref(false)
 
 const toastVisible = ref(false)
 const toastText = ref('')
-const toastType = ref('') // 'error' 或 'success'
+const toastType = ref('')
 let toastTimer = null
 
-// 审核表单
 const auditForm = ref({
   result: '',
   reasons: [],
   remark: ''
 })
 
-// 预设拒绝原因
 const rejectReasons = [
-  '配速异常',
-  '距离不足',
-  '时间不符合要求',
-  '截图不清晰',
-  '截图信息不完整',
+  '配速过快',
+  '配速过慢',
+  '里程不足2km',
+  '跑步时间不在活动时间内',
+  '跑步截图与活动无关',
+  '缺少跑步日期',
+  '缺少跑步时间',
+  '缺少姓名学号',
+  '缺少跑步路线',
+  '缺少步数证明',
+  '跑步截图与步数截图不对应',
+  '步数过低',
   '其他原因'
 ]
 
-const imageSize = ref('small') // 可选值: 'small', 'medium', 'large'
-
+const imageSize = ref('small')
 const showConfirm = ref(false)
-const confirmType = ref('') // 'approve' 或 'reject'
+const confirmType = ref('')
 const confirmLoading = ref(false)
 
-// 放大：小→中，中→大，大不变（按钮禁用）
 function zoomIn() {
   if (imageSize.value === 'small') {
     imageSize.value = 'medium'
   } else if (imageSize.value === 'medium') {
     imageSize.value = 'large'
   }
-  // 已经是 large 时不操作
 }
 
-// 缩小：大→中，中→小，小不变（按钮禁用）
 function zoomOut() {
   if (imageSize.value === 'large') {
     imageSize.value = 'medium'
   } else if (imageSize.value === 'medium') {
     imageSize.value = 'small'
   }
-  // 已经是 small 时不操作
 }
 
-
-// 图片预览
 const previewImage = ref('')
 const showImagePreview = ref(false)
 
-// 状态映射函数
 function getStatusText(status) {
   const map = { 0: '待审核', 1: '已通过', 2: '不通过', 3: '申诉中' }
   return map[status] || status
@@ -79,15 +74,10 @@ function getStatusClass(status) {
   return map[status] || ''
 }
 
-// 格式化日期时间函数
 function formatDateTime(value) {
   if (!value) return ''
-
-  // 处理云开发返回的日期对象格式 { $date: "2026-02-12T12:36:33.376Z" }
   const date = value.$date ? new Date(value.$date) : new Date(value)
-
   if (Number.isNaN(date.getTime())) return String(value)
-
   const pad = (num) => String(num).padStart(2, '0')
   const year = date.getFullYear()
   const month = pad(date.getMonth() + 1)
@@ -95,11 +85,9 @@ function formatDateTime(value) {
   const hours = pad(date.getHours())
   const minutes = pad(date.getMinutes())
   const seconds = pad(date.getSeconds())
-
   return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
 }
 
-// 图片预览方法
 function openImagePreview(url) {
   previewImage.value = url
   showImagePreview.value = true
@@ -109,69 +97,78 @@ function closeImagePreview() {
   showImagePreview.value = false
 }
 
-// 计算属性：是否还有上一条/下一条
 const hasPrev = computed(() => currentIndex.value > 0)
 const hasNext = computed(() => currentIndex.value < recordIds.value.length - 1)
 
-// 计算属性：不通过按钮是否可点击
 const canReject = computed(() => {
   if (recordDetail.value && (recordDetail.value.status === 2 || recordDetail.value.status === 3)) {
     return false
   }
   const hasReasons = auditForm.value.reasons.length > 0
   if (!hasReasons) return false
-  // 如果包含“其他原因”，必须填写备注
   if (auditForm.value.reasons.includes('其他原因')) {
     return auditForm.value.remark && auditForm.value.remark.trim() !== ''
   }
   return true
 })
 
-// 计算属性：是否允许修改（状态为待审核或已通过时才允许修改）
 const canEdit = computed(() => {
   return recordDetail.value && (recordDetail.value.status === 0 || recordDetail.value.status === 1)
 })
 
-// 解析路由参数
+function buildReturnListQuery() {
+  const query = {}
+  for (const key of listQueryKeys) {
+    if (typeof route.query[key] === 'string') {
+      query[key] = route.query[key]
+    }
+  }
+
+  if (!query.status) query.status = '0'
+  if (!query.page) query.page = '1'
+  if (!query.pageSize) query.pageSize = '50'
+  if (!query.sortOrder || !['asc', 'desc'].includes(query.sortOrder)) {
+    query.sortOrder = 'desc'
+  }
+
+  return query
+}
+
 function parseRouteParams() {
   const id = route.params.id
   const idsQuery = route.query.ids
   const indexQuery = route.query.index
 
   if (!id) {
-    // 如果没有 id，可能路由错误，可跳转回列表页
-    router.push('/staff/audit')
+    router.push({
+      path: '/staff/audit',
+      query: buildReturnListQuery()
+    })
     return
   }
 
   currentId.value = id
 
-  // 解析 ID 列表
   if (idsQuery && typeof idsQuery === 'string') {
-    recordIds.value = idsQuery.split(',').filter(id => id.trim() !== '')
+    recordIds.value = idsQuery.split(',').filter((value) => value.trim() !== '')
   } else {
-    // 如果没有 ids 参数，则列表只有当前 ID
     recordIds.value = [id]
   }
 
-  // 确定当前索引
   if (indexQuery !== undefined) {
     const idx = parseInt(indexQuery, 10)
-    if (!isNaN(idx) && idx >= 0 && idx < recordIds.value.length) {
+    if (!Number.isNaN(idx) && idx >= 0 && idx < recordIds.value.length) {
       currentIndex.value = idx
     } else {
-      // 索引无效，根据当前 ID 查找
-      const foundIdx = recordIds.value.findIndex(i => i === id)
+      const foundIdx = recordIds.value.findIndex((value) => value === id)
       currentIndex.value = foundIdx !== -1 ? foundIdx : 0
     }
   } else {
-    // 没有索引，根据当前 ID 查找
-    const foundIdx = recordIds.value.findIndex(i => i === id)
+    const foundIdx = recordIds.value.findIndex((value) => value === id)
     currentIndex.value = foundIdx !== -1 ? foundIdx : 0
   }
 }
 
-// 根据当前索引加载记录详情
 async function loadCurrentRecord() {
   if (recordIds.value.length === 0 || currentIndex.value < 0 || currentIndex.value >= recordIds.value.length) {
     recordDetail.value = null
@@ -184,8 +181,6 @@ async function loadCurrentRecord() {
   try {
     const detail = await getAuditRecordDetail(recordId)
     recordDetail.value = detail
-
-    // 初始化表单为当前记录的状态
     auditForm.value = {
       result: '',
       reasons: [],
@@ -200,7 +195,6 @@ async function loadCurrentRecord() {
   }
 }
 
-// 上下条切换
 function goPrev() {
   if (hasPrev.value) {
     currentIndex.value--
@@ -208,6 +202,7 @@ function goPrev() {
     router.push({
       path: `/staff/audit/${newId}`,
       query: {
+        ...buildReturnListQuery(),
         ids: recordIds.value.join(','),
         index: currentIndex.value
       }
@@ -222,6 +217,7 @@ function goNext() {
     router.push({
       path: `/staff/audit/${newId}`,
       query: {
+        ...buildReturnListQuery(),
         ids: recordIds.value.join(','),
         index: currentIndex.value
       }
@@ -251,18 +247,14 @@ async function handleConfirm() {
       await submitReject()
     }
     showConfirm.value = false
-  } catch (err) {
-    // 错误已在对应函数中处理为 Toast
   } finally {
     confirmLoading.value = false
   }
 }
 
-// 提交通过审核
 async function submitApprove() {
   if (!recordDetail.value) return
 
-  // 状态为不通过或申诉中时，不允许操作
   if (recordDetail.value.status === 2 || recordDetail.value.status === 3) {
     showToast('不通过或申诉中的记录不支持修改状态', 'error')
     return
@@ -278,31 +270,25 @@ async function submitApprove() {
       remark: auditForm.value.remark || ''
     }
 
-    let result
     if (recordDetail.value.status === 0) {
-      // 待审核记录，调用 submitAudit（会更新统计）
-      result = await submitAuditApi(auditData)
+      await submitAuditApi(auditData)
     } else {
-      // 已审核记录，调用 updateAuditResult（只改状态，不更新统计）
-      result = await updateAuditResult(auditData)
+      await updateAuditResult(auditData)
     }
 
     showToast('已通过', 'success')
 
-    // 更新本地记录的状态
     if (recordDetail.value) {
       recordDetail.value.status = 1
       recordDetail.value.reasons = []
       recordDetail.value.remark = auditForm.value.remark || ''
     }
 
-    // 如果有下一条，自动跳转
     if (hasNext.value) {
       setTimeout(() => {
         goNext()
       }, 1000)
     } else {
-      // 没有下一条，停留并显示完成提示
       setTimeout(() => {
         showToast('所有记录审核完成', 'success')
       }, 1000)
@@ -315,11 +301,9 @@ async function submitApprove() {
   }
 }
 
-// 提交不通过审核（带确认弹窗）
 async function submitReject() {
   if (!recordDetail.value) return
 
-  // 状态为不通过或申诉中时，不允许操作
   if (recordDetail.value.status === 2 || recordDetail.value.status === 3) {
     showToast('不通过或申诉中的记录不支持修改状态', 'error')
     return
@@ -340,31 +324,25 @@ async function submitReject() {
       remark: auditForm.value.remark || ''
     }
 
-    let result
     if (recordDetail.value.status === 0) {
-      // 待审核记录，调用 submitAudit（会更新统计）
-      result = await submitAuditApi(auditData)
+      await submitAuditApi(auditData)
     } else {
-      // 已审核记录，调用 updateAuditResult（只改状态，不更新统计）
-      result = await updateAuditResult(auditData)
+      await updateAuditResult(auditData)
     }
 
     showToast('已拒绝', 'success')
 
-    // 更新本地记录的状态
     if (recordDetail.value) {
       recordDetail.value.status = 2
       recordDetail.value.reasons = auditForm.value.reasons
       recordDetail.value.remark = auditForm.value.remark || ''
     }
 
-    // 如果有下一条，自动跳转
     if (hasNext.value) {
       setTimeout(() => {
         goNext()
       }, 1000)
     } else {
-      // 没有下一条，停留并显示完成提示
       setTimeout(() => {
         showToast('所有记录审核完成', 'success')
       }, 1000)
@@ -377,7 +355,6 @@ async function submitReject() {
   }
 }
 
-// 显示 Toast 的方法
 function showToast(message, type = 'success') {
   if (toastTimer) clearTimeout(toastTimer)
   toastText.value = message
@@ -388,12 +365,13 @@ function showToast(message, type = 'success') {
   }, 3000)
 }
 
-// 返回列表页
 function goBack() {
-  router.push('/staff/audit')
+  router.push({
+    path: '/staff/audit',
+    query: buildReturnListQuery()
+  })
 }
 
-// 监听路由参数变化
 watch(
   () => [route.params.id, route.query.ids, route.query.index],
   () => {
@@ -406,27 +384,24 @@ watch(
 
 <template>
   <div class="audit-detail-page">
-    <!-- 两栏内容 -->
     <div v-if="loading && !recordDetail" class="loading-state">
       <div class="spinner"></div>
       <p>加载中...</p>
     </div>
 
     <div v-else-if="recordDetail" class="detail-layout">
-      <!-- 左侧：截图 -->
       <div class="left-col">
         <div class="left-col-header">
-          <button @click="goBack" class="back-btn"> < 返回 </button>
+          <button @click="goBack" class="back-btn">< 返回</button>
           <h3>跑步截图</h3>
           <div class="image-size-controls">
-            <button @click="zoomOut" :disabled="imageSize === 'small'" class="size-btn">🔍 缩小</button>
-            <button @click="zoomIn" :disabled="imageSize === 'large'" class="size-btn">🔍 放大</button>
+            <button @click="zoomOut" :disabled="imageSize === 'small'" class="size-btn">缩小</button>
+            <button @click="zoomIn" :disabled="imageSize === 'large'" class="size-btn">放大</button>
           </div>
         </div>
-      
+
         <div class="mode-info">{{ recordDetail.mode }}</div>
 
-        <!-- 根据 mode 显示不同布局 -->
         <div v-if="recordDetail.mode === '在任意场地跑，提供步数截图'" class="dual-image-layout">
           <div :class="['screenshot-container', `size-${imageSize}`]">
             <img :src="recordDetail.screenshot" alt="跑步截图" @click="openImagePreview(recordDetail.screenshot)" />
@@ -442,18 +417,14 @@ watch(
         </div>
       </div>
 
-      <!-- 右侧：审核裁决 -->
       <div class="right-col">
-        <!-- 1. 绑定学生信息 -->
-        
         <div class="student-info">
           <div class="student-name">{{ recordDetail.username }}</div>
           <div class="student-meta">
-            {{ recordDetail.studentId || '—' }}
+            {{ recordDetail.studentId || '-' }}
           </div>
         </div>
 
-        <!-- 3. 当前状态（包含审核结果） -->
         <div class="info-block">
           <h3>当前状态</h3>
           <div class="info-item">
@@ -472,33 +443,35 @@ watch(
           </div>
         </div>
 
-
-
         <h3>审核裁决</h3>
 
-        <!-- 拒绝原因（多选按钮样式） -->
         <div class="reasons-section">
           <h4>不通过原因（可多选）</h4>
           <div class="reasons-list">
-            <label v-for="reason in rejectReasons" :key="reason"
-                   :class="['option-btn', { active: auditForm.reasons.includes(reason), disabled: !canEdit }]">
-              <input type="checkbox" :value="reason"
-                     v-model="auditForm.reasons"
-                     :disabled="!canEdit"
-                     hidden />
+            <label
+              v-for="reason in rejectReasons"
+              :key="reason"
+              :class="['option-btn', { active: auditForm.reasons.includes(reason), disabled: !canEdit }]"
+            >
+              <input
+                type="checkbox"
+                :value="reason"
+                v-model="auditForm.reasons"
+                :disabled="!canEdit"
+                hidden
+              />
               <span>{{ reason }}</span>
             </label>
           </div>
         </div>
 
-        <!-- 备注 -->
         <div class="remark-section">
-            <h4>
-              备注
-              <span v-if="auditForm.reasons.includes('其他原因') && !auditForm.remark" class="required-tip">
-                请输入原因
-              </span>
-            </h4>
+          <h4>
+            备注
+            <span v-if="auditForm.reasons.includes('其他原因') && !auditForm.remark" class="required-tip">
+              请输入原因
+            </span>
+          </h4>
           <textarea
             v-model="auditForm.remark"
             placeholder="请输入备注信息..."
@@ -508,65 +481,58 @@ watch(
           ></textarea>
         </div>
 
-        <!-- 通过/不通过 按钮 -->
         <div class="action-buttons">
-          <button @click="openConfirm('reject')" class="reject-btn"
-                  :disabled="loading || !canEdit || !canReject">
+          <button @click="openConfirm('reject')" class="reject-btn" :disabled="loading || !canEdit || !canReject">
             {{ loading ? '处理中...' : '不通过' }}
           </button>
-          <button @click="openConfirm('approve')" class="approve-btn"
-                  :disabled="loading || !canEdit || (recordDetail.status === 1)">
+          <button
+            @click="openConfirm('approve')"
+            class="approve-btn"
+            :disabled="loading || !canEdit || (recordDetail.status === 1)"
+          >
             {{ loading ? '处理中...' : '通过' }}
           </button>
         </div>
 
-        <!-- 下排导航按钮 -->
         <div class="nav-buttons">
           <button @click="goPrev" :disabled="!hasPrev || loading" class="nav-btn prev-btn">< 上一条</button>
-          <p> {{ currentIndex + 1 }} / {{ recordIds.length }} </p>
-          <button @click="goNext" :disabled="!hasNext || loading" class="nav-btn next-btn">下一条 ></button>
+          <p>{{ currentIndex + 1 }} / {{ recordIds.length }}</p>
+          <button @click="goNext" :disabled="!hasNext || loading" class="nav-btn next-btn">下一条></button>
         </div>
 
-        <!-- 状态提示：当记录为不通过或申诉中时 -->
         <div v-if="recordDetail && (recordDetail.status === 2 || recordDetail.status === 3)" class="status-warning">
-          ⚠️ 当前记录状态为{{ getStatusText(recordDetail.status) }}，不支持修改
+          当前记录状态为{{ getStatusText(recordDetail.status) }}，不支持修改
         </div>
-
       </div>
     </div>
 
-    <!-- 空状态 -->
     <div v-else-if="!loading && !recordDetail" class="empty-state">
       未找到记录
     </div>
 
-    <!-- 图片预览弹窗 -->
     <div v-if="showImagePreview" class="image-preview-overlay" @click="closeImagePreview">
       <div class="image-preview-container" @click.stop>
         <button class="image-preview-close" @click="closeImagePreview">×</button>
-        <img :src="previewImage" alt="预览图片" class="preview-image">
+        <img :src="previewImage" alt="预览图片" class="preview-image" />
       </div>
     </div>
   </div>
 
-  <!-- 浮动消息提示 -->
   <transition name="fade">
     <div v-if="toastVisible" class="toast-message" :class="toastType">
       {{ toastText }}
     </div>
   </transition>
 
-  <!-- 自定义确认对话框 -->
-  <div v-if="showConfirm" class="confirm-dialog-overlay" @click.self="showConfirm=false">
+  <div v-if="showConfirm" class="confirm-dialog-overlay" @click.self="showConfirm = false">
     <div class="confirm-dialog">
       <p>确定要将此记录判为{{ confirmType === 'approve' ? '通过' : '不通过' }}吗？</p>
       <div class="confirm-actions">
-        <button @click="showConfirm=false" :disabled="confirmLoading">取消</button>
+        <button @click="showConfirm = false" :disabled="confirmLoading">取消</button>
         <button @click="handleConfirm" :disabled="confirmLoading">确定</button>
       </div>
     </div>
   </div>
-
 </template>
 
 <style scoped>
@@ -631,20 +597,20 @@ watch(
 .left-col-header {
   display: flex;
   align-items: center;
-  justify-content: space-between; /* 左右分布，标题居中靠 flex 自然居中 */
+  justify-content: space-between;
   margin-bottom: 0;
-  position: relative; /* 可选，为绝对定位标题做准备 */
+  position: relative;
 }
 
 .left-col-header h3 {
   margin: 0;
-  position: absolute; /* 使用绝对定位使标题严格居中 */
+  position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  white-space: nowrap; /* 防止换行 */
+  white-space: nowrap;
 }
 
-.left-col h3{
+.left-col h3 {
   margin-top: 0;
   margin-bottom: 0;
   font-size: 18px;
@@ -669,7 +635,6 @@ watch(
   color: #333;
 }
 
-/* 图片尺寸控制按钮组 */
 .image-size-controls {
   display: flex;
   gap: 8px;
@@ -704,19 +669,18 @@ watch(
   border-radius: 8px;
   padding: 4px;
   transition: all 0.3s ease;
-  width: 100%;               /* 确保容器宽度占满 */
+  width: 100%;
 }
 
 .screenshot-container img {
   max-width: 100%;
-  height: auto;              /* 高度自适应，保持宽高比 */
+  height: auto;
   object-fit: contain;
   cursor: pointer;
   border-radius: 4px;
   transition: max-height 0.3s ease;
 }
 
-/* 定义三个尺寸 */
 .screenshot-container.size-small img {
   max-height: 75vh;
 }
@@ -729,7 +693,6 @@ watch(
   max-height: 120vh;
 }
 
-/* 双图布局 */
 .dual-image-layout {
   display: flex;
   gap: 12px;
@@ -742,7 +705,6 @@ watch(
   max-width: 50%;
 }
 
-/* 单图布局 */
 .single-image-layout .screenshot-container {
   width: 100%;
 }
@@ -765,7 +727,6 @@ watch(
   flex: 1;
 }
 
-/* 绑定学生信息卡片样式 */
 .student-info {
   display: flex;
   align-items: center;
@@ -799,17 +760,17 @@ watch(
 
 .status-pending {
   background: rgba(255, 193, 7, 0.1);
-  color: #FFC107;
+  color: #ffc107;
 }
 
 .status-approved {
   background: rgba(40, 167, 69, 0.1);
-  color: #28A745;
+  color: #28a745;
 }
 
 .status-rejected {
   background: rgba(220, 53, 69, 0.1);
-  color: #DC3545;
+  color: #dc3545;
 }
 
 .status-appeal {
@@ -817,7 +778,6 @@ watch(
   color: #17a2b8;
 }
 
-/* 中间列区块分割 */
 .info-block {
   margin-bottom: 10px;
   padding-bottom: 0;
@@ -836,7 +796,6 @@ watch(
   margin: 10px auto;
 }
 
-/* 状态警告提示 */
 .status-warning {
   background: #fff3cd;
   border: 1px solid #ffeeba;
@@ -847,7 +806,6 @@ watch(
   font-size: 16px;
 }
 
-/* 按钮样式 */
 .reasons-list {
   display: flex;
   flex-wrap: wrap;
@@ -910,7 +868,6 @@ watch(
   cursor: not-allowed;
 }
 
-/* 操作按钮 */
 .action-buttons {
   display: flex;
   gap: 12px;
@@ -946,21 +903,18 @@ watch(
   background: #c82333;
 }
 
-/* 禁用状态的通过按钮 */
 .approve-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-  background: #a8d5ba;  /* 绿灰色 */
+  background: #a8d5ba;
 }
 
-/* 禁用状态的不通过按钮 */
 .reject-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-  background: #f4b0b0;  /* 红灰色 */
+  background: #f4b0b0;
 }
 
-/* 下排导航按钮 */
 .nav-buttons {
   display: flex;
   gap: 12px;
@@ -968,12 +922,12 @@ watch(
 }
 
 .nav-buttons p {
-  margin: 0;                /* 移除默认上下边距 */
-  line-height: 1;           /* 防止多余行高影响高度 */
+  margin: 0;
+  line-height: 1;
   display: flex;
-  align-items: center;      /* 文本垂直居中 */
-  color: #666;              /* 保持与现有文字颜色一致（可选） */
-  font-size: 16px;          /* 可根据需要调整字号 */
+  align-items: center;
+  color: #666;
+  font-size: 16px;
 }
 
 .nav-buttons .nav-btn {
@@ -988,18 +942,16 @@ watch(
   text-align: center;
 }
 
-/* 可点击状态 - 蓝色背景 */
 .nav-buttons .nav-btn:not(:disabled) {
-  background: #667eea;  /* 蓝色背景 */
+  background: #667eea;
 }
 
-/* 可点击状态悬停效果 */
 .nav-buttons .nav-btn:not(:disabled):hover {
-  background: #5a6fe0;  /* 深一点的蓝色 */
+  background: #5a6fe0;
 }
 
 .nav-buttons .nav-btn:disabled {
-  background: #a0b0cc;  /* 蓝灰色背景 */
+  background: #a0b0cc;
   opacity: 0.6;
   cursor: not-allowed;
 }
@@ -1021,8 +973,13 @@ watch(
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .empty-state {
@@ -1031,7 +988,6 @@ watch(
   color: #999;
 }
 
-/* 图片预览样式 */
 .image-preview-overlay {
   position: fixed;
   top: 0;
@@ -1084,16 +1040,25 @@ watch(
   border-radius: 8px;
   font-size: 16px;
   z-index: 9999;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   color: white;
 }
-.toast-message.error { background: #ff4d4f; }
-.toast-message.success { background: #52c41a; }
 
-.fade-enter-active, .fade-leave-active {
+.toast-message.error {
+  background: #ff4d4f;
+}
+
+.toast-message.success {
+  background: #52c41a;
+}
+
+.fade-enter-active,
+.fade-leave-active {
   transition: opacity 0.3s;
 }
-.fade-enter-from, .fade-leave-to {
+
+.fade-enter-from,
+.fade-leave-to {
   opacity: 0;
 }
 
@@ -1115,7 +1080,7 @@ watch(
   padding: 24px;
   border-radius: 12px;
   min-width: 320px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
 }
 
 .confirm-dialog p {
@@ -1154,7 +1119,6 @@ watch(
   cursor: not-allowed;
 }
 
-/* 响应式调整 */
 @media (max-width: 1200px) {
   .detail-layout {
     flex-direction: column;
@@ -1170,6 +1134,7 @@ watch(
   .left-col-header h3 {
     font-size: 16px;
   }
+
   .size-btn {
     padding: 2px 4px;
     font-size: 16px;
