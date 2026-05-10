@@ -594,3 +594,54 @@ export async function setActivityActive(id) {
         throw err
     }
 }
+
+/**
+ * 根据学号查询用户所有跑步历史记录
+ * @param {string} studentId - 学生学号
+ * @returns {Promise<Object>} 历史记录列表数据
+ */
+export async function fetchUserHistory(studentId) {
+    console.log("fetchUserHistory called with studentId:", studentId)
+    try {
+        // 1. 参数验证
+        if (!studentId) {
+            throw new Error('学号不能为空')
+        }
+
+        // 2. 确保云开发登录状态
+        await ensureCloudLogin()
+
+        // 3. 调用云函数 (getUserRunningHistory 是我们之前写好的云函数名)
+        console.log('开始调用云函数 getUserRunningHistory...')
+        const res = await callFunction({
+            name: "getUserRunningHistory",
+            data: { studentId }
+        })
+
+        console.log("云函数返回结果:", res)
+        const result = res?.result
+
+        // 4. 结果处理
+        if (!result) {
+            console.error('云函数无返回结果')
+            throw new Error('服务器无响应，请稍后重试')
+        }
+
+        if (!result.success && result.code !== 200) {
+            throw new Error(result.message || '查询历史记录失败')
+        }
+
+        // 返回格式化后的数据列表
+        return result
+    } catch (err) {
+        console.error("fetchUserHistory 调用失败:", err)
+
+        // 网络错误提示
+        if (err.message.includes('network') || err.message.includes('Network')) {
+            throw new Error('网络连接失败，请检查网络后重试')
+        }
+
+        // 抛出原始或自定义错误
+        throw new Error(err.message || '获取历史记录失败，请稍后重试')
+    }
+}

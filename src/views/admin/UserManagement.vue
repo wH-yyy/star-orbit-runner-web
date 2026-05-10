@@ -1,8 +1,6 @@
 <template>
-  <!-- 搜索和筛选区域 -->
   <div class="search-filter-section">
     <div class="filter-section">
-      <!-- 校区筛选 -->
       <div class="filter-group">
         <span class="filter-label">校区：</span>
         <select v-model="selectedCampus" class="filter-select" @change="handleFilterChange">
@@ -13,7 +11,6 @@
         </select>
       </div>
 
-      <!-- 书院筛选 -->
       <div class="filter-group">
         <span class="filter-label">书院：</span>
         <select v-model="selectedCollege" class="filter-select" @change="handleFilterChange">
@@ -24,7 +21,6 @@
         </select>
       </div>
 
-      <!-- 账号状态筛选 -->
       <div class="filter-group">
         <span class="filter-label">账号状态：</span>
         <select v-model="selectedStatus" class="filter-select" @change="handleFilterChange">
@@ -35,7 +31,6 @@
         </select>
       </div>
 
-      <!-- 排序选项 -->
       <div class="filter-group">
         <span class="filter-label">排序：</span>
         <select v-model="sortBy" @change="handleSortChange" class="filter-select">
@@ -58,21 +53,17 @@
     </div>
   </div>
 
-  <!-- 用户列表 -->
   <div class="user-list-section">
 
-    <!-- 加载状态 -->
     <div v-if="loading" class="loading-state">
       <p>加载中...</p>
     </div>
 
-    <!-- 错误状态 -->
     <div v-else-if="error" class="error-state">
       <p>{{ error }}</p>
       <button @click="loadUserList" class="btn btn-primary">重试</button>
     </div>
 
-    <!-- 用户列表表格 -->
     <div v-else class="user-table-container">
       <table class="user-table">
         <thead>
@@ -84,7 +75,6 @@
           <th>性别</th>
           <th>校区</th>
           <th>书院</th>
-          <th>注册时间</th>
           <th>打卡通过</th>
           <th>违规次数</th>
           <th>账号状态</th>
@@ -100,7 +90,6 @@
           <td>{{ user.gender }}</td>
           <td>{{ user.campus }}</td>
           <td>{{ user.college }}</td>
-          <td>{{ user.createTime }}</td>
           <td>{{ user.totalCount || 0 }}</td>
           <td>{{ user.violationCount || 0 }}</td>
           <td>
@@ -110,19 +99,18 @@
           </td>
           <td>
             <div class="action-buttons">
-              <!-- 正常状态（0）：显示禁跑和封号 -->
+              <button @click="openHistory(user)" class="btn btn-info btn-sm">历史记录</button>
+
               <template v-if="user.status === 0">
                 <button @click="handleSuspend(user._id)" class="btn btn-warning btn-sm">禁跑</button>
                 <button @click="handleBan(user._id)" class="btn btn-danger btn-sm">封号</button>
               </template>
 
-              <!-- 禁跑状态（1）：显示取消禁跑和封号 -->
               <template v-else-if="user.status === 1">
                 <button @click="handleActivate(user._id)" class="btn btn-primary btn-sm">取消禁跑</button>
                 <button @click="handleBan(user._id)" class="btn btn-danger btn-sm">封号</button>
               </template>
 
-              <!-- 封号状态（2）：显示解封 -->
               <template v-else-if="user.status === 2">
                 <button @click="handleActivate(user._id)" class="btn btn-primary btn-sm">解封</button>
               </template>
@@ -132,13 +120,11 @@
         </tbody>
       </table>
 
-      <!-- 空状态 -->
       <div v-if="!loading && userList.length === 0" class="empty-state">
         <p>暂无用户数据</p>
       </div>
     </div>
 
-    <!-- 分页器 -->
     <div v-if="total > 0" class="pagination-section">
       <div class="pagination-left">
         <div class="page-size-selector">
@@ -168,7 +154,6 @@
           上一页
         </button>
 
-        <!-- 页码按钮 -->
         <button
             v-for="pageNum in visiblePages"
             :key="pageNum"
@@ -196,12 +181,10 @@
     </div>
   </div>
 
-  <!-- 确认对话框 -->
   <div v-if="showConfirmDialog" class="confirm-dialog-overlay">
     <div class="confirm-dialog">
       <h3>{{ confirmTitle }}</h3>
       <p>{{ confirmMessage }}</p>
-      <!-- 停跑时显示天数选择 -->
       <div v-if="pendingAction === 'suspend'" class="ban-days-selector">
         <label for="banDays">禁跑天数：</label>
         <select id="banDays" v-model="banDays" class="filter-select">
@@ -214,11 +197,50 @@
       </div>
     </div>
   </div>
+
+  <div v-if="showHistoryModal" class="confirm-dialog-overlay" @click.self="closeHistory">
+    <div class="history-dialog">
+      <div class="history-header">
+        <h3>{{ currentUserForHistory?.name || '用户' }} 的历史打卡照片</h3>
+        <button class="close-btn" @click="closeHistory">×</button>
+      </div>
+
+      <div class="history-content">
+        <div v-if="loadingHistory" class="loading-state">
+          <p>加载中...</p>
+        </div>
+        <div v-else-if="userHistory.length === 0" class="empty-state">
+          <p>该用户暂无打卡记录</p>
+        </div>
+
+        <div v-else class="image-grid">
+          <div v-for="record in userHistory" :key="record._id" class="image-card">
+            <img :src="record.image_url" class="history-img" alt="打卡截图" @click="openImagePreview(record.image_url)" title="点击查看大图" />
+            <div class="image-info">
+              <span>{{ formatDate(record.timestamp) }}</span>
+              <span :class="['status-tag', getRecordStatusClass(record.status)]">
+                {{ getRecordStatusText(record.status) }}
+              </span>
+            </div>
+            <div class="image-extra" v-if="record.type || record.audit_remark">
+              <small>{{ record.type === 'playground' ? '操场' : '自由跑' }} | {{ record.audit_remark || '无备注' }}</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div v-if="showImagePreview" class="image-preview-overlay" @click.self="closeImagePreview">
+    <button class="preview-close-btn" @click="closeImagePreview">×</button>
+    <img :src="previewImageUrl" class="preview-full-img" alt="预览大图" />
+  </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { getUserList, updateUserStatus } from '@/api/admin'
+// 引入原有的接口以及我们新增的 fetchUserHistory
+import { getUserList, updateUserStatus, fetchUserHistory } from '@/api/admin'
 import { showSuccess, showError } from '@/utils/toast'
 
 // 用户数据
@@ -227,8 +249,8 @@ const loading = ref(false)
 const error = ref('')
 
 // 停跑天数选项
-const banDays = ref(1)        // 当前选中的天数
-const banDaysOptions = [1, 3, 7]    // 可选天数
+const banDays = ref(1)
+const banDaysOptions = [1, 3, 7]
 
 const statusMap = {
   0: '正常',
@@ -250,7 +272,7 @@ const totalPages = computed(() => Math.ceil(total.value / pageSize.value))
 
 // 搜索和筛选相关
 const searchKeyword = ref('')
-const searchFields = ref(['name', 'stu_id', 'class_name']) // 固定搜索字段
+const searchFields = ref(['name', 'stu_id', 'class_name'])
 const selectedCampus = ref('')
 const selectedCollege = ref('')
 const selectedStatus = ref('')
@@ -263,7 +285,7 @@ const pendingUserId = ref(null)
 const pendingAction = ref('')
 
 // 选项数据
-const campusOptions = ['兴庆校区', '雁塔校区']
+const campusOptions = ['兴庆校区', '雁塔校区', '创新港', '曲江校区']
 const collegeOptions = [
   '仲英书院', '文治书院', '彭康书院', '启德书院',
   '励志书院', '崇实书院', '南洋书院', '宗濂书院', '钱学森书院'
@@ -272,7 +294,94 @@ const pageSizeOptions = [20, 30, 50, 100, 200]
 
 // 排序相关
 const sortBy = ref('createTime')
-const sortOrder = ref('desc')  // 固定降序，也可根据需要支持升序
+const sortOrder = ref('desc')
+
+
+// ==================== 历史记录相关逻辑 ====================
+const showHistoryModal = ref(false)
+const currentUserForHistory = ref(null)
+const userHistory = ref([])
+const loadingHistory = ref(false)
+
+// 打开历史记录弹窗
+const openHistory = async (user) => {
+  currentUserForHistory.value = user
+  showHistoryModal.value = true
+  loadingHistory.value = true
+
+  try {
+    // 确保这里传的是 user.stu_id，并且后端 index.js 接收的是 studentId
+    const result = await fetchUserHistory(user.stu_id)
+
+    if (result.success || result.code === 200) {
+      userHistory.value = result.data
+    } else {
+      showError(result.message)
+    }
+  } catch (err) {
+    console.error("请求失败详情:", err) // 请务必看这里的控制台输出
+    showError('获取失败：' + err.message)
+  } finally {
+    loadingHistory.value = false
+  }
+}
+
+// 关闭弹窗
+const closeHistory = () => {
+  showHistoryModal.value = false
+  currentUserForHistory.value = null
+}
+
+// ==================== 图片预览相关逻辑 ====================
+const showImagePreview = ref(false)
+const previewImageUrl = ref('')
+
+// 打开图片预览
+const openImagePreview = (url) => {
+  if (!url) return
+  previewImageUrl.value = url
+  showImagePreview.value = true
+}
+
+// 关闭图片预览
+const closeImagePreview = () => {
+  showImagePreview.value = false
+  setTimeout(() => {
+    previewImageUrl.value = ''
+  }, 300) // 延迟清空 URL，防止关闭动画闪烁
+}
+// ==========================================================
+
+// 格式化日期显示工具 (处理时间戳)
+const formatDate = (dateVal) => {
+  if (!dateVal) return '未知时间'
+  try {
+    const d = new Date(dateVal)
+    if (isNaN(d.getTime())) return dateVal // 如果是字符串则原样返回
+    return `${d.getMonth() + 1}月${d.getDate()}日 ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  } catch (e) {
+    return '时间格式错误'
+  }
+}
+
+// 新增：解析历史记录的文本状态（强制转为数字比较，防止坑）
+const getRecordStatusText = (status) => {
+  const s = Number(status)
+  if (s === 1) return '已通过'
+  if (s === 2) return '已驳回'
+  return '待审核'
+}
+
+// 新增：解析历史记录的样式类名
+const getRecordStatusClass = (status) => {
+  const s = Number(status)
+  if (s === 1) return 'passed'
+  if (s === 2) return 'rejected'
+  return 'pending' // 还可以自己在 css 加一个 .pending 的颜色
+}
+// ==========================================================
+// ==========================================================
+
 
 // 排序变化处理
 const handleSortChange = () => {
@@ -307,8 +416,8 @@ const loadUserList = async () => {
       campus: selectedCampus.value ? [selectedCampus.value] : [],
       college: selectedCollege.value ? [selectedCollege.value] : [],
       status: selectedStatus.value ? [parseInt(selectedStatus.value)] : [],
-      sortBy: sortBy.value,          // 新增
-      sortOrder: sortOrder.value      // 新增
+      sortBy: sortBy.value,
+      sortOrder: sortOrder.value
     }
 
     const data = await getUserList(params)
@@ -470,7 +579,7 @@ onMounted(() => {
 .search-box {
   display: flex;
   gap: 10px;
-  margin: 20px;
+  margin: 20px 0 0 0;
   align-items: center;
 }
 
@@ -607,6 +716,9 @@ onMounted(() => {
   font-weight: 500;
   white-space: nowrap;
 }
+.status-normal { color: #67c23a; background-color: #f0f9eb; }
+.status-suspended { color: #e6a23c; background-color: #fdf6ec; }
+.status-banned { color: #f56c6c; background-color: #fef0f0; }
 
 /* 操作按钮样式 */
 .action-buttons {
@@ -629,7 +741,7 @@ onMounted(() => {
 
 .btn-sm {
   padding: 6px 12px;
-  font-size: 16px;
+  font-size: 14px;
 }
 
 .btn-primary {
@@ -681,6 +793,15 @@ onMounted(() => {
   background-color: #f78989;
 }
 
+/* 历史记录按钮样式 */
+.btn-info {
+  background-color: #9c27b0;
+  color: #fff;
+}
+.btn-info:hover {
+  background-color: #ab47bc;
+}
+
 .ban-days-selector {
   margin: 16px 0;
   display: flex;
@@ -716,21 +837,6 @@ onMounted(() => {
   gap: 20px;
 }
 
-.page-size-selector {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 16px;
-  color: #606266;
-}
-
-.page-size-select {
-  padding: 6px 12px;
-  border: 1px solid #dcdfe6;
-  border-radius: 4px;
-  font-size: 16px;
-}
-
 .pagination-info {
   font-size: 16px;
   color: #606266;
@@ -752,6 +858,11 @@ onMounted(() => {
   background-color: #f5f7fa;
   border-color: #c0c4cc;
 }
+.btn-pagination.active {
+  background-color: #409eff;
+  color: #fff;
+  border-color: #409eff;
+}
 
 .btn-pagination:disabled {
   cursor: not-allowed;
@@ -759,32 +870,17 @@ onMounted(() => {
 }
 
 /* 加载状态样式 */
-.loading-state {
-  padding: 60px 0;
-  text-align: center;
-  color: #409eff;
-  font-size: 16px;
-}
-
-/* 错误状态样式 */
-.error-state {
-  padding: 60px 0;
-  text-align: center;
-  color: #f56c6c;
-  font-size: 16px;
-}
-
-.error-state .btn {
-  margin-top: 16px;
-}
-
-/* 空状态样式 */
+.loading-state,
+.error-state,
 .empty-state {
   padding: 60px 0;
   text-align: center;
-  color: #909399;
   font-size: 16px;
 }
+.loading-state { color: #409eff; }
+.error-state { color: #f56c6c; }
+.empty-state { color: #909399; }
+.error-state .btn { margin-top: 16px; }
 
 /* 确认对话框样式 */
 .confirm-dialog-overlay {
@@ -829,6 +925,110 @@ onMounted(() => {
   gap: 12px;
 }
 
+/* ==================== 历史照片弹窗专属样式 ==================== */
+.history-dialog {
+  background-color: #f5f7fa;
+  border-radius: 12px;
+  width: 80%;
+  max-width: 900px;
+  height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+}
+
+.history-header {
+  background-color: #fff;
+  padding: 16px 24px;
+  border-radius: 12px 12px 0 0;
+  border-bottom: 1px solid #ebeef5;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.history-header h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #303133;
+  font-weight: 600;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 28px;
+  cursor: pointer;
+  color: #909399;
+  line-height: 1;
+  transition: color 0.3s;
+}
+
+.close-btn:hover {
+  color: #f56c6c;
+}
+
+.history-content {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.image-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 20px;
+}
+
+.image-card {
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: #fff;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.image-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.1);
+}
+
+.history-img {
+  width: 100%;
+  height: 250px;
+  object-fit: cover;
+  display: block;
+  cursor: pointer;
+}
+
+.image-info {
+  padding: 10px 16px;
+  font-size: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #fff;
+  color: #303133;
+}
+
+.image-extra {
+  padding: 0 16px 10px;
+  font-size: 12px;
+  color: #909399;
+}
+
+.status-tag {
+  font-weight: 500;
+  font-size: 13px;
+}
+.status-tag.passed { color: #67c23a; }
+.status-tag.rejected { color: #f56c6c; }
+.status-tag.pending { color: #e6a23c; } /* 待审核显示为橙色 */
+/* ========================================================== */
+
 /* 响应式设计 */
 @media (max-width: 1200px) {
   .filter-section {
@@ -859,5 +1059,66 @@ onMounted(() => {
   .action-buttons {
     flex-direction: column;
   }
+
+  .history-dialog {
+    width: 95%;
+    height: 90vh;
+  }
+
+  .history-img {
+    height: 200px;
+  }
 }
+
+/* ==================== 图片全屏预览样式 ==================== */
+.image-preview-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.85); /* 黑色半透明背景 */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 3000; /* 必须设置得比之前的历史弹窗层级更高 */
+}
+
+.preview-close-btn {
+  position: absolute;
+  top: 20px;
+  right: 30px;
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 40px;
+  cursor: pointer;
+  transition: color 0.3s;
+  z-index: 3001;
+}
+
+.preview-close-btn:hover {
+  color: #f56c6c;
+}
+
+.preview-full-img {
+  max-width: 90vw; /* 最大宽度不超过屏幕90% */
+  max-height: 90vh; /* 最大高度不超过屏幕90% */
+  object-fit: contain; /* 保证图片完整显示不被裁切 */
+  border-radius: 4px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  animation: zoomIn 0.25s ease-out; /* 简单的弹出动画 */
+}
+
+@keyframes zoomIn {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+/* ========================================================== */
 </style>
