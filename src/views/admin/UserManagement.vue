@@ -278,6 +278,17 @@
             <span class="info-label">不通过原因：</span>
             <span class="reject-reason">{{ currentPreviewRecord.audit_reason || currentPreviewRecord.audit_remark || '未填写详细原因' }}</span>
           </li>
+
+          <template v-if="Number(currentPreviewRecord.status) === 3">
+            <li class="reject-item">
+              <span class="info-label">初审不通过原因：</span>
+              <span class="reject-reason">{{ currentPreviewRecord.audit_reason || currentPreviewRecord.audit_remark || '未填写详细原因' }}</span>
+            </li>
+            <li class="appeal-item">
+              <span class="info-label">用户申诉理由：</span>
+              <span class="appeal-reason">{{ currentPreviewRecord.appealReason || '（未在数据库查到对应的申诉表单）' }}</span>
+            </li>
+          </template>
         </ul>
       </div>
     </div>
@@ -1214,6 +1225,21 @@ onMounted(() => {
 
 .reject-reason {
   color: #f56c6c;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+/* 新增：申诉理由容器样式 */
+.appeal-item {
+  margin-top: 10px;
+  padding: 12px;
+  background-color: #ecf5ff; /* 浅蓝色背景以示区分 */
+  border-radius: 6px;
+  border-left: 4px solid #409eff;
+}
+
+.appeal-reason {
+  color: #409eff;
   font-weight: 500;
   line-height: 1.5;
 }
