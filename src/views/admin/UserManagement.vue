@@ -215,15 +215,22 @@
 
         <div v-else class="image-grid">
           <div v-for="record in userHistory" :key="record._id" class="image-card">
-            <img :src="record.image_url" class="history-img" alt="打卡截图" @click="openImagePreview(record.image_url)" title="点击查看大图" />
+
+            <div class="card-images-wrapper" @click="openImagePreview(record)" title="点击查看详情">
+              <img :src="record.image_url" class="history-img" alt="路线截图" />
+              <img v-if="record.stepImageId || record.stepImageFileID || record.step_image_url"
+                   :src="record.step_image_url || record.stepImageId || record.stepImageFileID"
+                   class="history-img step-img" alt="步数截图" />
+            </div>
+
             <div class="image-info">
               <span>{{ formatDate(record.timestamp) }}</span>
               <span :class="['status-tag', getRecordStatusClass(record.status)]">
                 {{ getRecordStatusText(record.status) }}
               </span>
             </div>
-            <div class="image-extra" v-if="record.type || record.audit_remark">
-              <small>{{ record.type === 'playground' ? '操场' : '自由跑' }} | {{ record.audit_remark || '无备注' }}</small>
+            <div class="image-extra" v-if="record.mode || record.audit_remark">
+              <small>{{ record.mode || (record.type === 'playground' ? '操场' : '自由跑') }}</small>
             </div>
           </div>
         </div>
@@ -231,15 +238,65 @@
     </div>
   </div>
 
-  <div v-if="showImagePreview" class="image-preview-overlay" @click.self="closeImagePreview">
+  <div v-if="showImagePreview && currentPreviewRecord" class="image-preview-overlay" @click.self="closeImagePreview">
     <button class="preview-close-btn" @click="closeImagePreview">×</button>
-    <img :src="previewImageUrl" class="preview-full-img" alt="预览大图" />
+
+    <div class="preview-modal">
+      <div class="preview-images-area" @click.self="closeImagePreview">
+        <img :src="currentPreviewRecord.image_url" class="preview-full-img" alt="路线截图" />
+        <img v-if="currentPreviewRecord.stepImageId || currentPreviewRecord.stepImageFileID || currentPreviewRecord.step_image_url"
+             :src="currentPreviewRecord.step_image_url || currentPreviewRecord.stepImageId || currentPreviewRecord.stepImageFileID"
+             class="preview-full-img" alt="步数截图" />
+      </div>
+
+      <div class="preview-info-area">
+        <h3 class="info-title">打卡详情</h3>
+        <ul class="info-list">
+          <li>
+            <span class="info-label">当前状态：</span>
+            <span :class="['status-tag', getRecordStatusClass(currentPreviewRecord.status)]">
+              {{ getRecordStatusText(currentPreviewRecord.status) }}
+            </span>
+          </li>
+          <li>
+            <span class="info-label">跑步方式：</span>
+            <span>{{ currentPreviewRecord.mode || (currentPreviewRecord.type === 'playground' ? '全程在操场' : '自由场地') }}</span>
+          </li>
+          <li>
+            <span class="info-label">打卡时间：</span>
+            <span>{{ formatDate(currentPreviewRecord.timestamp || currentPreviewRecord.create_time) }}</span>
+          </li>
+          <li v-if="currentPreviewRecord.assignedStaffName">
+            <span class="info-label">审核人员：</span>
+            <span>{{ currentPreviewRecord.assignedStaffName }}</span>
+          </li>
+          <li v-if="currentPreviewRecord.auditTime || currentPreviewRecord.audit_time">
+            <span class="info-label">审核时间：</span>
+            <span>{{ formatDate(currentPreviewRecord.auditTime || currentPreviewRecord.audit_time) }}</span>
+          </li>
+          <li v-if="Number(currentPreviewRecord.status) === 2" class="reject-item">
+            <span class="info-label">不通过原因：</span>
+            <span class="reject-reason">{{ currentPreviewRecord.audit_reason || currentPreviewRecord.audit_remark || '未填写详细原因' }}</span>
+          </li>
+
+          <template v-if="Number(currentPreviewRecord.status) === 3">
+            <li class="reject-item">
+              <span class="info-label">初审不通过原因：</span>
+              <span class="reject-reason">{{ currentPreviewRecord.audit_reason || currentPreviewRecord.audit_remark || '未填写详细原因' }}</span>
+            </li>
+            <li class="appeal-item">
+              <span class="info-label">用户申诉理由：</span>
+              <span class="appeal-reason">{{ currentPreviewRecord.appealReason || '（未在数据库查到对应的申诉表单）' }}</span>
+            </li>
+          </template>
+        </ul>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-// 引入原有的接口以及我们新增的 fetchUserHistory
 import { getUserList, updateUserStatus, fetchUserHistory } from '@/api/admin'
 import { showSuccess, showError } from '@/utils/toast'
 
@@ -296,7 +353,6 @@ const pageSizeOptions = [20, 30, 50, 100, 200]
 const sortBy = ref('createTime')
 const sortOrder = ref('desc')
 
-
 // ==================== 历史记录相关逻辑 ====================
 const showHistoryModal = ref(false)
 const currentUserForHistory = ref(null)
@@ -310,16 +366,14 @@ const openHistory = async (user) => {
   loadingHistory.value = true
 
   try {
-    // 确保这里传的是 user.stu_id，并且后端 index.js 接收的是 studentId
     const result = await fetchUserHistory(user.stu_id)
-
     if (result.success || result.code === 200) {
       userHistory.value = result.data
     } else {
       showError(result.message)
     }
   } catch (err) {
-    console.error("请求失败详情:", err) // 请务必看这里的控制台输出
+    console.error("请求失败详情:", err)
     showError('获取失败：' + err.message)
   } finally {
     loadingHistory.value = false
@@ -332,23 +386,23 @@ const closeHistory = () => {
   currentUserForHistory.value = null
 }
 
-// ==================== 图片预览相关逻辑 ====================
+// ==================== 图片预览与详情面板相关逻辑 ====================
 const showImagePreview = ref(false)
-const previewImageUrl = ref('')
+const currentPreviewRecord = ref(null) // 保存当前点击的完整记录对象
 
-// 打开图片预览
-const openImagePreview = (url) => {
-  if (!url) return
-  previewImageUrl.value = url
+// 打开图片详情预览
+const openImagePreview = (record) => {
+  if (!record) return
+  currentPreviewRecord.value = record
   showImagePreview.value = true
 }
 
-// 关闭图片预览
+// 关闭图片详情预览
 const closeImagePreview = () => {
   showImagePreview.value = false
   setTimeout(() => {
-    previewImageUrl.value = ''
-  }, 300) // 延迟清空 URL，防止关闭动画闪烁
+    currentPreviewRecord.value = null
+  }, 300) // 延迟清空数据，让关闭动画平滑过渡
 }
 // ==========================================================
 
@@ -364,24 +418,24 @@ const formatDate = (dateVal) => {
   }
 }
 
-// 新增：解析历史记录的文本状态（强制转为数字比较，防止坑）
+// 解析历史记录的文本状态（包含状态 3：申诉中）
 const getRecordStatusText = (status) => {
   const s = Number(status)
   if (s === 1) return '已通过'
   if (s === 2) return '已驳回'
+  if (s === 3) return '申诉中'
   return '待审核'
 }
 
-// 新增：解析历史记录的样式类名
+// 解析历史记录的样式类名
 const getRecordStatusClass = (status) => {
   const s = Number(status)
   if (s === 1) return 'passed'
   if (s === 2) return 'rejected'
-  return 'pending' // 还可以自己在 css 加一个 .pending 的颜色
+  if (s === 3) return 'appealing'
+  return 'pending'
 }
 // ==========================================================
-// ==========================================================
-
 
 // 排序变化处理
 const handleSortChange = () => {
@@ -567,7 +621,9 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* 搜索和筛选区域样式 */
+/* ========================================= */
+/* 原有基础搜索与表格样式 */
+/* ========================================= */
 .search-filter-section {
   background-color: #ffffff;
   border-radius: 8px;
@@ -925,7 +981,9 @@ onMounted(() => {
   gap: 12px;
 }
 
-/* ==================== 历史照片弹窗专属样式 ==================== */
+/* ========================================= */
+/* 历史照片列表弹窗基础样式 */
+/* ========================================= */
 .history-dialog {
   background-color: #f5f7fa;
   border-radius: 12px;
@@ -996,14 +1054,6 @@ onMounted(() => {
   box-shadow: 0 6px 16px rgba(0,0,0,0.1);
 }
 
-.history-img {
-  width: 100%;
-  height: 250px;
-  object-fit: cover;
-  display: block;
-  cursor: pointer;
-}
-
 .image-info {
   padding: 10px 16px;
   font-size: 14px;
@@ -1018,18 +1068,190 @@ onMounted(() => {
   padding: 0 16px 10px;
   font-size: 12px;
   color: #909399;
+  line-height: 1.4;
 }
 
+/* 状态标签样式体系 */
 .status-tag {
   font-weight: 500;
   font-size: 13px;
 }
 .status-tag.passed { color: #67c23a; }
 .status-tag.rejected { color: #f56c6c; }
-.status-tag.pending { color: #e6a23c; } /* 待审核显示为橙色 */
-/* ========================================================== */
+.status-tag.pending { color: #e6a23c; }
+.status-tag.appealing { color: #409eff; } /* 申诉中状态专属颜色 */
 
-/* 响应式设计 */
+/* ========================================= */
+/* 双图并排预览样式 */
+/* ========================================= */
+.card-images-wrapper {
+  display: flex;
+  height: 250px;
+  cursor: pointer;
+  overflow: hidden;
+  background-color: #f5f7fa;
+}
+
+.card-images-wrapper .history-img {
+  flex: 1;
+  height: 100%;
+  object-fit: cover;
+  min-width: 0; /* 必须加这个，防止双图时溢出容器 */
+  border-right: 1px solid #ebeef5;
+  transition: transform 0.3s;
+}
+
+.card-images-wrapper:hover .history-img {
+  transform: scale(1.05); /* 鼠标悬浮放大效果 */
+}
+
+.card-images-wrapper .history-img:last-child {
+  border-right: none;
+}
+
+/* ========================================= */
+/* 升级版：全屏图片与详情侧边栏样式 */
+/* ========================================= */
+.image-preview-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.85);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 3000;
+}
+
+.preview-close-btn {
+  position: absolute;
+  top: 20px;
+  right: 30px;
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 40px;
+  cursor: pointer;
+  transition: color 0.3s;
+  z-index: 3001;
+}
+
+.preview-close-btn:hover {
+  color: #f56c6c;
+}
+
+.preview-modal {
+  display: flex;
+  width: 90vw;
+  max-width: 1200px;
+  height: 85vh;
+  background-color: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+  animation: zoomIn 0.25s ease-out;
+}
+
+/* 左侧全屏黑底大图展示区 */
+.preview-images-area {
+  flex: 1;
+  background-color: #111;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 20px;
+  overflow-x: auto;
+}
+
+.preview-images-area .preview-full-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+/* 右侧白底审核详情区 */
+.preview-info-area {
+  width: 340px;
+  padding: 30px;
+  background-color: #fff;
+  overflow-y: auto;
+  border-left: 1px solid #ebeef5;
+}
+
+.info-title {
+  margin-top: 0;
+  margin-bottom: 24px;
+  font-size: 20px;
+  color: #303133;
+  font-weight: 600;
+  border-bottom: 2px solid #409eff;
+  padding-bottom: 10px;
+  display: inline-block;
+}
+
+.info-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.info-list li {
+  font-size: 15px;
+  color: #303133;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.info-label {
+  color: #909399;
+  font-size: 13px;
+}
+
+.reject-item {
+  margin-top: 10px;
+  padding: 12px;
+  background-color: #fef0f0;
+  border-radius: 6px;
+  border-left: 4px solid #f56c6c;
+}
+
+.reject-reason {
+  color: #f56c6c;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+/* 新增：申诉理由容器样式 */
+.appeal-item {
+  margin-top: 10px;
+  padding: 12px;
+  background-color: #ecf5ff; /* 浅蓝色背景以示区分 */
+  border-radius: 6px;
+  border-left: 4px solid #409eff;
+}
+
+.appeal-reason {
+  color: #409eff;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+@keyframes zoomIn {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+/* ========================================= */
+/* 响应式媒体查询 */
+/* ========================================= */
 @media (max-width: 1200px) {
   .filter-section {
     grid-template-columns: repeat(2, 1fr);
@@ -1065,60 +1287,23 @@ onMounted(() => {
     height: 90vh;
   }
 
-  .history-img {
-    height: 200px;
+  /* 手机端预览弹窗改为上下布局 */
+  .preview-modal {
+    flex-direction: column;
+    height: 90vh;
+  }
+
+  .preview-info-area {
+    width: 100%;
+    height: auto;
+    max-height: 40%;
+    border-left: none;
+    border-top: 1px solid #ebeef5;
+    padding: 20px;
+  }
+
+  .preview-images-area {
+    flex-direction: column;
   }
 }
-
-/* ==================== 图片全屏预览样式 ==================== */
-.image-preview-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.85); /* 黑色半透明背景 */
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 3000; /* 必须设置得比之前的历史弹窗层级更高 */
-}
-
-.preview-close-btn {
-  position: absolute;
-  top: 20px;
-  right: 30px;
-  background: none;
-  border: none;
-  color: #fff;
-  font-size: 40px;
-  cursor: pointer;
-  transition: color 0.3s;
-  z-index: 3001;
-}
-
-.preview-close-btn:hover {
-  color: #f56c6c;
-}
-
-.preview-full-img {
-  max-width: 90vw; /* 最大宽度不超过屏幕90% */
-  max-height: 90vh; /* 最大高度不超过屏幕90% */
-  object-fit: contain; /* 保证图片完整显示不被裁切 */
-  border-radius: 4px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-  animation: zoomIn 0.25s ease-out; /* 简单的弹出动画 */
-}
-
-@keyframes zoomIn {
-  from {
-    transform: scale(0.9);
-    opacity: 0;
-  }
-  to {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-/* ========================================================== */
 </style>
